@@ -53,6 +53,10 @@ ipcMain.handle('readFile', async (_e, filePath: string) => {
   return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
 })
 
+ipcMain.handle('deleteFile', async (_e, filePath: string) => {
+  await fs.unlink(filePath)
+})
+
 app.whenReady().then(() => {
   Menu.setApplicationMenu(null)
   createWindow()

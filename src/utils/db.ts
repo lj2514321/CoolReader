@@ -43,6 +43,7 @@ export async function saveBook(book: BookRecord): Promise<void> {
 export async function deleteBook(filePath: string): Promise<void> {
   const db = await openDB()
   store(db, 'books', 'readwrite').delete(filePath)
+  store(db, 'progress', 'readwrite').delete(filePath)
 }
 
 export async function loadAllBooks(): Promise<BookRecord[]> {
@@ -54,20 +55,27 @@ export async function loadAllBooks(): Promise<BookRecord[]> {
   })
 }
 
-export async function saveProgress(filePath: string, progress: number): Promise<void> {
+export interface ProgressRecord {
+  filePath: string
+  progress: number
+  cfi: string
+  index: number
+  updatedAt: number
+}
+
+export async function saveProgress(filePath: string, progress: number, cfi: string, index: number): Promise<void> {
   const db = await openDB()
   store(db, 'progress', 'readwrite').put({
-    filePath,
-    progress,
+    filePath, progress, cfi, index,
     updatedAt: Date.now(),
   })
 }
 
-export async function loadProgress(filePath: string): Promise<number> {
+export async function loadProgress(filePath: string): Promise<{ progress: number; cfi: string; index: number } | null> {
   const db = await openDB()
   return new Promise((resolve) => {
     const req = store(db, 'progress').get(filePath)
-    req.onsuccess = () => resolve(req.result?.progress ?? 0)
-    req.onerror = () => resolve(0)
+    req.onsuccess = () => resolve(req.result ?? null)
+    req.onerror = () => resolve(null)
   })
 }

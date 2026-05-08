@@ -3,6 +3,7 @@ const electron = require("electron");
 electron.contextBridge.exposeInMainWorld("electronAPI", {
   openFile: () => electron.ipcRenderer.invoke("dialog:openFile"),
   readFile: (filePath) => electron.ipcRenderer.invoke("readFile", filePath),
+  deleteFile: (filePath) => electron.ipcRenderer.invoke("deleteFile", filePath),
   onOpenFile: (cb) => {
     electron.ipcRenderer.on("open-file", (_e, path) => cb(path));
   },

@@ -46,6 +46,9 @@ electron.ipcMain.handle("readFile", async (_e, filePath) => {
   console.log("[main] readFile done, size:", buf.length);
   return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
 });
+electron.ipcMain.handle("deleteFile", async (_e, filePath) => {
+  await fs.promises.unlink(filePath);
+});
 electron.app.whenReady().then(() => {
   electron.Menu.setApplicationMenu(null);
   createWindow();

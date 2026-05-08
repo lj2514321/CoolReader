@@ -114,8 +114,8 @@ export function Reader({
       <div
         onClick={handleViewerClick}
         onKeyDown={e => {
-          if (e.key === 'ArrowRight') { e.preventDefault(); nextRef.current(); showControls() }
-          if (e.key === 'ArrowLeft') { e.preventDefault(); prevRef.current(); showControls() }
+          if (e.key === 'ArrowRight') { e.preventDefault(); nextRef.current() }
+          if (e.key === 'ArrowLeft') { e.preventDefault(); prevRef.current() }
         }}
         tabIndex={0}
         style={{ position: 'absolute', inset: 0, zIndex: 1, outline: 'none' }}

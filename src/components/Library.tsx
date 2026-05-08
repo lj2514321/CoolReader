@@ -1,15 +1,11 @@
+import { useState } from 'react'
 import { BookEntry } from '../types'
 
-const styleId = '_app_base'
-if (typeof document !== 'undefined' && !document.getElementById(styleId)) {
-  const s = document.createElement('style')
-  s.id = styleId
-  s.textContent = [
-    '*::-webkit-scrollbar{display:none}',
-    '*{scrollbar-width:none;-ms-overflow-style:none}',
-    '::selection{background:rgba(99,102,241,0.4);color:#fff}',
-  ].join('')
-  document.head.appendChild(s)
+interface LibraryProps {
+  books: BookEntry[]
+  onOpenBook: (filePath: string) => void
+  onImport: () => void
+  onDelete: (filePath: string, deleteFile: boolean) => void
 }
 
 const glass = {
@@ -46,7 +42,8 @@ const colors = [
   ['#fa709a', '#fee140'],
 ]
 
-export function Library({ books, onOpenBook, onImport }: LibraryProps) {
+export function Library({ books, onOpenBook, onImport, onDelete }: LibraryProps) {
+  const [confirmPath, setConfirmPath] = useState<string | null>(null)
   return (
     <div style={{
       height: '100%',
@@ -96,47 +93,115 @@ export function Library({ books, onOpenBook, onImport }: LibraryProps) {
             gap: '36px 28px',
             justifyContent: 'center',
           }}>
-            {books.map((book, i) => {
+                {books.map((book, i) => {
               const [c1, c2] = colors[i % colors.length]
               return (
-                <div key={book.filePath} onClick={() => onOpenBook(book.filePath)}
-                  style={{
-                    cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center',
-                    transition: 'transform 0.2s ease',
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-4px)'}
-                  onMouseLeave={e => e.currentTarget.style.transform = ''}
-                >
-                  <div style={{
-                    width: 120, height: 170,
-                    borderRadius: 12,
-                    overflow: 'hidden',
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
-                    background: !book.meta.cover ? `linear-gradient(135deg, ${c1}, ${c2})` : undefined,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    {book.meta.cover ? (
-                      <img src={book.meta.cover} alt={book.meta.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      <span style={{ fontSize: 40, opacity: 0.5 }}>📖</span>
-                    )}
+                <div key={book.filePath} style={{ position: 'relative' }}>
+                  <div onClick={() => onOpenBook(book.filePath)}
+                    style={{
+                      cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center',
+                      transition: 'transform 0.2s ease',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-4px)'}
+                    onMouseLeave={e => e.currentTarget.style.transform = ''}
+                  >
+                    <div style={{
+                      width: 120, height: 170,
+                      borderRadius: 12,
+                      overflow: 'hidden',
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+                      background: !book.meta.cover ? `linear-gradient(135deg, ${c1}, ${c2})` : undefined,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      {book.meta.cover ? (
+                        <img src={book.meta.cover} alt={book.meta.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <span style={{ fontSize: 40, opacity: 0.5 }}>📖</span>
+                      )}
+                    </div>
+                    <div style={{
+                      marginTop: 12, textAlign: 'center', width: 130,
+                    }}>
+                      <div style={{
+                        fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.85)',
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        lineHeight: 1.3,
+                      }}>{book.meta.title}</div>
+                      <div style={{
+                        fontSize: 12, color: 'rgba(255,255,255,0.35)', marginTop: 4,
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>{book.meta.author}</div>
+                    </div>
                   </div>
-                  <div style={{
-                    marginTop: 12, textAlign: 'center', width: 130,
-                  }}>
-                    <div style={{
-                      fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.85)',
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                      lineHeight: 1.3,
-                    }}>{book.meta.title}</div>
-                    <div style={{
-                      fontSize: 12, color: 'rgba(255,255,255,0.35)', marginTop: 4,
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                    }}>{book.meta.author}</div>
+                  {/* delete button */}
+                  <div style={{ position: 'absolute', top: -6, right: -6, zIndex: 2 }}>
+                    <button onClick={(e) => { e.stopPropagation(); setConfirmPath(book.filePath) }}
+                      style={{
+                        width: 24, height: 24, borderRadius: '50%', border: 'none', cursor: 'pointer',
+                        background: 'rgba(220,38,38,0.7)', color: '#fff', fontSize: 12, lineHeight: '24px',
+                        textAlign: 'center', padding: 0, opacity: 0,
+                        transition: 'opacity 0.15s',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.opacity = '1'}
+                      onMouseLeave={e => e.currentTarget.style.opacity = '0'}
+                    >✕</button>
                   </div>
                 </div>
               )
             })}
+          </div>
+        </div>
+      )}
+
+      {/* confirm dialog */}
+      {confirmPath && (
+        <div onClick={() => setConfirmPath(null)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 100,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background: 'rgba(15,12,41,0.9)',
+            backdropFilter: 'blur(24px)',
+            WebkitBackdropFilter: 'blur(24px)',
+            borderRadius: 16, padding: '32px 36px',
+            border: '1px solid rgba(255,255,255,0.08)',
+            textAlign: 'center', maxWidth: 340,
+          }}>
+            <div style={{ fontSize: 36, marginBottom: 12 }}>🗑</div>
+            <p style={{ color: '#fff', fontSize: 15, fontWeight: 600, margin: '0 0 6px' }}>确认删除</p>
+            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, margin: '0 0 20px', lineHeight: 1.5 }}>
+              删除后将无法恢复
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button onClick={() => { onDelete(confirmPath, true); setConfirmPath(null) }}
+                style={{
+                  padding: '10px 20px', cursor: 'pointer', borderRadius: 10,
+                  background: 'rgba(220,38,38,0.3)', border: '1px solid rgba(220,38,38,0.3)',
+                  color: '#fff', fontSize: 13, fontWeight: 600,
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(220,38,38,0.5)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'rgba(220,38,38,0.3)'}
+              >删除文件并移出书架</button>
+              <button onClick={() => { onDelete(confirmPath, false); setConfirmPath(null) }}
+                style={{
+                  padding: '10px 20px', cursor: 'pointer', borderRadius: 10,
+                  background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)',
+                  color: '#fff', fontSize: 13, fontWeight: 600,
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.14)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+              >仅移出书架</button>
+              <button onClick={() => setConfirmPath(null)}
+                style={{
+                  padding: '8px', cursor: 'pointer', borderRadius: 10,
+                  background: 'none', border: 'none',
+                  color: 'rgba(255,255,255,0.3)', fontSize: 12,
+                  marginTop: 4,
+                }}
+              >取消</button>
+            </div>
           </div>
         </div>
       )}

@@ -5,7 +5,7 @@ import { Sidebar } from './components/Sidebar'
 import { TitleBar } from './components/TitleBar'
 import { useEpub } from './hooks/useEpub'
 import { BookEntry } from './types'
-import { saveBook, loadAllBooks, saveProgress, loadProgress } from './utils/db'
+import { saveBook, loadAllBooks, saveProgress, deleteBook as dbDeleteBook } from './utils/db'
 
 type Page = 'library' | 'reader'
 
@@ -14,6 +14,7 @@ declare global {
     electronAPI?: {
       openFile: () => Promise<string | null>
       readFile: (path: string) => Promise<any>
+      deleteFile: (path: string) => Promise<void>
       onOpenFile: (cb: (path: string) => void) => void
       minimize: () => void
       maximize: () => void
@@ -37,19 +38,17 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [currentBook, setCurrentBook] = useState<string | null>(null)
-  const { meta, toc, theme, progress, extractMeta, openBook, setTheme, goNext, goPrev, goToHref, seekTo, destroy } = useEpub()
+  const { meta, toc, theme, progress, progressRef, cfiRef, indexRef, sectionHrefRef, extractMeta, openBook, setTheme, goNext, goPrev, goToHref, seekTo, destroy } = useEpub()
 
-  // save progress when it changes
-  const progressRef = useRef(progress)
-  progressRef.current = progress
+  // save progress + CFI + index every 2s
   useEffect(() => {
     const interval = setInterval(() => {
       if (currentBook && progressRef.current > 0) {
-        saveProgress(currentBook, progressRef.current)
+        saveProgress(currentBook, progressRef.current, cfiRef.current, indexRef.current)
       }
     }, 2000)
     return () => clearInterval(interval)
-  }, [currentBook])
+  }, [currentBook, progressRef, cfiRef, indexRef])
   // load books from IndexedDB on mount
   useEffect(() => {
     loadAllBooks().then((records) => {
@@ -74,6 +73,10 @@ export default function App() {
   }, [])
 
   const handleBack = useCallback(() => {
+    const pct = progressRef.current
+    const cfi = cfiRef.current
+    const idx = indexRef.current
+    if (currentBook && pct > 0) saveProgress(currentBook, pct, cfi, idx)
     setPhase('leaving')
     setTimeout(() => {
       destroy()
@@ -85,7 +88,7 @@ export default function App() {
         requestAnimationFrame(() => setPhase('idle'))
       })
     }, 200)
-  }, [destroy])
+  }, [currentBook, destroy])
 
   const doImport = useCallback(async (filePath: string) => {
     if (!filePath) return
@@ -105,6 +108,18 @@ export default function App() {
     doImport(filePath)
   }, [doImport])
 
+  const handleDeleteBook = useCallback(async (filePath: string, deleteFile: boolean) => {
+    setBooks((prev) => prev.filter((b) => b.filePath !== filePath))
+    dbDeleteBook(filePath)
+    if (deleteFile) {
+      try {
+        await window.electronAPI?.deleteFile(filePath)
+      } catch (err) {
+        setError(String(err))
+      }
+    }
+  }, [])
+
   const importRef = useRef(doImport)
   importRef.current = doImport
 
@@ -119,6 +134,7 @@ export default function App() {
   const isLibrary = page === 'library'
   const opacity = phase === 'idle' ? 1 : phase === 'leaving' ? 0 : 1
   const scale = phase === 'idle' ? 1 : phase === 'leaving' ? 0.97 : 1
+  const activeTocSrc = sectionHrefRef.current
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
@@ -141,7 +157,7 @@ export default function App() {
           transition: 'opacity 0.25s ease, transform 0.25s ease',
           pointerEvents: isLibrary ? 'auto' : 'none',
         }}>
-          <Library books={books} onOpenBook={handleOpenBook} onImport={handleImport} />
+          <Library books={books} onOpenBook={handleOpenBook} onImport={handleImport} onDelete={handleDeleteBook} />
         </div>
         <div style={{
           position: 'absolute', inset: 0,
@@ -155,6 +171,7 @@ export default function App() {
             {sidebarOpen && (
               <Sidebar
                 toc={toc}
+                activeHref={activeTocSrc}
                 onNavigate={(href) => { goToHref(href); setSidebarOpen(false) }}
                 onClose={() => setSidebarOpen(false)}
               />
@@ -169,7 +186,6 @@ export default function App() {
                 onNext={goNext}
                 onPrev={goPrev}
                 onToggleSidebar={() => setSidebarOpen(v => !v)}
-                onThemeChange={setTheme}
                 progress={progress}
                 onSeek={seekTo}
               />

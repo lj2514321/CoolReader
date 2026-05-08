@@ -8,6 +8,11 @@ export function useEpub() {
   const [toc, setToc] = useState<NavItem[]>([])
   const [theme, setThemeState] = useState<ThemeMode>('light')
   const [progress, setProgress] = useState(0)
+  const progressRef = useRef(0)
+  const cfiRef = useRef('')
+  const indexRef = useRef(0)
+  const sectionHrefRef = useRef('')
+  const syncRef = useRef<() => void>(() => {})
   const bookRef = useRef<Book | null>(null)
   const renditionRef = useRef<Rendition | null>(null)
   const themeRef = useRef<ThemeMode>('light')
@@ -83,23 +88,33 @@ export function useEpub() {
     const count = book.spine.length || book.spine.items?.length || 0
     totalSectionsRef.current = count
 
-    const updateProgress = (loc: any) => {
-      if (!loc?.start) return
-      const idx = Number(loc.start.index) || 0
-      if (count > 0) setProgress(Math.round((idx / count) * 100))
+    const sync = () => {
+      const cur = rendition.currentLocation()
+      if (!cur?.start) return
+      const idx = Number(cur.start.index) || 0
+      const pct = count > 0 ? Math.round((idx / count) * 100) : 0
+      progressRef.current = pct
+      cfiRef.current = cur.start.cfi || ''
+      indexRef.current = idx
+      const spineItems = book.spine?.items
+      sectionHrefRef.current = spineItems?.[idx]?.href || ''
+      setProgress(pct)
     }
 
-    rendition.on('relocated', updateProgress)
-    const start = rendition.currentLocation()
-    if (start) updateProgress(start)
+    const onRelocated = () => requestAnimationFrame(sync)
+    syncRef.current = sync
+    rendition.on('relocated', onRelocated)
+    requestAnimationFrame(sync)
 
     const t = themeRef.current
     rendition.themes.register(t, themeStyles[t])
     rendition.themes.select(t)
 
-    // restore saved progress
+    // restore saved position by section index
     loadProgress(filePath).then((saved) => {
-      if (saved > 0) seekTo(saved)
+      if (!saved) return
+      const idx = saved.index
+      if (idx > 0 && idx < count) rendition.display(idx)
     }).catch(() => {})
   }, [])
 
@@ -121,8 +136,14 @@ export function useEpub() {
     }
   }, [])
 
-  const goNext = useCallback(() => renditionRef.current?.next(), [])
-  const goPrev = useCallback(() => renditionRef.current?.prev(), [])
+  const goNext = useCallback(async () => {
+    await renditionRef.current?.next()
+    requestAnimationFrame(syncRef.current)
+  }, [])
+  const goPrev = useCallback(async () => {
+    await renditionRef.current?.prev()
+    requestAnimationFrame(syncRef.current)
+  }, [])
   const goToHref = useCallback((href: string) => renditionRef.current?.display(href), [])
 
   const destroy = useCallback(() => {
@@ -130,5 +151,5 @@ export function useEpub() {
     bookRef.current?.destroy()
   }, [])
 
-  return { meta, toc, theme, progress, extractMeta, openBook, setTheme, goNext, goPrev, goToHref, seekTo, destroy }
+  return { meta, toc, theme, progress, progressRef, cfiRef, indexRef, sectionHrefRef, extractMeta, openBook, setTheme, goNext, goPrev, goToHref, seekTo, destroy }
 }
