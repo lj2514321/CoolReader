@@ -7162,7 +7162,11 @@ function Reader({
   prevRef.current = onPrev;
   const loadedRef = reactExports.useRef(false);
   reactExports.useEffect(() => {
-    if (filePath && !loadedRef.current) {
+    if (!filePath) {
+      loadedRef.current = false;
+      return;
+    }
+    if (!loadedRef.current) {
       loadedRef.current = true;
       onLoad(filePath);
     }
