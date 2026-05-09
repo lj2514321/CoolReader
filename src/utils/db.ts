@@ -1,5 +1,5 @@
 const DB_NAME = 'epub-reader'
-const DB_VERSION = 1
+const DB_VERSION = 3
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -11,6 +11,12 @@ function openDB(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains('progress')) {
         db.createObjectStore('progress', { keyPath: 'filePath' })
+      }
+      if (!db.objectStoreNames.contains('readingTime')) {
+        db.createObjectStore('readingTime', { keyPath: 'date' })
+      }
+      if (!db.objectStoreNames.contains('settings')) {
+        db.createObjectStore('settings', { keyPath: 'key' })
       }
     }
     req.onsuccess = () => resolve(req.result)
@@ -76,6 +82,39 @@ export async function loadProgress(filePath: string): Promise<{ progress: number
   return new Promise((resolve) => {
     const req = store(db, 'progress').get(filePath)
     req.onsuccess = () => resolve(req.result ?? null)
+    req.onerror = () => resolve(null)
+  })
+}
+
+export interface ReadingTimeRecord {
+  date: string
+  seconds: number
+}
+
+export async function saveReadingTime(date: string, seconds: number): Promise<void> {
+  const db = await openDB()
+  store(db, 'readingTime', 'readwrite').put({ date, seconds })
+}
+
+export async function loadReadingTime(date: string): Promise<number> {
+  const db = await openDB()
+  return new Promise((resolve) => {
+    const req = store(db, 'readingTime').get(date)
+    req.onsuccess = () => resolve(req.result?.seconds ?? 0)
+    req.onerror = () => resolve(0)
+  })
+}
+
+export async function saveSetting(key: string, value: string): Promise<void> {
+  const db = await openDB()
+  store(db, 'settings', 'readwrite').put({ key, value })
+}
+
+export async function loadSetting(key: string): Promise<string | null> {
+  const db = await openDB()
+  return new Promise((resolve) => {
+    const req = store(db, 'settings').get(key)
+    req.onsuccess = () => resolve(req.result?.value ?? null)
     req.onerror = () => resolve(null)
   })
 }

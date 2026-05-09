@@ -71,6 +71,7 @@ export function Reader({
 
   const [showUI, setShowUI] = useState(true)
   const hideTimer = useRef<ReturnType<typeof setTimeout>>()
+  const wheelTimer = useRef<ReturnType<typeof setTimeout>>()
 
   const showControls = () => {
     setShowUI(true)
@@ -80,29 +81,44 @@ export function Reader({
 
   useEffect(() => {
     showControls()
-    const onMove = () => showControls()
-    window.addEventListener('mousemove', onMove, { passive: true })
-    return () => {
-      window.removeEventListener('mousemove', onMove)
-      clearTimeout(hideTimer.current)
-    }
+    return () => clearTimeout(hideTimer.current)
   }, [])
 
   useEffect(() => {
     const handler = (e: WheelEvent) => {
       if ((e.target as HTMLElement).closest('[data-scroll]')) return
       e.preventDefault()
+      if (wheelTimer.current) return
+      wheelTimer.current = setTimeout(() => { wheelTimer.current = undefined }, 200)
+      if (e.deltaY > 0) nextRef.current()
+      else if (e.deltaY < 0) prevRef.current()
     }
     window.addEventListener('wheel', handler, { passive: false })
-    return () => window.removeEventListener('wheel', handler)
+    return () => {
+      window.removeEventListener('wheel', handler)
+      clearTimeout(wheelTimer.current)
+    }
   }, [])
 
   const handleViewerClick = (e: React.MouseEvent) => {
+    const iframe = document.querySelector<HTMLIFrameElement>('#viewer iframe')
+    if (iframe?.contentDocument) {
+      const r = iframe.getBoundingClientRect()
+      const el = iframe.contentDocument.elementFromPoint(e.clientX - r.left, e.clientY - r.top)
+      const link = el?.closest('a')
+      if (link?.getAttribute('href')) {
+        link.click()
+        return
+      }
+    }
+
     const x = e.clientX - e.currentTarget.getBoundingClientRect().left
     const w = e.currentTarget.getBoundingClientRect().width
-    if (x < w * 0.22) { prevRef.current(); showControls() }
-    else if (x > w * 0.78) { nextRef.current(); showControls() }
-    else { setShowUI(v => !v); clearTimeout(hideTimer.current) }
+    if (x < w * 0.22) { prevRef.current(); showControls(); return }
+    if (x > w * 0.78) { nextRef.current(); showControls(); return }
+
+    setShowUI(v => !v)
+    clearTimeout(hideTimer.current)
   }
 
   const dark = theme === 'dark'

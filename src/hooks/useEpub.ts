@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from 'react'
 import ePub, { Book, Rendition } from 'epubjs'
 import { BookMeta, NavItem, ThemeMode, themeStyles } from '../types'
-import { loadProgress } from '../utils/db'
+import { loadProgress, loadReadingTime, saveReadingTime as persistReadingTimeToDB } from '../utils/db'
 
 export function useEpub() {
   const [meta, setMeta] = useState<BookMeta | null>(null)
@@ -17,6 +17,8 @@ export function useEpub() {
   const renditionRef = useRef<Rendition | null>(null)
   const themeRef = useRef<ThemeMode>('light')
   const totalSectionsRef = useRef(0)
+  const sessionStartRef = useRef(0)
+  const todaySecondsRef = useRef(0)
 
   const readFile = useCallback(async (filePath: string) => {
     return window.electronAPI!.readFile(filePath)
@@ -55,6 +57,10 @@ export function useEpub() {
     const book = ePub(data)
     bookRef.current = book
     await book.ready
+
+    const today = new Date().toISOString().slice(0, 10)
+    todaySecondsRef.current = await loadReadingTime(today)
+    sessionStartRef.current = Date.now()
 
     const { title, creator } = book.packaging.metadata
     let cover: string | undefined
@@ -104,17 +110,27 @@ export function useEpub() {
     const onRelocated = () => requestAnimationFrame(sync)
     syncRef.current = sync
     rendition.on('relocated', onRelocated)
+    rendition.on('linkClicked', (href: string) => {
+      console.log('[linkClicked]', href)
+    })
     requestAnimationFrame(sync)
 
     const t = themeRef.current
     rendition.themes.register(t, themeStyles[t])
     rendition.themes.select(t)
 
-    // restore saved position by section index
+    // restore saved position by CFI (precise) or section index (fallback)
     loadProgress(filePath).then((saved) => {
       if (!saved) return
-      const idx = saved.index
-      if (idx > 0 && idx < count) rendition.display(idx)
+      if (saved.cfi) {
+        rendition.display(saved.cfi).catch(() => {
+          const idx = saved.index
+          if (idx > 0 && idx < count) rendition.display(idx)
+        })
+      } else {
+        const idx = saved.index
+        if (idx > 0 && idx < count) rendition.display(idx)
+      }
     }).catch(() => {})
   }, [])
 
@@ -146,10 +162,21 @@ export function useEpub() {
   }, [])
   const goToHref = useCallback((href: string) => renditionRef.current?.display(href), [])
 
-  const destroy = useCallback(() => {
-    renditionRef.current?.destroy()
-    bookRef.current?.destroy()
+  const getReadingSeconds = useCallback(() => {
+    if (sessionStartRef.current === 0) return todaySecondsRef.current
+    return todaySecondsRef.current + Math.floor((Date.now() - sessionStartRef.current) / 1000)
   }, [])
 
-  return { meta, toc, theme, progress, progressRef, cfiRef, indexRef, sectionHrefRef, extractMeta, openBook, setTheme, goNext, goPrev, goToHref, seekTo, destroy }
+  const saveReadingTime = useCallback(async () => {
+    const d = new Date().toISOString().slice(0, 10)
+    await persistReadingTimeToDB(d, getReadingSeconds())
+  }, [getReadingSeconds])
+
+  const destroy = useCallback(() => {
+    saveReadingTime()
+    renditionRef.current?.destroy()
+    bookRef.current?.destroy()
+  }, [saveReadingTime])
+
+  return { meta, toc, theme, progress, progressRef, cfiRef, indexRef, sectionHrefRef, extractMeta, openBook, setTheme, goNext, goPrev, goToHref, seekTo, getReadingSeconds, saveReadingTime, destroy }
 }

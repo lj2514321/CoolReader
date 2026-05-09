@@ -5,7 +5,7 @@ import { Sidebar } from './components/Sidebar'
 import { TitleBar } from './components/TitleBar'
 import { useEpub } from './hooks/useEpub'
 import { BookEntry } from './types'
-import { saveBook, loadAllBooks, saveProgress, deleteBook as dbDeleteBook } from './utils/db'
+import { saveBook, loadAllBooks, saveProgress, deleteBook as dbDeleteBook, loadReadingTime } from './utils/db'
 
 type Page = 'library' | 'reader'
 
@@ -38,18 +38,21 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [currentBook, setCurrentBook] = useState<string | null>(null)
-  const { meta, toc, theme, progress, progressRef, cfiRef, indexRef, sectionHrefRef, extractMeta, openBook, setTheme, goNext, goPrev, goToHref, seekTo, destroy } = useEpub()
+  const [readingTime, setReadingTime] = useState(0)
+  const { meta, toc, theme, progress, progressRef, cfiRef, indexRef, sectionHrefRef, extractMeta, openBook, setTheme, goNext, goPrev, goToHref, seekTo, getReadingSeconds, saveReadingTime, destroy } = useEpub()
 
-  // save progress + CFI + index every 2s
+  // save progress + CFI + index every 2s, update reading time
   useEffect(() => {
     const interval = setInterval(() => {
       if (currentBook && progressRef.current > 0) {
         saveProgress(currentBook, progressRef.current, cfiRef.current, indexRef.current)
       }
+      saveReadingTime()
+      setReadingTime(getReadingSeconds())
     }, 2000)
     return () => clearInterval(interval)
-  }, [currentBook, progressRef, cfiRef, indexRef])
-  // load books from IndexedDB on mount
+  }, [currentBook, progressRef, cfiRef, indexRef, saveReadingTime, getReadingSeconds])
+  // load books + reading time from IndexedDB on mount
   useEffect(() => {
     loadAllBooks().then((records) => {
       const entries: BookEntry[] = records.map((r) => ({
@@ -58,6 +61,7 @@ export default function App() {
       }))
       setBooks(entries)
     }).catch(() => {})
+    loadReadingTime(new Date().toISOString().slice(0, 10)).then(setReadingTime).catch(() => {})
   }, [])
 
   const handleOpenBook = useCallback((filePath: string) => {
@@ -77,6 +81,8 @@ export default function App() {
     const cfi = cfiRef.current
     const idx = indexRef.current
     if (currentBook && pct > 0) saveProgress(currentBook, pct, cfi, idx)
+    saveReadingTime()
+    setReadingTime(getReadingSeconds())
     setPhase('leaving')
     setTimeout(() => {
       destroy()
@@ -88,7 +94,7 @@ export default function App() {
         requestAnimationFrame(() => setPhase('idle'))
       })
     }, 200)
-  }, [currentBook, destroy])
+  }, [currentBook, destroy, saveReadingTime, getReadingSeconds])
 
   const doImport = useCallback(async (filePath: string) => {
     if (!filePath) return
@@ -157,7 +163,7 @@ export default function App() {
           transition: 'opacity 0.25s ease, transform 0.25s ease',
           pointerEvents: isLibrary ? 'auto' : 'none',
         }}>
-          <Library books={books} onOpenBook={handleOpenBook} onImport={handleImport} onDelete={handleDeleteBook} />
+          <Library books={books} readingTime={readingTime} onOpenBook={handleOpenBook} onImport={handleImport} onDelete={handleDeleteBook} />
         </div>
         <div style={{
           position: 'absolute', inset: 0,
