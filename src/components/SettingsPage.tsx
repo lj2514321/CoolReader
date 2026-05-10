@@ -26,11 +26,10 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
   const [subPhase, setSubPhase] = useState<'idle' | 'push-out' | 'push-in' | 'pop-out' | 'pop-in'>('idle')
   const subRef = useRef<ReturnType<typeof setTimeout>>()
   useEffect(() => () => clearTimeout(subRef.current), [])
-  useEffect(() => { console.log('[SettingsPage] resetKey changed:', resetKey); setSettingView(null); setSubPhase('idle') }, [resetKey])
+  useEffect(() => { setSettingView(null); setSubPhase('idle') }, [resetKey])
 
   const pushDetail = (id: string) => {
-    if (subPhase !== 'idle') { console.log('[SettingsPage] pushDetail blocked, subPhase:', subPhase); return }
-    console.log('[SettingsPage] pushDetail:', id)
+    if (subPhase !== 'idle') return
     setSubPhase('push-out')
     clearTimeout(subRef.current)
     subRef.current = setTimeout(() => {
@@ -41,8 +40,7 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
   }
 
   const popDetail = () => {
-    if (subPhase !== 'idle') { console.log('[SettingsPage] popDetail blocked, subPhase:', subPhase); return }
-    console.log('[SettingsPage] popDetail called')
+    if (subPhase !== 'idle') return
     setSubPhase('pop-out')
     clearTimeout(subRef.current)
     subRef.current = setTimeout(() => {
@@ -51,8 +49,6 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
       subRef.current = setTimeout(() => setSubPhase('idle'), 400)
     }, 400)
   }
-
-  console.log('[SettingsPage] render', { settingView, subPhase, visible, resetKey })
   return (
     <>
       {/* list view */}
@@ -87,7 +83,6 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
         position: 'absolute', inset: 0, overflowY: 'auto', padding: '28px 36px 32px 24px',
         display: (subPhase !== 'idle' || settingView !== null) ? '' : 'none',
         transition: 'all 0.4s ease',
-        zIndex: 10,
         opacity: subPhase !== 'pop-in' && (subPhase !== 'idle' || settingView !== null) ? 1 : 0,
         transform: (subPhase === 'idle' && settingView !== null) || subPhase === 'push-in' ? 'translateX(0)' : 'translateX(100%)',
         pointerEvents: subPhase === 'idle' && settingView !== null ? 'auto' : 'none',

@@ -185,9 +185,10 @@ export default function App() {
         </div>
         <div style={{
           position: 'absolute', inset: 0,
+          visibility: isLibrary ? 'hidden' : 'visible',
           opacity: !isLibrary ? opacity : 0,
           transform: `scale(${!isLibrary ? 1 : phase === 'entering' ? scale : 1})`,
-          transition: 'opacity 0.25s ease, transform 0.25s ease',
+          transition: 'opacity 0.25s ease, transform 0.25s ease, visibility 0.25s ease',
           pointerEvents: !isLibrary ? 'auto' : 'none',
         }}>
           {/* reader content */}
