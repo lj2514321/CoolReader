@@ -1,5 +1,5 @@
 const DB_NAME = 'epub-reader'
-const DB_VERSION = 3
+const DB_VERSION = 4
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -70,6 +70,7 @@ export interface ProgressRecord {
 }
 
 export async function saveProgress(filePath: string, progress: number, cfi: string, index: number): Promise<void> {
+  if (!cfi) console.warn('[saveProgress] cfi is empty, index:', index)
   const db = await openDB()
   store(db, 'progress', 'readwrite').put({
     filePath, progress, cfi, index,

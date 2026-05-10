@@ -13,6 +13,7 @@ interface ReaderProps {
   onToggleSidebar: () => void
   onThemeChange: (t: ThemeMode) => void
   onSeek: (pct: number) => void
+  onResize?: () => void
 }
 
 const themes: { key: ThemeMode; icon: string }[] = [
@@ -50,7 +51,7 @@ const btn = (fg: string) => ({
 })
 
 export function Reader({
-  filePath, meta, theme, progress, onLoad, onBack, onNext, onPrev, onToggleSidebar, onThemeChange, onSeek,
+  filePath, meta, theme, progress, onLoad, onBack, onNext, onPrev, onToggleSidebar, onThemeChange, onSeek, onResize,
 }: ReaderProps) {
   const nextRef = useRef(onNext)
   const prevRef = useRef(onPrev)
@@ -58,6 +59,7 @@ export function Reader({
   prevRef.current = onPrev
 
   const loadedRef = useRef(false)
+  const containerRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!filePath) {
       loadedRef.current = false
@@ -68,6 +70,15 @@ export function Reader({
       onLoad(filePath)
     }
   }, [filePath, onLoad])
+
+  // ResizeObserver — reflow viewer when container resizes (e.g. sidebar toggle)
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el || !onResize) return
+    const ro = new ResizeObserver(() => onResize())
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [onResize])
 
   const [showUI, setShowUI] = useState(true)
   const hideTimer = useRef<ReturnType<typeof setTimeout>>()
@@ -125,7 +136,7 @@ export function Reader({
   const fg = dark ? '#c8c8e0' : '#2d2b55'
 
   return (
-    <div style={{ height: '100%', background: themeBg[theme], overflow: 'hidden', position: 'relative' }}>
+    <div ref={containerRef} style={{ height: '100%', background: themeBg[theme], overflow: 'hidden', position: 'relative' }}>
       <div id="viewer" style={{ position: 'absolute', inset: 0 }} />
       <div
         onClick={handleViewerClick}
@@ -163,7 +174,7 @@ export function Reader({
             onMouseLeave={e => e.currentTarget.style.opacity = '0.7'}
           >目录</button>
           {themes.map(t => (
-            <button key={t.key} onClick={() => onThemeChange(t.key)}
+            <button key={t.key} onClick={(e) => { e.stopPropagation(); onThemeChange(t.key) }}
               style={{
                 ...btn(fg),
                 padding: '7px 10px',

@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from 'react'
 import ePub, { Book, Rendition } from 'epubjs'
 import { BookMeta, NavItem, ThemeMode, themeStyles } from '../types'
-import { loadProgress, loadReadingTime, saveReadingTime as persistReadingTimeToDB } from '../utils/db'
+import { loadProgress, loadReadingTime, loadSetting, saveSetting, saveReadingTime as persistReadingTimeToDB } from '../utils/db'
 
 export function useEpub() {
   const [meta, setMeta] = useState<BookMeta | null>(null)
@@ -48,10 +48,19 @@ export function useEpub() {
   }, [])
 
   const openBook = useCallback(async (filePath: string) => {
+    console.log('[openBook] called with', filePath)
     if (bookRef.current) {
       renditionRef.current?.destroy()
       bookRef.current.destroy()
     }
+
+    setMeta(null)
+    setToc([])
+    setProgress(0)
+    progressRef.current = 0
+    cfiRef.current = ''
+    indexRef.current = 0
+    sectionHrefRef.current = ''
 
     const data = await readFile(filePath)
     const book = ePub(data)
@@ -89,7 +98,6 @@ export function useEpub() {
       spread: 'none',
     })
     renditionRef.current = rendition
-    await rendition.display()
 
     const count = book.spine.length || book.spine.items?.length || 0
     totalSectionsRef.current = count
@@ -109,29 +117,61 @@ export function useEpub() {
 
     const onRelocated = () => requestAnimationFrame(sync)
     syncRef.current = sync
+
+    // load saved data BEFORE display
+    let saved: { progress: number; cfi: string; index: number } | null = null
+    let savedTheme: string | null = null
+    try {
+      const r = await Promise.all([loadProgress(filePath), loadSetting('readerTheme')])
+      saved = r[0]
+      savedTheme = r[1]
+    } catch (e) { console.warn('[openBook] load saved failed', e) }
+
+    // apply theme
+    if (savedTheme && ['light', 'dark', 'sepia'].includes(savedTheme)) {
+      themeRef.current = savedTheme as ThemeMode
+      setThemeState(savedTheme as ThemeMode)
+    }
+    const t = themeRef.current
+
+    // register themes via proper API (registerUrl is called for string — use registerCss instead)
+    ;['light', 'sepia', 'dark'].forEach(th => rendition.themes.registerCss(th, themeStyles[th]))
+    rendition.themes.select(t)
+
+    // register handlers BEFORE display so relocated is caught
     rendition.on('relocated', onRelocated)
     rendition.on('linkClicked', (href: string) => {
       console.log('[linkClicked]', href)
     })
-    requestAnimationFrame(sync)
 
-    const t = themeRef.current
-    rendition.themes.register(t, themeStyles[t])
-    rendition.themes.select(t)
-
-    // restore saved position by CFI (precise) or section index (fallback)
-    loadProgress(filePath).then((saved) => {
-      if (!saved) return
+    // display saved position directly (skip section 0 flash)
+    if (saved) {
+      console.log('[openBook] saved data:', saved)
       if (saved.cfi) {
-        rendition.display(saved.cfi).catch(() => {
-          const idx = saved.index
-          if (idx > 0 && idx < count) rendition.display(idx)
-        })
+        console.log('[openBook] restoring via CFI:', saved.cfi)
+        try {
+          await rendition.display(saved.cfi)
+        } catch {
+          console.warn('[openBook] CFI restore failed, fallback to index:', saved.index)
+          if (saved.index >= 0 && saved.index < count) {
+            await rendition.display(saved.index)
+          } else {
+            await rendition.display()
+          }
+        }
+      } else if (saved.index >= 0 && saved.index < count) {
+        console.log('[openBook] restoring via index:', saved.index)
+        await rendition.display(saved.index)
       } else {
-        const idx = saved.index
-        if (idx > 0 && idx < count) rendition.display(idx)
+        console.log('[openBook] invalid saved data, display default')
+        await rendition.display()
       }
-    }).catch(() => {})
+    } else {
+      console.log('[openBook] no saved data, display default')
+      await rendition.display()
+    }
+
+    requestAnimationFrame(sync)
   }, [])
 
   const seekTo = useCallback((pct: number) => {
@@ -145,10 +185,11 @@ export function useEpub() {
   const setTheme = useCallback((t: ThemeMode) => {
     themeRef.current = t
     setThemeState(t)
-    const rendition = renditionRef.current
-    if (rendition) {
-      rendition.themes.register(t, themeStyles[t])
-      rendition.themes.select(t)
+    saveSetting('readerTheme', t)
+    try {
+      renditionRef.current?.themes.select(t)
+    } catch (e) {
+      console.error('[setTheme] failed:', e)
     }
   }, [])
 
@@ -167,10 +208,22 @@ export function useEpub() {
     return todaySecondsRef.current + Math.floor((Date.now() - sessionStartRef.current) / 1000)
   }, [])
 
+  const initReadingTime = useCallback((seconds: number) => {
+    todaySecondsRef.current = seconds
+  }, [])
+
   const saveReadingTime = useCallback(async () => {
     const d = new Date().toISOString().slice(0, 10)
     await persistReadingTimeToDB(d, getReadingSeconds())
   }, [getReadingSeconds])
+
+  const resizeViewer = useCallback(() => {
+    try {
+      renditionRef.current?.resize()
+    } catch (e) {
+      console.warn('[resizeViewer] failed:', e)
+    }
+  }, [])
 
   const destroy = useCallback(() => {
     saveReadingTime()
@@ -178,5 +231,5 @@ export function useEpub() {
     bookRef.current?.destroy()
   }, [saveReadingTime])
 
-  return { meta, toc, theme, progress, progressRef, cfiRef, indexRef, sectionHrefRef, extractMeta, openBook, setTheme, goNext, goPrev, goToHref, seekTo, getReadingSeconds, saveReadingTime, destroy }
+  return { meta, toc, theme, progress, progressRef, cfiRef, indexRef, sectionHrefRef, extractMeta, openBook, initReadingTime, setTheme, goNext, goPrev, goToHref, seekTo, getReadingSeconds, saveReadingTime, resizeViewer, destroy }
 }

@@ -3,12 +3,20 @@ const electron = require("electron");
 const path = require("path");
 const fs = require("fs");
 let mainWindow = null;
+function getIconPath() {
+  const ico = path.join(__dirname, "../../coolreader_icon.ico");
+  if (fs.existsSync(ico)) return ico;
+  const png = path.join(__dirname, "../../coolreader_icon_256.png");
+  if (fs.existsSync(png)) return png;
+  return void 0;
+}
 function createWindow() {
   mainWindow = new electron.BrowserWindow({
     width: 1200,
     height: 800,
     frame: false,
     background: "#0f0c29",
+    icon: getIconPath(),
     webPreferences: {
       preload: path.join(__dirname, "../preload/index.js"),
       contextIsolation: true,
@@ -18,6 +26,10 @@ function createWindow() {
   if (process.env.ELECTRON_RENDERER_URL) {
     console.log(`[main] loading dev: ${process.env.ELECTRON_RENDERER_URL}`);
     mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
+    mainWindow.webContents.openDevTools();
+    mainWindow.webContents.on("console-message", (_e, level, msg) => {
+      console.log(`[renderer] ${msg}`);
+    });
   } else {
     console.log("[main] loading fallback file");
     mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));

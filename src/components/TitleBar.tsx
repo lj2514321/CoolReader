@@ -2,10 +2,7 @@ export function TitleBar() {
   return (
     <div style={{
       height: 36,
-      background: 'rgba(10,10,26,0.6)',
-      backdropFilter: 'blur(24px) saturate(140%)',
-      WebkitBackdropFilter: 'blur(24px) saturate(140%)',
-      borderBottom: '1px solid rgba(255,255,255,0.04)',
+      background: 'transparent',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',

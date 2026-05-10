@@ -1,5 +1,32 @@
 # 更新日志
 
+## [1.1.0] — 2026-05-10
+
+### 重构
+
+- **Library.tsx 组件拆分** — 455 行单文件拆为 4 独立组件 + 1 工具模块（SidebarNav/BookShelf/SettingsPage/styles.ts），Library 降为 108 行布局协调层
+- **SettingsPage 状态内聚** — 设置页二级滑动动画（settingView + subPhase 状态机）完全内聚，通过 visible/resetKey props 与外部通信
+
+### 新特性
+
+- **阅读主题持久化** — reader theme（light/sepia/dark）通过 IndexedDB 持久化，打开书时自动恢复
+- **目录栏适配阅读主题** — Sidebar 接收 theme prop，深色/亮色/暖黄三套配色跟随阅读主题切换
+- **TitleBar 一体化** — 边框和背景移除，透出外层渐变/阅读背景色，视觉无分隔
+- **阅读页背景色跟随主题** — 外容器使用 {light, sepia, dark} 对应色值，消除阅读时 TitleBar 区域色差
+- **应用图标** — 窗口图标 + electron-builder 各平台打包图标（coolreader_icon.ico/.png）
+
+### Bug 修复
+
+- **阅读进度记忆失效** — 章节 0 进度因 progressRef > 0 守卫永不保存，重启后无数据；移除保存/恢复两侧 idx > 0 条件；重写 openBook 为"先加载进度→直接跳转"避免 section 0 闪白
+- **DB 版本升级数据丢失** — settings store 在 DB 达到 v3 后添加时 onupgradeneeded 不重跑，DB_VERSION 3→4 触发升级；loadSetting 加 try/catch 防止阻塞渲染
+- **阅读时间被 0 覆盖** — 无书打开时 saveReadingTime() 用 0 覆盖 DB；增加 initReadingTime 同步 ref + currentBook 守卫 + beforeunload 兜底
+- **主题切换不生效** — rendition.themes.register(name, css) 将 CSS 视为 URL 调用 registerUrl；改用 registerCss(name, serialized)，select 同时处理 CSS 注入 + body class 切换
+- **主题切换后无法切回** — 选择器从 body{} 改为 body.light/dark/sepia{}，注入后仅匹配当前主题
+- **Sidebar 与阅读器主题不同步** — 硬编码深色配色改为三色方案 sbTheme[theme]
+- **Sidebar 切换致阅读器变形** — 添加 ResizeObserver + resizeViewer，flex 布局变化后重排内容
+- **书架图书点击无响应** — 不可见设置页子视图自设 pointer-events:auto 拦截事件；增加 visible prop 条件控制
+- **设置页二级页动画回弹** — pop-in 阶段 detail 从 translateX(100%) 变回 0，增加 subPhase 判断保持退出位置
+
 ## [1.0.3] — 2026-05-09
 
 ### 新特性

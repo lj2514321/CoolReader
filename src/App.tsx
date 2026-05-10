@@ -4,7 +4,7 @@ import { Reader } from './components/Reader'
 import { Sidebar } from './components/Sidebar'
 import { TitleBar } from './components/TitleBar'
 import { useEpub } from './hooks/useEpub'
-import { BookEntry } from './types'
+import { BookEntry, ThemeMode } from './types'
 import { saveBook, loadAllBooks, saveProgress, deleteBook as dbDeleteBook, loadReadingTime } from './utils/db'
 
 type Page = 'library' | 'reader'
@@ -39,15 +39,16 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [currentBook, setCurrentBook] = useState<string | null>(null)
   const [readingTime, setReadingTime] = useState(0)
-  const { meta, toc, theme, progress, progressRef, cfiRef, indexRef, sectionHrefRef, extractMeta, openBook, setTheme, goNext, goPrev, goToHref, seekTo, getReadingSeconds, saveReadingTime, destroy } = useEpub()
+  const { meta, toc, theme, progress, progressRef, cfiRef, indexRef, sectionHrefRef, extractMeta, openBook, initReadingTime, setTheme, goNext, goPrev, goToHref, seekTo, getReadingSeconds, saveReadingTime, resizeViewer, destroy } = useEpub()
+  const [bgGradient, setBgGradient] = useState('linear-gradient(135deg, #0a0a1a 0%, #1a1040 40%, #0d1137 100%)')
 
   // save progress + CFI + index every 2s, update reading time
   useEffect(() => {
     const interval = setInterval(() => {
-      if (currentBook && progressRef.current > 0) {
+      if (currentBook && cfiRef.current) {
         saveProgress(currentBook, progressRef.current, cfiRef.current, indexRef.current)
       }
-      saveReadingTime()
+      if (currentBook) saveReadingTime()
       setReadingTime(getReadingSeconds())
     }, 2000)
     return () => clearInterval(interval)
@@ -61,7 +62,10 @@ export default function App() {
       }))
       setBooks(entries)
     }).catch(() => {})
-    loadReadingTime(new Date().toISOString().slice(0, 10)).then(setReadingTime).catch(() => {})
+    loadReadingTime(new Date().toISOString().slice(0, 10)).then((time) => {
+      initReadingTime(time)
+      setReadingTime(time)
+    }).catch(() => {})
   }, [])
 
   const handleOpenBook = useCallback((filePath: string) => {
@@ -80,7 +84,10 @@ export default function App() {
     const pct = progressRef.current
     const cfi = cfiRef.current
     const idx = indexRef.current
-    if (currentBook && pct > 0) saveProgress(currentBook, pct, cfi, idx)
+    if (currentBook) {
+      console.log('[handleBack] saving', { pct, cfi, idx })
+      saveProgress(currentBook, pct, cfi, idx)
+    }
     saveReadingTime()
     setReadingTime(getReadingSeconds())
     setPhase('leaving')
@@ -137,13 +144,24 @@ export default function App() {
     return () => destroy()
   }, [destroy])
 
+  // save reading time on window close
+  useEffect(() => {
+    const handleUnload = () => { if (currentBook) saveReadingTime() }
+    window.addEventListener('beforeunload', handleUnload)
+    return () => window.removeEventListener('beforeunload', handleUnload)
+  }, [currentBook, saveReadingTime])
+
   const isLibrary = page === 'library'
   const opacity = phase === 'idle' ? 1 : phase === 'leaving' ? 0 : 1
   const scale = phase === 'idle' ? 1 : phase === 'leaving' ? 0.97 : 1
   const activeTocSrc = sectionHrefRef.current
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+    <div style={{
+      display: 'flex', flexDirection: 'column', height: '100vh',
+      background: isLibrary ? bgGradient : ({ light: '#ece8f4', sepia: '#f4ecd8', dark: '#0a0a1a' } satisfies Record<ThemeMode, string>)[theme],
+      transition: 'background 0.3s ease',
+    }}>
       <TitleBar />
       {error && (
         <div style={{
@@ -163,7 +181,7 @@ export default function App() {
           transition: 'opacity 0.25s ease, transform 0.25s ease',
           pointerEvents: isLibrary ? 'auto' : 'none',
         }}>
-          <Library books={books} readingTime={readingTime} onOpenBook={handleOpenBook} onImport={handleImport} onDelete={handleDeleteBook} />
+          <Library books={books} readingTime={readingTime} onOpenBook={handleOpenBook} onImport={handleImport} onDelete={handleDeleteBook} onBgChange={setBgGradient} />
         </div>
         <div style={{
           position: 'absolute', inset: 0,
@@ -180,6 +198,7 @@ export default function App() {
                 activeHref={activeTocSrc}
                 onNavigate={(href) => { goToHref(href); setSidebarOpen(false) }}
                 onClose={() => setSidebarOpen(false)}
+                theme={theme}
               />
             )}
             <div style={{ flex: 1, overflow: 'hidden' }}>
@@ -194,6 +213,8 @@ export default function App() {
                 onToggleSidebar={() => setSidebarOpen(v => !v)}
                 progress={progress}
                 onSeek={seekTo}
+                onThemeChange={setTheme}
+                onResize={resizeViewer}
               />
             </div>
           </div>

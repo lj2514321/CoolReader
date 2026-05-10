@@ -1,6 +1,6 @@
 {
   "name": "epub-reader-demo",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "private": true,
   "main": "./out/main/index.js",
   "scripts": {
@@ -23,15 +23,15 @@
         "portable",
         "nsis"
       ],
-      "icon": null
+      "icon": "coolreader_icon.ico"
     },
     "mac": {
       "target": ["dmg"],
-      "icon": null
+      "icon": "coolreader_icon_1024.png"
     },
     "linux": {
       "target": ["AppImage"],
-      "icon": null
+      "icon": "coolreader_icon_256.png"
     }
   },
   "dependencies": {
