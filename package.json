@@ -1,6 +1,6 @@
 {
   "name": "epub-reader-demo",
-  "version": "1.1.0",
+  "version": "1.3.5",
   "private": true,
   "main": "./out/main/index.js",
   "scripts": {
@@ -26,18 +26,23 @@
       "icon": "coolreader_icon.ico"
     },
     "mac": {
-      "target": ["dmg"],
+      "target": [
+        "dmg"
+      ],
       "icon": "coolreader_icon_1024.png"
     },
     "linux": {
-      "target": ["AppImage"],
+      "target": [
+        "AppImage"
+      ],
       "icon": "coolreader_icon_256.png"
     }
   },
   "dependencies": {
     "epubjs": "^0.3.93",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "webdav": "^5.10.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.0",

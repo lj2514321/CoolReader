@@ -1,6 +1,41 @@
 import { useState } from 'react'
 import { BookEntry } from '../types'
-import { glass, btnGlass, colors } from '../utils/styles'
+import { glass, colors } from '../utils/styles'
+
+type SortBy = 'recent' | 'title' | 'author'
+
+const sortOptions: { key: SortBy; label: string }[] = [
+  { key: 'recent', label: '最近阅读' },
+  { key: 'title', label: '书名' },
+  { key: 'author', label: '作者' },
+]
+
+function formatRelativeTime(ts: number): string {
+  const now = Date.now()
+  const diff = now - ts
+  const mins = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
+  const days = Math.floor(diff / 86400000)
+  const weeks = Math.floor(days / 7)
+  if (mins < 1) return '刚刚'
+  if (mins < 60) return `${mins}分钟前`
+  if (hours < 24) {
+    const d = new Date(ts)
+    return `今天 ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
+  }
+  const yesterday = new Date(now - 86400000)
+  if (
+    new Date(ts).getDate() === yesterday.getDate() &&
+    new Date(ts).getMonth() === yesterday.getMonth() &&
+    new Date(ts).getFullYear() === yesterday.getFullYear()
+  ) {
+    return '昨天'
+  }
+  if (days < 7) return `${days}天前`
+  if (weeks < 5) return `${weeks}周前`
+  const d = new Date(ts)
+  return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`
+}
 
 interface BookShelfProps {
   books: BookEntry[]
@@ -11,6 +46,18 @@ interface BookShelfProps {
 
 export function BookShelf({ books, readingTime, onOpenBook, onDelete }: BookShelfProps) {
   const [confirmPath, setConfirmPath] = useState<string | null>(null)
+  const [sortBy, setSortBy] = useState<SortBy>('recent')
+
+  const sortedBooks = [...books].sort((a, b) => {
+    if (sortBy === 'recent') {
+      const ta = a.lastOpenedAt ?? 0
+      const tb = b.lastOpenedAt ?? 0
+      return tb - ta
+    }
+    const va = sortBy === 'title' ? a.meta.title : a.meta.author
+    const vb = sortBy === 'title' ? b.meta.title : b.meta.author
+    return va.localeCompare(vb, 'zh-CN')
+  })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -37,6 +84,24 @@ export function BookShelf({ books, readingTime, onOpenBook, onDelete }: BookShel
             今日阅读
           </div>
         </div>
+        <div style={{ flex: 1 }} />
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          {sortOptions.map((opt) => (
+            <button key={opt.key} onClick={() => setSortBy(opt.key)}
+              style={{
+                padding: '4px 10px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                fontSize: 12, fontWeight: 600,
+                background: sortBy === opt.key
+                  ? 'rgba(99,102,241,0.35)'
+                  : 'rgba(255,255,255,0.06)',
+                color: sortBy === opt.key ? '#fff' : 'rgba(255,255,255,0.45)',
+                transition: 'background 0.15s, color 0.15s',
+              }}
+              onMouseEnter={e => { if (sortBy !== opt.key) { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)' } }}
+              onMouseLeave={e => { if (sortBy !== opt.key) { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = 'rgba(255,255,255,0.45)' } }}
+            >{opt.label}</button>
+          ))}
+        </div>
       </div>
 
       {books.length === 0 ? (
@@ -57,7 +122,7 @@ export function BookShelf({ books, readingTime, onOpenBook, onDelete }: BookShel
             gap: '36px 28px',
             justifyContent: 'center',
           }}>
-            {books.map((book, i) => {
+            {sortedBooks.map((book, i) => {
               const [c1, c2] = colors[i % colors.length]
               return (
                 <div key={book.filePath} style={{
@@ -82,11 +147,26 @@ export function BookShelf({ books, readingTime, onOpenBook, onDelete }: BookShel
                     background: !book.meta.cover ? `linear-gradient(135deg, ${c1}, ${c2})` : undefined,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     flexShrink: 0,
+                    position: 'relative',
                   }}>
                     {book.meta.cover ? (
                       <img src={book.meta.cover} alt={book.meta.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     ) : (
                       <span style={{ fontSize: 40, opacity: 0.5 }}>📖</span>
+                    )}
+                    {book.progress !== undefined && (
+                      <div style={{
+                        position: 'absolute', bottom: 0, left: 0, right: 0, height: 3,
+                        background: 'rgba(0,0,0,0.3)',
+                      }}>
+                        <div style={{
+                          width: `${book.progress}%`,
+                          height: '100%',
+                          background: 'linear-gradient(90deg, rgba(99,102,241,0.9), rgba(168,85,247,0.7))',
+                          borderRadius: '0 2px 2px 0',
+                          transition: 'width 0.3s ease',
+                        }} />
+                      </div>
                     )}
                   </div>
                   <div style={{ marginTop: 14, textAlign: 'center', width: '100%' }}>
@@ -99,6 +179,20 @@ export function BookShelf({ books, readingTime, onOpenBook, onDelete }: BookShel
                       fontSize: 12, color: 'rgba(255,255,255,0.35)', marginTop: 4,
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                     }}>{book.meta.author}</div>
+                    {book.chapterLabel && book.progress !== undefined && (
+                      <div style={{
+                        fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 4,
+                        lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>
+                        {book.progress}% · {book.chapterLabel}
+                      </div>
+                    )}
+                    {book.lastOpenedAt && (
+                      <div style={{
+                        fontSize: 10, color: 'rgba(255,255,255,0.2)', marginTop: 6,
+                        lineHeight: 1.2,
+                      }}>{formatRelativeTime(book.lastOpenedAt)}</div>
+                    )}
                   </div>
                   <div style={{ position: 'absolute', top: -6, right: -6, zIndex: 2 }}>
                     <button onClick={(e) => { e.stopPropagation(); setConfirmPath(book.filePath) }}

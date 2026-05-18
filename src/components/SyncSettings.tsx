@@ -1,0 +1,221 @@
+import { useState, useCallback, useRef, useEffect } from 'react'
+import type { WebDAVConfig, SyncResult, SyncProgressEvent } from '../types'
+import { saveWebDAVConfig, loadAllBooks, loadAllProgress, loadReadingTime } from '../utils/db'
+import type { CSSProperties } from 'react'
+
+const inputStyle: CSSProperties = {
+  width: '100%', boxSizing: 'border-box',
+  background: 'rgba(255,255,255,0.06)',
+  border: '1px solid rgba(255,255,255,0.1)',
+  borderRadius: 8, padding: '10px 14px',
+  color: '#fff', fontSize: 13, outline: 'none',
+  marginTop: 6,
+}
+const labelStyle: CSSProperties = {
+  color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: 600, letterSpacing: 0.3,
+  display: 'block', marginTop: 14,
+}
+const btnBase: CSSProperties = {
+  border: 'none', borderRadius: 10, padding: '10px 20px',
+  fontSize: 13, fontWeight: 600, cursor: 'pointer',
+  transition: 'all 0.15s',
+}
+
+interface SyncSettingsProps {
+  config: WebDAVConfig | null
+  onConfigChange: (config: WebDAVConfig | null) => void
+}
+
+export function SyncSettings({ config, onConfigChange }: SyncSettingsProps) {
+  const [url, setUrl] = useState(config?.url || '')
+  const [username, setUsername] = useState(config?.username || '')
+  const [password, setPassword] = useState(config?.password || '')
+  const [path, setPath] = useState(config?.path || '/CoolReader')
+  const [testMsg, setTestMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const [testing, setTesting] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const [syncProgress, setSyncProgress] = useState<SyncProgressEvent | null>(null)
+  const [syncResult, setSyncResult] = useState<SyncResult | null>(null)
+  const [saved, setSaved] = useState(false)
+  const cleanRef = useRef<(() => void) | null>(null)
+
+  // Sync local state when config prop changes (e.g. loaded from DB)
+  useEffect(() => {
+    if (config) {
+      setUrl(config.url)
+      setUsername(config.username)
+      setPassword(config.password)
+      setPath(config.path)
+    }
+  }, [config])
+
+  // Cleanup progress listener on unmount
+  useEffect(() => {
+    return () => cleanRef.current?.()
+  }, [])
+
+  const handleTest = useCallback(async () => {
+    setTesting(true)
+    setTestMsg(null)
+    try {
+      const res = await window.electronAPI?.webdavTestConn({ url, username, password, path })
+      setTestMsg(res?.success ? { ok: true, text: '连接成功' } : { ok: false, text: res?.error || '连接失败' })
+    } catch (err: any) {
+      setTestMsg({ ok: false, text: err?.message || String(err) })
+    }
+    setTesting(false)
+  }, [url, username, password, path])
+
+  const handleSave = useCallback(async () => {
+    const cfg: WebDAVConfig = { url, username, password, path }
+    await saveWebDAVConfig(cfg)
+    onConfigChange(cfg)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }, [url, username, password, path, onConfigChange])
+
+  const handleSync = useCallback(async () => {
+    if (!window.electronAPI) return
+    setSyncing(true)
+    setSyncResult(null)
+    setSyncProgress(null)
+
+    // Register progress listener
+    const clean = window.electronAPI.onSyncProgress((data: SyncProgressEvent) => {
+      setSyncProgress(data)
+    })
+    cleanRef.current = clean
+
+    try {
+      const localBooks = await loadAllBooks()
+      const localProgress = await loadAllProgress()
+      const today = new Date().toISOString().slice(0, 10)
+      const todaySeconds = await loadReadingTime(today)
+      const localReadingTime = [{ date: today, seconds: todaySeconds }]
+
+      const result = await window.electronAPI.webdavSyncAll(
+        { url, username, password, path },
+        localBooks,
+        localProgress,
+        localReadingTime,
+      )
+      setSyncResult(result)
+    } catch (err: any) {
+      setSyncResult({ success: false, uploaded: 0, downloaded: 0, conflicts: 0, errors: [err?.message || String(err)] })
+    }
+    setSyncing(false)
+    cleanRef.current?.()
+  }, [url, username, password, path])
+
+  return (
+    <div>
+      {/* Connection form */}
+      <div style={{
+        borderRadius: 14,
+        background: 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 100%)',
+        border: '1px solid rgba(168,85,247,0.12)',
+        padding: '20px 24px',
+        marginBottom: 16,
+      }}>
+        <label style={labelStyle}>服务器地址</label>
+        <input style={inputStyle} placeholder="https://example.com/dav/" value={url} onChange={e => setUrl(e.target.value)} />
+
+        <label style={labelStyle}>用户名</label>
+        <input style={inputStyle} placeholder="username" value={username} onChange={e => setUsername(e.target.value)} />
+
+        <label style={labelStyle}>密码</label>
+        <input style={inputStyle} type="password" placeholder="password" value={password} onChange={e => setPassword(e.target.value)} />
+
+        <label style={labelStyle}>同步路径</label>
+        <input style={inputStyle} placeholder="/CoolReader" value={path} onChange={e => setPath(e.target.value)} />
+
+        <div style={{ display: 'flex', gap: 10, marginTop: 18, alignItems: 'center' }}>
+          <button onClick={handleTest} disabled={testing || !url}
+            style={{
+              ...btnBase,
+              background: 'rgba(99,102,241,0.3)', color: '#fff',
+              opacity: testing || !url ? 0.5 : 1,
+            }}
+          >{testing ? '测试中...' : '测试连接'}</button>
+
+          <button onClick={handleSave}
+            style={{
+              ...btnBase,
+              background: 'rgba(168,85,247,0.3)', color: '#fff',
+            }}
+          >{saved ? '已保存' : '保存配置'}</button>
+
+          {testMsg && (
+            <span style={{ color: testMsg.ok ? 'rgba(74,222,128,0.9)' : 'rgba(248,113,113,0.9)', fontSize: 12 }}>
+              {testMsg.text}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Sync section */}
+      <div style={{
+        borderRadius: 14,
+        background: 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 100%)',
+        border: '1px solid rgba(168,85,247,0.12)',
+        padding: '20px 24px',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <span style={{ color: '#fff', fontSize: 14, fontWeight: 600 }}>同步</span>
+          <button onClick={handleSync} disabled={syncing || !url || !saved && !config}
+            style={{
+              ...btnBase,
+              background: syncing ? 'rgba(255,255,255,0.1)' : 'linear-gradient(135deg, #667eea, #764ba2)',
+              color: '#fff',
+              opacity: syncing || (!saved && !config) ? 0.5 : 1,
+            }}
+          >{syncing ? '同步中...' : '立即同步'}</button>
+        </div>
+
+        {/* Progress bar */}
+        {syncProgress && (
+          <div style={{ marginTop: 8, marginBottom: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 4 }}>
+              <span>{syncProgress.message}</span>
+              {syncProgress.total && syncProgress.current !== undefined && (
+                <span>{syncProgress.current}/{syncProgress.total}</span>
+              )}
+            </div>
+            {syncProgress.total && syncProgress.current !== undefined && (
+              <div style={{ height: 4, background: 'rgba(255,255,255,0.08)', borderRadius: 2, overflow: 'hidden' }}>
+                <div style={{
+                  height: '100%', borderRadius: 2,
+                  background: 'linear-gradient(90deg, #667eea, #764ba2)',
+                  transition: 'width 0.3s ease',
+                  width: `${Math.min(100, (syncProgress.current / syncProgress.total) * 100)}%`,
+                }} />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Sync result */}
+        {syncResult && (
+          <div style={{
+            marginTop: 8,
+            padding: '12px 16px',
+            borderRadius: 8,
+            background: syncResult.success ? 'rgba(74,222,128,0.08)' : 'rgba(248,113,113,0.08)',
+            border: `1px solid ${syncResult.success ? 'rgba(74,222,128,0.2)' : 'rgba(248,113,113,0.2)'}`,
+            fontSize: 12, color: 'rgba(255,255,255,0.7)',
+          }}>
+            <div>上传: {syncResult.uploaded} 本 | 下载: {syncResult.downloaded} 本 | 冲突: {syncResult.conflicts}</div>
+            {syncResult.errors.length > 0 && (
+              <div style={{ marginTop: 6, color: 'rgba(248,113,113,0.8)' }}>
+                {syncResult.errors.map((e, i) => <div key={i}>- {e}</div>)}
+              </div>
+            )}
+            {syncResult.success && syncResult.errors.length === 0 && (
+              <div style={{ marginTop: 6, color: 'rgba(74,222,128,0.8)' }}>同步完成</div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

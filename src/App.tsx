@@ -4,8 +4,8 @@ import { Reader } from './components/Reader'
 import { Sidebar } from './components/Sidebar'
 import { TitleBar } from './components/TitleBar'
 import { useEpub } from './hooks/useEpub'
-import { BookEntry, ThemeMode } from './types'
-import { saveBook, loadAllBooks, saveProgress, deleteBook as dbDeleteBook, loadReadingTime } from './utils/db'
+import { BookEntry, ThemeMode, WebDAVConfig, AIConfig } from './types'
+import { saveBook, loadAllBooks, saveProgress, deleteBook as dbDeleteBook, loadReadingTime, loadWebDAVConfig, loadAIConfig, updateLastOpenedAt, loadAllProgress } from './utils/db'
 
 type Page = 'library' | 'reader'
 
@@ -19,6 +19,22 @@ declare global {
       minimize: () => void
       maximize: () => void
       close: () => void
+      // WebDAV
+      webdavTestConn: (config: any) => Promise<{ success: boolean; error?: string }>
+      webdavListFiles: (config: any) => Promise<any[]>
+      webdavUploadBook: (config: any, localPath: string, fileName: string) => Promise<void>
+      webdavDownloadBook: (config: any, fileName: string, destPath: string) => Promise<void>
+      webdavUploadProgress: (config: any, fileName: string, data: any) => Promise<void>
+      webdavDownloadProgress: (config: any, fileName: string) => Promise<any>
+      webdavUploadReadingTime: (config: any, data: any) => Promise<void>
+      webdavDownloadReadingTime: (config: any) => Promise<any>
+      webdavDeleteRemote: (config: any, remotePath: string) => Promise<void>
+      webdavSyncAll: (config: any, localBooks: any, localProgress: any, localReadingTime: any) => Promise<any>
+      onSyncProgress: (cb: (data: any) => void) => () => void
+      // AI
+      aiChat: (config: any, messages: any) => Promise<any>
+      aiStream: (config: any, messages: any) => Promise<any>
+      onAIToken: (cb: (token: string) => void) => () => void
     }
   }
 }
@@ -39,37 +55,89 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [currentBook, setCurrentBook] = useState<string | null>(null)
   const [readingTime, setReadingTime] = useState(0)
-  const { meta, toc, theme, progress, progressRef, cfiRef, indexRef, sectionHrefRef, extractMeta, openBook, initReadingTime, setTheme, goNext, goPrev, goToHref, seekTo, getReadingSeconds, saveReadingTime, resizeViewer, destroy } = useEpub()
+  const { meta, toc, theme, progress, progressRef, cfiRef, indexRef, sectionHrefRef, extractMeta, openBook, initReadingTime, setTheme, goNext, goPrev, goToHref, goToCfi, seekTo, getReadingSeconds, saveReadingTime, resizeViewer, destroy, getChapterText, getFullBookText, layout, updateLayout, bookmarks, highlights, selectionInfo, currentCfi, toggleBookmark, removeBookmarkById, addHighlight, removeHighlight, clearSelection, searchText, navigateToSearchResult, getChapterLabel } = useEpub()
   const [bgGradient, setBgGradient] = useState('linear-gradient(135deg, #0a0a1a 0%, #1a1040 40%, #0d1137 100%)')
+  const [webdavConfig, setWebdavConfig] = useState<WebDAVConfig | null>(null)
+  const [aiConfig, setAiConfig] = useState<AIConfig | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
+
+  const doImport = useCallback(async (filePath: string) => {
+    if (!filePath) return
+    if (books.some((b) => b.filePath === filePath)) return
+    try {
+      const meta = await extractMeta(filePath)
+      const lastOpenedAt = Date.now()
+      setBooks((prev) => [...prev, { filePath, meta, lastOpenedAt }])
+      saveBook({ filePath, title: meta.title, author: meta.author, cover: meta.cover, lastOpenedAt })
+    } catch (err) {
+      setError(String(err))
+    }
+  }, [books, extractMeta])
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    if (page !== 'library') return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'copy'
+    setIsDragging(true)
+  }, [page])
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    if (e.currentTarget === e.target || !e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragging(false)
+    }
+  }, [])
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    if (page !== 'library') return
+    const file = e.dataTransfer.files[0]
+    if (!file || !file.name.endsWith('.epub')) return
+    const filePath = (file as any).path
+    if (!filePath) return
+    doImport(filePath)
+  }, [page, doImport])
 
   // save progress + CFI + index every 2s, update reading time
   useEffect(() => {
     const interval = setInterval(() => {
       if (currentBook && cfiRef.current) {
-        saveProgress(currentBook, progressRef.current, cfiRef.current, indexRef.current)
+        const chapterLabel = getChapterLabel(indexRef.current)
+        saveProgress(currentBook, progressRef.current, cfiRef.current, indexRef.current, chapterLabel)
       }
       if (currentBook) saveReadingTime()
       setReadingTime(getReadingSeconds())
     }, 2000)
     return () => clearInterval(interval)
-  }, [currentBook, progressRef, cfiRef, indexRef, saveReadingTime, getReadingSeconds])
+  }, [currentBook, progressRef, cfiRef, indexRef, saveReadingTime, getReadingSeconds, getChapterLabel])
   // load books + reading time from IndexedDB on mount
   useEffect(() => {
-    loadAllBooks().then((records) => {
-      const entries: BookEntry[] = records.map((r) => ({
+    Promise.all([loadAllBooks(), loadAllProgress()]).then(([bookRecords, progressRecords]) => {
+      const progressMap = new Map(progressRecords.map(p => [p.filePath, p]))
+      const entries: BookEntry[] = bookRecords.map((r) => ({
         filePath: r.filePath,
         meta: { title: r.title, author: r.author, cover: r.cover },
+        lastOpenedAt: r.lastOpenedAt,
+        progress: progressMap.get(r.filePath)?.progress,
+        chapterLabel: progressMap.get(r.filePath)?.chapterLabel,
       }))
       setBooks(entries)
-    }).catch(() => {})
+    }).catch((e) => console.warn('[App]', e))
     loadReadingTime(new Date().toISOString().slice(0, 10)).then((time) => {
       initReadingTime(time)
       setReadingTime(time)
-    }).catch(() => {})
+    }).catch((e) => console.warn('[App]', e))
+    loadWebDAVConfig().then(setWebdavConfig).catch(() => {})
+    loadAIConfig().then(setAiConfig).catch(() => {})
   }, [])
 
   const handleOpenBook = useCallback((filePath: string) => {
+    console.log('[App] handleOpenBook called:', filePath)
     setCurrentBook(filePath)
+    updateLastOpenedAt(filePath)
+    setBooks((prev) => prev.map((b) =>
+      b.filePath === filePath ? { ...b, lastOpenedAt: Date.now() } : b
+    ))
     setPhase('leaving')
     setTimeout(() => {
       setPage('reader')
@@ -84,9 +152,13 @@ export default function App() {
     const pct = progressRef.current
     const cfi = cfiRef.current
     const idx = indexRef.current
+    const label = getChapterLabel(idx)
     if (currentBook) {
-      console.log('[handleBack] saving', { pct, cfi, idx })
-      saveProgress(currentBook, pct, cfi, idx)
+      console.log('[handleBack] saving', { pct, cfi, idx, label })
+      saveProgress(currentBook, pct, cfi, idx, label)
+      setBooks(prev => prev.map(b =>
+        b.filePath === currentBook ? { ...b, progress: pct, chapterLabel: label } : b
+      ))
     }
     saveReadingTime()
     setReadingTime(getReadingSeconds())
@@ -101,19 +173,7 @@ export default function App() {
         requestAnimationFrame(() => setPhase('idle'))
       })
     }, 200)
-  }, [currentBook, destroy, saveReadingTime, getReadingSeconds])
-
-  const doImport = useCallback(async (filePath: string) => {
-    if (!filePath) return
-    if (books.some((b) => b.filePath === filePath)) return
-    try {
-      const meta = await extractMeta(filePath)
-      setBooks((prev) => [...prev, { filePath, meta }])
-      saveBook({ filePath, title: meta.title, author: meta.author, cover: meta.cover })
-    } catch (err) {
-      setError(String(err))
-    }
-  }, [books, extractMeta])
+  }, [currentBook, destroy, saveReadingTime, getReadingSeconds, getChapterLabel])
 
   const handleImport = useCallback(async () => {
     const filePath = await window.electronAPI?.openFile()
@@ -131,6 +191,14 @@ export default function App() {
         setError(String(err))
       }
     }
+  }, [])
+
+  const handleWebDAVConfigChange = useCallback((config: WebDAVConfig | null) => {
+    setWebdavConfig(config)
+  }, [])
+
+  const handleAIConfigChange = useCallback((config: AIConfig | null) => {
+    setAiConfig(config)
   }, [])
 
   const importRef = useRef(doImport)
@@ -157,11 +225,16 @@ export default function App() {
   const activeTocSrc = sectionHrefRef.current
 
   return (
-    <div style={{
-      display: 'flex', flexDirection: 'column', height: '100vh',
-      background: isLibrary ? bgGradient : ({ light: '#ece8f4', sepia: '#f4ecd8', dark: '#0a0a1a' } satisfies Record<ThemeMode, string>)[theme],
-      transition: 'background 0.3s ease',
-    }}>
+    <div
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      style={{
+        display: 'flex', flexDirection: 'column', height: '100vh',
+        background: isLibrary ? bgGradient : ({ light: '#ece8f4', sepia: '#f4ecd8', dark: '#0a0a1a' } satisfies Record<ThemeMode, string>)[theme],
+        transition: 'background 0.3s ease',
+        position: 'relative',
+      }}>
       <TitleBar />
       {error && (
         <div style={{
@@ -181,7 +254,7 @@ export default function App() {
           transition: 'opacity 0.25s ease, transform 0.25s ease',
           pointerEvents: isLibrary ? 'auto' : 'none',
         }}>
-          <Library books={books} readingTime={readingTime} onOpenBook={handleOpenBook} onImport={handleImport} onDelete={handleDeleteBook} onBgChange={setBgGradient} />
+          <Library books={books} readingTime={readingTime} onOpenBook={handleOpenBook} onImport={handleImport} onDelete={handleDeleteBook} onBgChange={setBgGradient} webdavConfig={webdavConfig} onWebDAVConfigChange={handleWebDAVConfigChange} aiConfig={aiConfig} onAIConfigChange={handleAIConfigChange} />
         </div>
         <div style={{
           position: 'absolute', inset: 0,
@@ -197,7 +270,10 @@ export default function App() {
               <Sidebar
                 toc={toc}
                 activeHref={activeTocSrc}
-                onNavigate={(href) => { goToHref(href); setSidebarOpen(false) }}
+                onNavigate={async (href) => {
+                  await goToHref(href)
+                  setSidebarOpen(false)
+                }}
                 onClose={() => setSidebarOpen(false)}
                 theme={theme}
               />
@@ -207,6 +283,8 @@ export default function App() {
                 filePath={currentBook}
                 meta={meta}
                 theme={theme}
+                layout={layout}
+                onLayoutChange={updateLayout}
                 onLoad={openBook}
                 onBack={handleBack}
                 onNext={goNext}
@@ -216,11 +294,38 @@ export default function App() {
                 onSeek={seekTo}
                 onThemeChange={setTheme}
                 onResize={resizeViewer}
+                aiConfig={aiConfig}
+                onGetChapterText={getChapterText}
+                onGetFullBookText={getFullBookText}
+                bookmarks={bookmarks}
+                highlights={highlights}
+                currentCfi={currentCfi}
+                selectionInfo={selectionInfo}
+                onToggleBookmark={toggleBookmark}
+                onRemoveBookmark={removeBookmarkById}
+                onAddHighlight={addHighlight}
+                onRemoveHighlight={removeHighlight}
+                onClearSelection={clearSelection}
+                onGoToCfi={goToCfi}
+                onSearch={searchText}
+                onNavigateToSearchResult={navigateToSearchResult}
               />
             </div>
           </div>
         </div>
       </div>
+      {isDragging && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          background: 'rgba(99,102,241,0.15)',
+          backdropFilter: 'blur(8px) saturate(120%)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexDirection: 'column', gap: 16,
+        }}>
+          <div style={{ fontSize: 56, opacity: 0.7 }}>📖</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: '#fff', opacity: 0.8 }}>释放以导入 EPUB 文件</div>
+        </div>
+      )}
     </div>
   )
 }

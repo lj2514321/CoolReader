@@ -1,6 +1,19 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu } from 'electron'
 import path from 'path'
 import { promises as fs, existsSync } from 'fs'
+import { callAI, streamAI } from './ai'
+import {
+  testConnection,
+  listRemoteBooks,
+  uploadBook,
+  downloadBook,
+  uploadProgress,
+  downloadProgress,
+  uploadReadingTime,
+  downloadReadingTime,
+  deleteRemoteFile,
+  syncAll,
+} from './webdav'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -68,6 +81,68 @@ ipcMain.handle('readFile', async (_e, filePath: string) => {
 
 ipcMain.handle('deleteFile', async (_e, filePath: string) => {
   await fs.unlink(filePath)
+})
+
+// ---- WebDAV IPC handlers ----
+
+ipcMain.handle('webdav:testConn', async (_e, config) => {
+  return testConnection(config)
+})
+
+ipcMain.handle('webdav:listFiles', async (_e, config) => {
+  return listRemoteBooks(config)
+})
+
+ipcMain.handle('webdav:uploadBook', async (_e, config, localPath, fileName) => {
+  await uploadBook(config, localPath, fileName)
+})
+
+ipcMain.handle('webdav:downloadBook', async (_e, config, fileName, destPath) => {
+  await downloadBook(config, fileName, destPath)
+})
+
+ipcMain.handle('webdav:uploadProgress', async (_e, config, fileName, data) => {
+  await uploadProgress(config, fileName, data)
+})
+
+ipcMain.handle('webdav:downloadProgress', async (_e, config, fileName) => {
+  return downloadProgress(config, fileName)
+})
+
+ipcMain.handle('webdav:uploadReadingTime', async (_e, config, data) => {
+  await uploadReadingTime(config, data)
+})
+
+ipcMain.handle('webdav:downloadReadingTime', async (_e, config) => {
+  return downloadReadingTime(config)
+})
+
+ipcMain.handle('webdav:deleteRemote', async (_e, config, remotePath) => {
+  await deleteRemoteFile(config, remotePath)
+})
+
+ipcMain.handle('webdav:syncAll', async (event, config, localBooks, localProgress, localReadingTime) => {
+  const sendProgress = (data: any) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('webdav:progress', data)
+    }
+  }
+  return syncAll(config, localBooks, localProgress, localReadingTime, sendProgress)
+})
+
+// ---- AI IPC handlers ----
+
+ipcMain.handle('ai:chat', async (_e, config, messages) => {
+  return callAI(config, messages)
+})
+
+ipcMain.handle('ai:stream', async (event, config, messages) => {
+  const onToken = (token: string) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('ai:token', token)
+    }
+  }
+  return streamAI(config, messages, onToken)
 })
 
 app.whenReady().then(() => {

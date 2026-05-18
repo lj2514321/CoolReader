@@ -1,9 +1,11 @@
 import { btnGlass } from '../utils/styles'
 
+export type LibPage = 'books' | 'settings' | 'stats'
+
 interface SidebarNavProps {
-  libPage: 'books' | 'settings'
+  libPage: LibPage
   bookCount: number
-  onSwitchPage: (target: 'books' | 'settings') => void
+  onSwitchPage: (target: LibPage) => void
   onImport: () => void
 }
 
@@ -16,13 +18,14 @@ const baseBtn = (active: boolean): React.CSSProperties => ({
 
 export function SidebarNav({ libPage, bookCount, onSwitchPage, onImport }: SidebarNavProps) {
   const bookActive = libPage === 'books'
+  const statsActive = libPage === 'stats'
   const settingActive = libPage === 'settings'
 
   const hoverIn = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.currentTarget.style.background = 'rgba(99,102,241,0.3)'
     e.currentTarget.style.borderColor = 'rgba(99,102,241,0.4)'
   }
-  const hoverOut = (btnPage: 'books' | 'settings') => (e: React.MouseEvent<HTMLButtonElement>) => {
+  const hoverOut = (btnPage: LibPage) => (e: React.MouseEvent<HTMLButtonElement>) => {
     const active = libPage === btnPage
     e.currentTarget.style.background = active ? 'rgba(99,102,241,0.3)' : 'rgba(255,255,255,0.08)'
     e.currentTarget.style.borderColor = active ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.1)'
@@ -50,6 +53,10 @@ export function SidebarNav({ libPage, bookCount, onSwitchPage, onImport }: Sideb
           onMouseEnter={hoverIn}
           onMouseLeave={hoverOut('books')}
         >📚 书架</button>
+        <button onClick={() => onSwitchPage('stats')} style={baseBtn(statsActive)}
+          onMouseEnter={hoverIn}
+          onMouseLeave={hoverOut('stats')}
+        >📊 统计</button>
         <button onClick={() => onSwitchPage('settings')} style={baseBtn(settingActive)}
           onMouseEnter={hoverIn}
           onMouseLeave={hoverOut('settings')}

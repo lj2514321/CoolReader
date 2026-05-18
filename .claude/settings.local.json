@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(npx electron-vite *)",
+      "Bash(npm run *)",
+      "Bash(git ls-files *)",
+      "Bash(git status *)",
+      "Bash(git rm *)",
+      "Bash(npm create *)",
+      "Bash(mkdir -p \"C:/Users/Luna/Desktop/学习/CoolReader_android/src/components\" \"C:/Users/Luna/Desktop/学习/CoolReader_android/src/hooks\" \"C:/Users/Luna/Desktop/学习/CoolReader_android/src/utils\" \"C:/Users/Luna/Desktop/学习/CoolReader_android/src/types\")",
+      "Bash(rm -f \"C:/Users/Luna/Desktop/学习/CoolReader_android/src/App.css\" \"C:/Users/Luna/Desktop/学习/CoolReader_android/src/index.css\")",
+      "Bash(npx vite *)",
+      "Bash(npx cap *)"
+    ]
+  }
+}

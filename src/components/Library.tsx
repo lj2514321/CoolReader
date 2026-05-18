@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
-import { BookEntry } from '../types'
+import { BookEntry, WebDAVConfig, AIConfig } from '../types'
 import { loadSetting } from '../utils/db'
 import { bgPresets, defGrad } from '../utils/styles'
-import { SidebarNav } from './SidebarNav'
+import { SidebarNav, LibPage } from './SidebarNav'
 import { BookShelf } from './BookShelf'
 import { SettingsPage } from './SettingsPage'
+import { ReadingStats } from './ReadingStats'
 
 interface LibraryProps {
   books: BookEntry[]
@@ -13,12 +14,16 @@ interface LibraryProps {
   onImport: () => void
   onDelete: (filePath: string, deleteFile: boolean) => void
   onBgChange?: (g: string) => void
+  webdavConfig?: WebDAVConfig | null
+  onWebDAVConfigChange?: (config: WebDAVConfig | null) => void
+  aiConfig?: AIConfig | null
+  onAIConfigChange?: (config: AIConfig | null) => void
 }
 
-export function Library({ books, readingTime, onOpenBook, onImport, onDelete, onBgChange }: LibraryProps) {
-  const [libPage, setLibPage] = useState<'books' | 'settings'>('books')
+export function Library({ books, readingTime, onOpenBook, onImport, onDelete, onBgChange, webdavConfig, onWebDAVConfigChange, aiConfig, onAIConfigChange }: LibraryProps) {
+  const [libPage, setLibPage] = useState<LibPage>('books')
   const [transition, setTransition] = useState<'idle' | 'out' | 'in'>('idle')
-  const [direction, setDirection] = useState<'up' | 'down'>('up')
+  const [direction, setDirection] = useState<'up' | 'down' | 'left' | 'right'>('up')
   const transRef = useRef<ReturnType<typeof setTimeout>>()
   const [bgKey, setBgKey] = useState('deepPurple')
   const [settingsResetKey, setSettingsResetKey] = useState(0)
@@ -35,10 +40,14 @@ export function Library({ books, readingTime, onOpenBook, onImport, onDelete, on
     }).catch(() => onBgChange?.(defGrad))
   }, [onBgChange])
 
-  const switchPage = (target: 'books' | 'settings') => {
+  const pageOrder: LibPage[] = ['books', 'stats', 'settings']
+
+  const switchPage = (target: LibPage) => {
     if (target === libPage || transition !== 'idle') return
-    if (target === 'settings') setSettingsResetKey(k => k + 1)
-    const dir = target === 'settings' ? 'up' : 'down'
+    if (target === 'settings' || libPage === 'settings') setSettingsResetKey(k => k + 1)
+    const curIdx = pageOrder.indexOf(libPage)
+    const targetIdx = pageOrder.indexOf(target)
+    const dir = targetIdx > curIdx ? 'down' : 'up'
     setDirection(dir)
     setTransition('out')
     clearTimeout(transRef.current)
@@ -49,9 +58,8 @@ export function Library({ books, readingTime, onOpenBook, onImport, onDelete, on
     }, 400)
   }
 
-  const pageAnim = (page: 'books' | 'settings'): { opacity: number; transform: string } => {
+  const pageAnim = (page: LibPage): { opacity: number; transform: string } => {
     const active = libPage === page
-    const isNew = (direction === 'up' && page === 'settings') || (direction === 'down' && page === 'books')
     const outY = direction === 'up' ? -28 : 28
     const startY = direction === 'up' ? 28 : -28
 
@@ -60,7 +68,7 @@ export function Library({ books, readingTime, onOpenBook, onImport, onDelete, on
       if (active) return { opacity: 0, transform: `translateY(${outY}px)` }
       return { opacity: 0, transform: `translateY(${startY}px)` }
     }
-    if (isNew) return { opacity: 1, transform: 'translateY(0)' }
+    if (active) return { opacity: 1, transform: 'translateY(0)' }
     return { opacity: 0, transform: `translateY(${outY}px)` }
   }
 
@@ -93,6 +101,16 @@ export function Library({ books, readingTime, onOpenBook, onImport, onDelete, on
           <BookShelf books={books} readingTime={readingTime} onOpenBook={onOpenBook} onDelete={onDelete} />
         </div>
 
+        {/* stats page */}
+        <div style={{
+          position: 'absolute', inset: 0, overflow: 'hidden',
+          transition: 'opacity 0.4s ease, transform 0.4s ease',
+          pointerEvents: transition !== 'idle' || libPage !== 'stats' ? 'none' : 'auto',
+          ...pageAnim('stats'),
+        }}>
+          <ReadingStats books={books} />
+        </div>
+
         {/* settings page */}
         <div style={{
           position: 'absolute', inset: 0, overflow: 'hidden',
@@ -100,7 +118,7 @@ export function Library({ books, readingTime, onOpenBook, onImport, onDelete, on
           pointerEvents: transition !== 'idle' || libPage !== 'settings' ? 'none' : 'auto',
           ...pageAnim('settings'),
         }}>
-          <SettingsPage bgKey={bgKey} onPresetChange={handlePresetChange} resetKey={settingsResetKey} visible={libPage === 'settings'} />
+          <SettingsPage bgKey={bgKey} onPresetChange={handlePresetChange} resetKey={settingsResetKey} visible={libPage === 'settings'} webdavConfig={webdavConfig ?? null} onWebDAVConfigChange={onWebDAVConfigChange} aiConfig={aiConfig ?? null} onAIConfigChange={onAIConfigChange} />
         </div>
       </div>
     </div>

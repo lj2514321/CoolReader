@@ -1,5 +1,57 @@
 # 更新日志
 
+## [1.3.5] — 2026-05-18
+
+### Bug 修复
+
+- **目录导航竞态条件修复** — 先执行 `goToHref(href)` 再关闭侧栏（`setSidebarOpen(false)`），防止 `ResizeObserver` → `rendition.resize()` → `onResized()` 在导航完成后使用旧的 CFI 重新显示旧章节
+- **`Blocked script execution` 沙箱错误** — `renderTo()` 选项添加 `allowScriptedContent: true`，允许注入的文本选择脚本在 sandbox iframe 中执行
+- **`doc.getElementById is not a function`** — hook `hook manoeuvre` 中增加 `view.document` 守卫，避免 epub.js 未就绪时报错
+- **`goToHref` 超时挂起** — `Promise.race` 超时包装（10s），超时后回退到 `book.spine.get(href).index`（数字索引），最后兜底 `manager.display(section, href)`
+
+### 优化
+
+- **诊断日志整理** — 移除 `goToHref` 中的冗长 DOM 诊断日志，仅保留关键导航状态输出
+- **内容脚本稳定性** — 注入脚本增加空值守卫，防止在 iframe 文档未完全加载时操作 DOM
+
+## [1.3.0] — 2026-05-18
+
+### 新特性
+
+- **全文搜索** — 阅读页顶部 🔍 按钮唤起搜索面板，懒构建搜索索引（首次搜索时遍历全部 spine 章节），大小写不敏感匹配，结果列表显示行上下文（±40 字符，匹配词黄色高亮）；点击结果跳转至对应位置并使用 `window.find()` 高亮匹配词
+- **书签系统** — 阅读页顶部 📑 按钮打开标记面板（「书签」/「标注」双标签）；点击右上方书签图标（`bookmarkIcon` 状态）在当前位置插入或移除书签；面板内书签可点击跳转/可见删除按钮
+- **文本标注** — 选中正文文字后弹出悬浮标注工具栏（毛玻璃设计），包含黄色/绿色/蓝色/粉色四色标记按钮；点击颜色后在选中文本前后包裹 `<mark>` 标签并持久化到 IndexedDB；标注面板内显示标注文本片段和色点
+- **标注上下文菜单** — 标注面板内右键标注项弹出删除菜单（使用 `position: fixed` 定位防止滚动容器裁剪）
+- **内容脚本与通信桥** — 渲染进程注入 `content.ts` 脚本，监听鼠标弹起事件检测文本选中状态，通过 `postMessage` → IPC 桥将选区信息传给 React 层；支持 `getCfiFromRange()` 获取精确 CFI 位置
+- **IndexedDB 数据模型升级** — 数据库版本 v5，新增 `bookmarks` 和 `highlights` 对象存储，支持书签/标注的 CRUD
+
+### Bug 修复
+
+- **ctxBmId ReferenceError** — `Reader.tsx:112` 右键菜单上下文引用未声明的 `ctxBmId` 变量；补齐 `const [ctxBmId, setCtxBmId] = useState<string | null>(null)` 声明
+- **面板滚动事件穿透** — 书签/标注/搜索结果面板的滚动容器缺 `data-scroll` 属性，鼠标滚轮在面板内操作时事件穿透到阅读页触发翻页；给三个面板容器加上 `data-scroll="true"`
+
+## [1.2.0] — 2026-05-15
+
+### 新特性
+
+- **WebDAV 双向同步** — 书架 + 阅读进度 + 阅读时间全量同步，支持自建 WebDAV 服务器（NextCloud、群晖等）；设置页内嵌配置表单（地址/用户/密码/目录），测试连接按钮，全量同步进度条反馈
+- **AI 阅读助手** — OpenAI 兼容 API 接入，阅读页底部浮层面板（毛玻璃设计，跟随主题色）；「总结本章」一键提取当前章节要点，自由问答发送章节上下文；流式输出实时显示（逐 token 渲染）；自定义 API 地址/Key/模型
+- **AI 配置页** — 设置页新增「AI 助手」配置项，API 地址/Key/模型 表单，连接测试按钮
+
+### Bug 修复
+
+- **设置页二级页直接导航致书架不可点击** — 在 AI 助手二级页点击侧栏「书架」时 SettingsPage 内部状态未重置，pointer-events 持续拦截；切换离开设置页时强制重置 settingView/subPhase 状态机
+- **AI 总结返回页面源码** — `fetch(item.url)` 解析到渲染器 HTML（epub.js 0.3 spine 项的 url 为虚拟路径，非真实 blob URL）；改用 `book.archive.getText()` 从 ZIP 直接提取章节文本
+- **AI 流式光标动画失效** — `@keyframes pulse` 未定义；注入 `<style>` 使光标正常闪烁
+
+### 优化
+
+- **剔除无用文件** — 删除未引用的图标（16/32/64 PNG），清理 `dist/` 构建产物
+- **构建产物取消 Git 追踪** — `out/main/index.js`、`out/preload/index.js` 执行 `git rm --cached`（已在 .gitignore 中）
+- **移除死代码** — 无用的 `linkClicked` 事件处理器、未使用的 CSSProperties/btnGlass 导入
+- **空 catch 加日志** — 全书架/配置加载失败的 4 处 `.catch(() => {})`、封面图片获取异常、章节文本加载异常、SSE 解析异常，统一加 `console.warn`
+- **类型收敛** — 重复声明的 `ProgressRecord` 接口合并为单一定义，`loadAllProgress()` 返回值复用命名类型
+
 ## [1.1.0] — 2026-05-10
 
 ### 重构
