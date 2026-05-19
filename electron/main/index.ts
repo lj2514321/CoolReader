@@ -62,6 +62,10 @@ ipcMain.on('window:maximize', () => {
   else mainWindow?.maximize()
 })
 ipcMain.on('window:close', () => mainWindow?.close())
+ipcMain.on('window:toggleFullscreen', () => {
+  if (mainWindow?.isFullScreen()) mainWindow.setFullScreen(false)
+  else mainWindow?.setFullScreen(true)
+})
 
 ipcMain.handle('dialog:openFile', async () => {
   const result = await dialog.showOpenDialog(mainWindow!, {

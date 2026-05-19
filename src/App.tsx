@@ -19,6 +19,7 @@ declare global {
       minimize: () => void
       maximize: () => void
       close: () => void
+      toggleFullscreen: () => void
       // WebDAV
       webdavTestConn: (config: any) => Promise<{ success: boolean; error?: string }>
       webdavListFiles: (config: any) => Promise<any[]>
@@ -43,7 +44,7 @@ const _styleId = '_app_drag'
 if (typeof document !== 'undefined' && !document.getElementById(_styleId)) {
   const s = document.createElement('style')
   s.id = _styleId
-  s.textContent = '.titlebar-drag{-webkit-app-region:drag}.titlebar-no-drag{-webkit-app-region:no-drag}'
+  s.textContent = '.titlebar-drag{-webkit-app-region:drag}.titlebar-no-drag{-webkit-app-region:no-drag}@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}'
   document.head.appendChild(s)
 }
 
@@ -60,6 +61,7 @@ export default function App() {
   const [webdavConfig, setWebdavConfig] = useState<WebDAVConfig | null>(null)
   const [aiConfig, setAiConfig] = useState<AIConfig | null>(null)
   const [isDragging, setIsDragging] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
 
   const doImport = useCallback(async (filePath: string) => {
     if (!filePath) return
@@ -92,7 +94,11 @@ export default function App() {
     setIsDragging(false)
     if (page !== 'library') return
     const file = e.dataTransfer.files[0]
-    if (!file || !file.name.endsWith('.epub')) return
+    if (!file) return
+    if (!file.name.endsWith('.epub')) {
+      setToast(`不支持的文件格式: ${file.name}，仅支持 EPUB 文件`)
+      return
+    }
     const filePath = (file as any).path
     if (!filePath) return
     doImport(filePath)
@@ -212,6 +218,13 @@ export default function App() {
     return () => destroy()
   }, [destroy])
 
+  // auto-dismiss toast
+  useEffect(() => {
+    if (!toast) return
+    const t = setTimeout(() => setToast(null), 3500)
+    return () => clearTimeout(t)
+  }, [toast])
+
   // save reading time on window close
   useEffect(() => {
     const handleUnload = () => { if (currentBook) saveReadingTime() }
@@ -314,6 +327,16 @@ export default function App() {
           </div>
         </div>
       </div>
+      {toast && (
+        <div style={{
+          position: 'fixed', bottom: 40, left: '50%', transform: 'translateX(-50%)', zIndex: 10000,
+          background: 'rgba(220,38,38,0.9)', backdropFilter: 'blur(12px)',
+          padding: '12px 24px', borderRadius: 12,
+          color: '#fff', fontSize: 13, fontWeight: 500,
+          maxWidth: 400, textAlign: 'center',
+          animation: 'fadeIn 0.2s ease',
+        }}>{toast}</div>
+      )}
       {isDragging && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 9999,

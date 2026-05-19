@@ -15,14 +15,13 @@ interface SidebarProps {
   theme?: ThemeMode
 }
 
-const btnRefs = new Map<string, HTMLElement>()
-
-function TocList({ items, onNavigate, activeHref, depth = 0, s }: {
+function TocList({ items, onNavigate, activeHref, depth = 0, s, btnRefs }: {
   items: NavItem[]
   onNavigate: (href: string) => void
   activeHref: string
   depth?: number
   s: typeof sbTheme.dark
+  btnRefs: Map<string, HTMLElement>
 }) {
   return (
     <>
@@ -50,7 +49,7 @@ function TocList({ items, onNavigate, activeHref, depth = 0, s }: {
               onMouseLeave={e => { e.currentTarget.style.background = 'none'; if (!isActive) e.currentTarget.style.color = s.muted }}
             >{item.label}</button>
             {item.subitems?.length > 0 && (
-              <TocList items={item.subitems} onNavigate={onNavigate} activeHref={activeHref} depth={depth + 1} s={s} />
+              <TocList items={item.subitems} onNavigate={onNavigate} activeHref={activeHref} depth={depth + 1} s={s} btnRefs={btnRefs} />
             )}
           </span>
         )
@@ -61,6 +60,8 @@ function TocList({ items, onNavigate, activeHref, depth = 0, s }: {
 
 export function Sidebar({ toc, activeHref, onNavigate, onClose, theme = 'dark' }: SidebarProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
+  const btnRefsRef = useRef(new Map<string, HTMLElement>())
+  const btnRefs = btnRefsRef.current
   const s = sbTheme[theme]
 
   // reset ref map when book changes
@@ -118,7 +119,7 @@ export function Sidebar({ toc, activeHref, onNavigate, onClose, theme = 'dark' }
       <div ref={scrollRef} data-scroll style={{
         flex: 1, overflowY: 'auto', padding: '8px 0', minHeight: 0,
       }}>
-        <TocList items={toc} onNavigate={onNavigate} activeHref={activeHref} s={s} />
+        <TocList items={toc} onNavigate={onNavigate} activeHref={activeHref} s={s} btnRefs={btnRefs} />
       </div>
     </div>
   )

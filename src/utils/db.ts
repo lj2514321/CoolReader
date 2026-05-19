@@ -1,8 +1,11 @@
 const DB_NAME = 'epub-reader'
 const DB_VERSION = 6
 
+let dbSingleton: Promise<IDBDatabase> | null = null
+
 function openDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
+  if (dbSingleton) return dbSingleton
+  dbSingleton = new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION)
     req.onupgradeneeded = () => {
       const db = req.result
@@ -33,12 +36,20 @@ function openDB(): Promise<IDBDatabase> {
       }
     }
     req.onsuccess = () => resolve(req.result)
-    req.onerror = () => reject(req.error)
+    req.onerror = () => { dbSingleton = null; reject(req.error) }
   })
+  return dbSingleton
 }
 
 function store(db: IDBDatabase, name: string, mode: IDBTransactionMode = 'readonly') {
   return db.transaction(name, mode).objectStore(name)
+}
+
+function requestPromise<T>(req: IDBRequest<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    req.onsuccess = () => resolve(req.result)
+    req.onerror = () => reject(req.error)
+  })
 }
 
 export interface BookRecord {
@@ -51,38 +62,38 @@ export interface BookRecord {
 
 export async function saveBook(book: BookRecord): Promise<void> {
   const db = await openDB()
-  store(db, 'books', 'readwrite').put(book)
+  await requestPromise(store(db, 'books', 'readwrite').put(book))
 }
 
 export async function updateLastOpenedAt(filePath: string): Promise<void> {
   const db = await openDB()
-  const tx = db.transaction('books', 'readwrite')
-  const req = tx.objectStore('books').get(filePath)
-  req.onsuccess = () => {
-    const record = req.result as BookRecord | undefined
-    if (record) {
-      record.lastOpenedAt = Date.now()
-      tx.objectStore('books').put(record)
-    }
+  const record = await requestPromise<BookRecord | undefined>(db.transaction('books', 'readonly').objectStore('books').get(filePath))
+  if (record) {
+    record.lastOpenedAt = Date.now()
+    await requestPromise(db.transaction('books', 'readwrite').objectStore('books').put(record))
   }
 }
 
 export async function deleteBook(filePath: string): Promise<void> {
   const db = await openDB()
-  store(db, 'books', 'readwrite').delete(filePath)
-  store(db, 'progress', 'readwrite').delete(filePath)
-  const bmTx = db.transaction('bookmarks', 'readwrite')
-  const bmIdx = bmTx.objectStore('bookmarks').index('filePath')
-  bmIdx.getAll(filePath).onsuccess = (e) => {
-    const records = (e.target as IDBRequest).result as Bookmark[]
-    records.forEach(r => bmTx.objectStore('bookmarks').delete(r.id!))
-  }
-  const hlTx = db.transaction('highlights', 'readwrite')
-  const hlIdx = hlTx.objectStore('highlights').index('filePath')
-  hlIdx.getAll(filePath).onsuccess = (e) => {
-    const records = (e.target as IDBRequest).result as Highlight[]
-    records.forEach(r => hlTx.objectStore('highlights').delete(r.id!))
-  }
+  await Promise.all([
+    requestPromise(store(db, 'books', 'readwrite').delete(filePath)),
+    requestPromise(store(db, 'progress', 'readwrite').delete(filePath)),
+    (async () => {
+      const bmRecords = await requestPromise<Bookmark[]>(db.transaction('bookmarks', 'readonly').objectStore('bookmarks').index('filePath').getAll(filePath))
+      if (bmRecords.length > 0) {
+        const bmTx = db.transaction('bookmarks', 'readwrite')
+        await Promise.all(bmRecords.map(r => requestPromise(bmTx.objectStore('bookmarks').delete(r.id!))))
+      }
+    })(),
+    (async () => {
+      const hlRecords = await requestPromise<Highlight[]>(db.transaction('highlights', 'readonly').objectStore('highlights').index('filePath').getAll(filePath))
+      if (hlRecords.length > 0) {
+        const hlTx = db.transaction('highlights', 'readwrite')
+        await Promise.all(hlRecords.map(r => requestPromise(hlTx.objectStore('highlights').delete(r.id!))))
+      }
+    })(),
+  ])
 }
 
 export async function loadAllBooks(): Promise<BookRecord[]> {
@@ -106,10 +117,10 @@ export interface ProgressRecord {
 export async function saveProgress(filePath: string, progress: number, cfi: string, index: number, chapterLabel?: string): Promise<void> {
   if (!cfi) console.warn('[saveProgress] cfi is empty, index:', index)
   const db = await openDB()
-  store(db, 'progress', 'readwrite').put({
+  await requestPromise(store(db, 'progress', 'readwrite').put({
     filePath, progress, cfi, index, chapterLabel,
     updatedAt: Date.now(),
-  })
+  }))
 }
 
 export async function loadProgress(filePath: string): Promise<{ progress: number; cfi: string; index: number } | null> {
@@ -137,7 +148,7 @@ export interface ReadingTimeRecord {
 
 export async function saveReadingTime(date: string, seconds: number): Promise<void> {
   const db = await openDB()
-  store(db, 'readingTime', 'readwrite').put({ date, seconds })
+  await requestPromise(store(db, 'readingTime', 'readwrite').put({ date, seconds }))
 }
 
 export async function loadReadingTime(date: string): Promise<number> {
@@ -169,7 +180,7 @@ export interface BookReadingTimeRecord {
 
 export async function saveBookReadingTime(filePath: string, date: string, seconds: number): Promise<void> {
   const db = await openDB()
-  store(db, 'bookReadingTime', 'readwrite').put({ filePath, date, seconds })
+  await requestPromise(store(db, 'bookReadingTime', 'readwrite').put({ filePath, date, seconds }))
 }
 
 export async function loadBookReadingTime(filePath: string, date: string): Promise<number> {
@@ -226,7 +237,7 @@ export async function loadAIConfig(): Promise<AIConfig | null> {
 
 export async function saveSetting(key: string, value: string): Promise<void> {
   const db = await openDB()
-  store(db, 'settings', 'readwrite').put({ key, value })
+  await requestPromise(store(db, 'settings', 'readwrite').put({ key, value }))
 }
 
 export async function loadSetting(key: string): Promise<string | null> {
@@ -249,7 +260,7 @@ export async function addBookmark(bookmark: Omit<Bookmark, 'id'>): Promise<numbe
 
 export async function removeBookmark(id: number): Promise<void> {
   const db = await openDB()
-  store(db, 'bookmarks', 'readwrite').delete(id)
+  await requestPromise(store(db, 'bookmarks', 'readwrite').delete(id))
 }
 
 export async function loadBookmarks(filePath: string): Promise<Bookmark[]> {
@@ -278,7 +289,7 @@ export async function addHighlight(hl: Omit<Highlight, 'id'>): Promise<number> {
 
 export async function removeHighlight(id: number): Promise<void> {
   const db = await openDB()
-  store(db, 'highlights', 'readwrite').delete(id)
+  await requestPromise(store(db, 'highlights', 'readwrite').delete(id))
 }
 
 export async function loadHighlights(filePath: string): Promise<Highlight[]> {

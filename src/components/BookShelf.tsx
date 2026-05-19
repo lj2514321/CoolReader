@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo, memo } from 'react'
 import { BookEntry } from '../types'
 import { glass, colors } from '../utils/styles'
 
@@ -44,20 +44,107 @@ interface BookShelfProps {
   onDelete: (filePath: string, deleteFile: boolean) => void
 }
 
+const BookCard = memo(function BookCard({ book, i, onOpenBook, onContextMenu }: {
+  book: BookEntry; i: number; onOpenBook: (fp: string) => void; onContextMenu: (fp: string) => void
+}) {
+  const [c1, c2] = colors[i % colors.length]
+  return (
+    <div key={book.filePath} style={{
+      position: 'relative',
+      borderRadius: 14,
+      background: 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 100%)',
+      border: '1px solid rgba(168,85,247,0.12)',
+      padding: '20px 14px 18px',
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+      cursor: 'pointer',
+    }}
+      onClick={() => onOpenBook(book.filePath)}
+      onContextMenu={e => { e.preventDefault(); onContextMenu(book.filePath) }}
+      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(99,102,241,0.15)' }}
+      onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = 'none' }}
+    >
+      <div style={{
+        width: 120, height: 170,
+        borderRadius: 10,
+        overflow: 'hidden',
+        boxShadow: '0 6px 16px rgba(0,0,0,0.3)',
+        background: !book.meta.cover ? `linear-gradient(135deg, ${c1}, ${c2})` : undefined,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexShrink: 0,
+        position: 'relative',
+      }}>
+        {book.meta.cover ? (
+          <img src={book.meta.cover} alt={book.meta.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        ) : (
+          <span style={{ fontSize: 40, opacity: 0.5 }}>📖</span>
+        )}
+        {book.progress !== undefined && (
+          <div style={{
+            position: 'absolute', bottom: 0, left: 0, right: 0, height: 3,
+            background: 'rgba(0,0,0,0.3)',
+          }}>
+            <div style={{
+              width: `${book.progress}%`,
+              height: '100%',
+              background: 'linear-gradient(90deg, rgba(99,102,241,0.9), rgba(168,85,247,0.7))',
+              borderRadius: '0 2px 2px 0',
+              transition: 'width 0.3s ease',
+            }} />
+          </div>
+        )}
+      </div>
+      <div style={{ marginTop: 14, textAlign: 'center', width: '100%' }}>
+        <div style={{
+          fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.85)',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          lineHeight: 1.3,
+        }}>{book.meta.title}</div>
+        <div style={{
+          fontSize: 12, color: 'rgba(255,255,255,0.35)', marginTop: 4,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>{book.meta.author}</div>
+        {book.chapterLabel && book.progress !== undefined && (
+          <div style={{
+            fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 4,
+            lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {book.progress}% · {book.chapterLabel}
+          </div>
+        )}
+        {book.lastOpenedAt && (
+          <div style={{
+            fontSize: 10, color: 'rgba(255,255,255,0.2)', marginTop: 6,
+            lineHeight: 1.2,
+          }}>{formatRelativeTime(book.lastOpenedAt)}</div>
+        )}
+      </div>
+    </div>
+  )
+})
+
 export function BookShelf({ books, readingTime, onOpenBook, onDelete }: BookShelfProps) {
   const [confirmPath, setConfirmPath] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<SortBy>('recent')
+  const [searchQuery, setSearchQuery] = useState('')
 
-  const sortedBooks = [...books].sort((a, b) => {
-    if (sortBy === 'recent') {
-      const ta = a.lastOpenedAt ?? 0
-      const tb = b.lastOpenedAt ?? 0
-      return tb - ta
-    }
-    const va = sortBy === 'title' ? a.meta.title : a.meta.author
-    const vb = sortBy === 'title' ? b.meta.title : b.meta.author
-    return va.localeCompare(vb, 'zh-CN')
-  })
+  const sortedBooks = useMemo(() => [...books]
+    .filter(b => {
+      if (!searchQuery.trim()) return true
+      const q = searchQuery.toLowerCase()
+      return b.meta.title.toLowerCase().includes(q) || b.meta.author.toLowerCase().includes(q)
+    })
+    .sort((a, b) => {
+      if (sortBy === 'recent') {
+        const ta = a.lastOpenedAt ?? 0
+        const tb = b.lastOpenedAt ?? 0
+        return tb - ta
+      }
+      const va = sortBy === 'title' ? a.meta.title : a.meta.author
+      const vb = sortBy === 'title' ? b.meta.title : b.meta.author
+      return va.localeCompare(vb, 'zh-CN')
+    })
+  , [books, searchQuery, sortBy])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -85,6 +172,14 @@ export function BookShelf({ books, readingTime, onOpenBook, onDelete }: BookShel
           </div>
         </div>
         <div style={{ flex: 1 }} />
+        <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+          placeholder="搜索书名/作者..."
+          style={{
+            width: 140, padding: '6px 10px', borderRadius: 8, fontSize: 12,
+            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
+            color: '#fff', outline: 'none',
+          }}
+        />
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
           {sortOptions.map((opt) => (
             <button key={opt.key} onClick={() => setSortBy(opt.key)}
@@ -122,93 +217,12 @@ export function BookShelf({ books, readingTime, onOpenBook, onDelete }: BookShel
             gap: '36px 28px',
             justifyContent: 'center',
           }}>
-            {sortedBooks.map((book, i) => {
-              const [c1, c2] = colors[i % colors.length]
-              return (
-                <div key={book.filePath} style={{
-                  position: 'relative',
-                  borderRadius: 14,
-                  background: 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 100%)',
-                  border: '1px solid rgba(168,85,247,0.12)',
-                  padding: '20px 14px 18px',
-                  display: 'flex', flexDirection: 'column', alignItems: 'center',
-                  transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                  cursor: 'pointer',
-                }}
-                  onClick={() => onOpenBook(book.filePath)}
-                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(99,102,241,0.15)' }}
-                  onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = 'none' }}
-                >
-                  <div style={{
-                    width: 120, height: 170,
-                    borderRadius: 10,
-                    overflow: 'hidden',
-                    boxShadow: '0 6px 16px rgba(0,0,0,0.3)',
-                    background: !book.meta.cover ? `linear-gradient(135deg, ${c1}, ${c2})` : undefined,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    flexShrink: 0,
-                    position: 'relative',
-                  }}>
-                    {book.meta.cover ? (
-                      <img src={book.meta.cover} alt={book.meta.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      <span style={{ fontSize: 40, opacity: 0.5 }}>📖</span>
-                    )}
-                    {book.progress !== undefined && (
-                      <div style={{
-                        position: 'absolute', bottom: 0, left: 0, right: 0, height: 3,
-                        background: 'rgba(0,0,0,0.3)',
-                      }}>
-                        <div style={{
-                          width: `${book.progress}%`,
-                          height: '100%',
-                          background: 'linear-gradient(90deg, rgba(99,102,241,0.9), rgba(168,85,247,0.7))',
-                          borderRadius: '0 2px 2px 0',
-                          transition: 'width 0.3s ease',
-                        }} />
-                      </div>
-                    )}
-                  </div>
-                  <div style={{ marginTop: 14, textAlign: 'center', width: '100%' }}>
-                    <div style={{
-                      fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.85)',
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                      lineHeight: 1.3,
-                    }}>{book.meta.title}</div>
-                    <div style={{
-                      fontSize: 12, color: 'rgba(255,255,255,0.35)', marginTop: 4,
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                    }}>{book.meta.author}</div>
-                    {book.chapterLabel && book.progress !== undefined && (
-                      <div style={{
-                        fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 4,
-                        lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                      }}>
-                        {book.progress}% · {book.chapterLabel}
-                      </div>
-                    )}
-                    {book.lastOpenedAt && (
-                      <div style={{
-                        fontSize: 10, color: 'rgba(255,255,255,0.2)', marginTop: 6,
-                        lineHeight: 1.2,
-                      }}>{formatRelativeTime(book.lastOpenedAt)}</div>
-                    )}
-                  </div>
-                  <div style={{ position: 'absolute', top: -6, right: -6, zIndex: 2 }}>
-                    <button onClick={(e) => { e.stopPropagation(); setConfirmPath(book.filePath) }}
-                      style={{
-                        width: 24, height: 24, borderRadius: '50%', border: 'none', cursor: 'pointer',
-                        background: 'rgba(220,38,38,0.7)', color: '#fff', fontSize: 12, lineHeight: '24px',
-                        textAlign: 'center', padding: 0, opacity: 0,
-                        transition: 'opacity 0.15s',
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.opacity = '1'}
-                      onMouseLeave={e => e.currentTarget.style.opacity = '0'}
-                    >✕</button>
-                  </div>
-                </div>
-              )
-            })}
+            {sortedBooks.map((book, i) => (
+              <BookCard key={book.filePath} book={book} i={i}
+                onOpenBook={onOpenBook}
+                onContextMenu={setConfirmPath}
+              />
+            ))}
           </div>
         </div>
       )}

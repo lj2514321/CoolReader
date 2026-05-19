@@ -1,6 +1,42 @@
 # 更新日志
 
+## [1.3.6] — 2026-05-19
+
+### 优化
+
+- **性能优化** — 书架 `sortedBooks` 改为 `useMemo` 依赖追踪，避免每次渲染重复 filter/sort；提取 `BookCard` 为 `React.memo` 组件，hover/sort 不再重绘整书架；AIPanel 提取 `ChatMessageItem` 为 `React.memo` + `displayMessages` useMemo，流式输出时历史消息不重渲染
+- **DB 连接复用** — `dbSingleton` 模块级缓存，`requestPromise<T>` 泛型包装，所有 IndexedDB put/delete 操作正确 await
+- **AIPanel 监听器防重复** — 注册新 `onAIToken` 前调用 `cleanRef.current?.()` 清理旧监听器
+- **Sidebar btnRefs 作用域修复** — `Map` 从模块级改为 `useRef(new Map())`，避免多实例冲突
+- **空 catch 补日志** — `useEpub.ts` 中 10 处空 `catch {}` 统一补充 `console.warn`
+
+### 新特性
+
+- **滚动/分页模式切换** — `ReaderLayout.flow` 字段（paginated/scrolled-doc），Aa 面板新增「📄 分页 / 📜 滚动」切换按钮
+- **搜索面板保持打开** — 点击搜索结果跳转后不关闭搜索面板，保留上下文继续查阅
+- **书架搜索过滤** — 输入框按书名/作者实时过滤书库
+- **键盘快捷键** — Space（下一页分页模式）、Shift+Space（上一页）、←/→（前后翻页）、Escape（面板栈关闭）、Ctrl+F/Cmd+F（搜索切换）、B（书签切换）、F11（全屏），全部调用 `showControls()` 保持 UI 可见
+- **AI 面板可拖拽调整** — 默认高度 35vh（原 45vh），顶部拖拽手柄，范围 20–80vh
+- **全屏支持** — IPC `window:toggleFullscreen()`，F11 及顶部 ⛶ 按钮触发
+- **书架删除改为右键菜单** — 移除 hover 小 ✕ 按钮，右键（桌面）或长按（移动端）呼出确认弹窗
+
+### Bug 修复
+
+- **Scroll 模式翻页遮挡** — 覆盖层 `z-index: 1` 透明层阻挡了 stage 容器原生滚动；scroll 模式设 `pointerEvents: 'none'` + 箭头键使用 window 级键盘监听
+- **Escape 关闭面板失效** — 覆盖层 `onKeyDown` 直接处理 Escape，不再依赖冒泡到 window，同时保留 window 级兜底
+- **`Blocked script execution` 沙箱错误** — `renderTo()` 选项添加 `allowScriptedContent: true`
+- **`doc.getElementById is not a function`** — content hook 增加 `view.document` 守卫
+- **`goToHref` 超时挂起** — `Promise.race` 10s 超时 + 数字索引回退 + `manager.display` 最后兜底
+- **目录导航竞态条件** — `await goToHref(href)` 后再 `setSidebarOpen(false)` 防止 ResizeObserver 旧 CFI 重现
+
 ## [1.3.5] — 2026-05-18
+
+### 新特性
+
+- **最近阅读与排序** — 书架支持按「最近阅读」(默认)/「书名」/「作者」排序，每张图书卡片显示相对时间（"刚刚"/"x分钟前"/"今天 HH:mm"/"昨天"/"x天前"），`lastOpenedAt` 在打开和导入时自动更新并持久化
+- **阅读统计历史** — 新增独立统计页（侧栏 📊 入口），含四张汇总卡片（今日/本周/本月/总计阅读时长）、14 日趋势柱状图、单书阅读时间排行榜；`bookReadingTime` 对象存储以 `[filePath, date]` 为复合键支持按日/书粒度追踪
+- **进度按章节显示** — 书架图书卡片在进度百分比旁显示当前阅读章节名（`getChapterLabel()` 递归遍历 TOC 导航树查找对应标签，兜底 `第 N 章`），`chapterLabel` 随进度一起持久化
+- **阅读布局控制** — 阅读页新增「Aa」布局面板，包含字号滑块（75–200% ± 步进）、字体切换（7 种：系统默认/宋体/黑体/楷体/衬线/无衬线/等宽）、行高滑块（1.0–2.5 ± 步进）、边距滑块（0–40px ± 步进）；`ReaderLayout` 配置持久化，重新打开书籍自动恢复
 
 ### Bug 修复
 

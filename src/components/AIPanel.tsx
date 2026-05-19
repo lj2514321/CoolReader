@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react'
 import type { AIConfig, AIChatMessage } from '../types'
 
 const _pulseId = '_ai_pulse'
@@ -31,6 +31,26 @@ const glass = (dark: boolean) => ({
   borderTop: `1px solid ${dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
 })
 
+const ChatMessageItem = memo(function ChatMessageItem({ msg, fg, dark }: { msg: AIChatMessage; fg: string; dark: boolean }) {
+  return (
+    <div style={{
+      alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
+      maxWidth: '85%',
+      padding: '10px 14px',
+      borderRadius: 12,
+      fontSize: 13,
+      lineHeight: 1.5,
+      color: fg,
+      background: msg.role === 'user'
+        ? 'rgba(99,102,241,0.15)'
+        : (dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'),
+      whiteSpace: 'pre-wrap',
+    }}>
+      {msg.content}
+    </div>
+  )
+})
+
 export function AIPanel({ visible, onClose, config, theme, onGetChapterText, onGetFullBookText }: AIPanelProps) {
   const [messages, setMessages] = useState<AIChatMessage[]>([
     { role: 'system', content: '你是一个智能阅读助手，帮助用户理解书籍内容。回答简洁、准确。' },
@@ -38,8 +58,10 @@ export function AIPanel({ visible, onClose, config, theme, onGetChapterText, onG
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [streamingText, setStreamingText] = useState('')
+  const [panelHeight, setPanelHeight] = useState(35)
   const msgEndRef = useRef<HTMLDivElement>(null)
   const cleanRef = useRef<(() => void) | null>(null)
+  const dragRef = useRef({ dragging: false, startY: 0, startH: 35 })
 
   const dark = theme === 'dark'
   const fg = dark ? '#c8c8e0' : '#2d2b55'
@@ -72,7 +94,8 @@ export function AIPanel({ visible, onClose, config, theme, onGetChapterText, onG
     const summaryMsg: AIChatMessage = { role: 'user', content: `请用中文总结以下章节内容，列出关键要点：\n\n${chapterText}` }
     addMessage(summaryMsg)
 
-    // Streaming
+    // Streaming — clean previous listener first
+    cleanRef.current?.()
     const clean = window.electronAPI!.onAIToken((token: string) => {
       setStreamingText(prev => prev + token)
     })
@@ -104,6 +127,7 @@ export function AIPanel({ visible, onClose, config, theme, onGetChapterText, onG
       ? { role: 'user', content: `以下是我正在阅读的章节内容（供参考，无需直接回复此内容）：\n${chapterText}` }
       : { role: 'user', content: '（无当前章节内容）' }
 
+    cleanRef.current?.()
     const clean = window.electronAPI!.onAIToken((token: string) => {
       setStreamingText(prev => prev + token)
     })
@@ -121,7 +145,21 @@ export function AIPanel({ visible, onClose, config, theme, onGetChapterText, onG
     cleanRef.current?.()
   }, [input, config, loading, onGetChapterText, messages, addMessage])
 
-  const displayMessages = messages.filter(m => m.role !== 'system')
+  const displayMessages = useMemo(() => messages.filter(m => m.role !== 'system'), [messages])
+
+  // drag-to-resize handlers
+  const onDragStart = useCallback((e: React.MouseEvent) => {
+    dragRef.current = { dragging: true, startY: e.clientY, startH: panelHeight }
+    const onMove = (ev: MouseEvent) => {
+      if (!dragRef.current.dragging) return
+      const delta = dragRef.current.startY - ev.clientY
+      const newH = Math.max(20, Math.min(80, dragRef.current.startH + delta / window.innerHeight * 100))
+      setPanelHeight(Math.round(newH))
+    }
+    const onUp = () => { dragRef.current.dragging = false; window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }, [panelHeight])
 
   return (
     <>
@@ -129,12 +167,20 @@ export function AIPanel({ visible, onClose, config, theme, onGetChapterText, onG
       {visible && (
         <div style={{
           position: 'absolute', bottom: 0, left: 0, right: 0,
-          height: '45vh', zIndex: 10,
+          height: `${panelHeight}vh`, zIndex: 10,
           display: 'flex', flexDirection: 'column',
           ...glass(dark),
           transform: visible ? 'translateY(0)' : 'translateY(100%)',
           transition: 'transform 0.3s ease',
         }}>
+          {/* drag handle */}
+          <div onMouseDown={onDragStart} style={{
+            height: 6, cursor: 'ns-resize', flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+          }}>
+            <div style={{ width: 36, height: 3, borderRadius: 2, background: dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)' }} />
+          </div>
           {/* Header */}
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -171,21 +217,7 @@ export function AIPanel({ visible, onClose, config, theme, onGetChapterText, onG
               </div>
             )}
             {displayMessages.map((msg, i) => (
-              <div key={i} style={{
-                alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                maxWidth: '85%',
-                padding: '10px 14px',
-                borderRadius: 12,
-                fontSize: 13,
-                lineHeight: 1.5,
-                color: fg,
-                background: msg.role === 'user'
-                  ? 'rgba(99,102,241,0.15)'
-                  : (dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'),
-                whiteSpace: 'pre-wrap',
-              }}>
-                {msg.content}
-              </div>
+              <ChatMessageItem key={i} msg={msg} fg={fg} dark={dark} />
             ))}
             {streamingText && (
               <div style={{

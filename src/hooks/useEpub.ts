@@ -115,11 +115,25 @@ export function useEpub() {
     tocRef.current = mapped
     searchIndexRef.current = [] // invalidate search index on new book open
 
+    // load saved layout BEFORE renderTo so flow mode is applied from the start
+    let savedLayout: string | null = null
+    try {
+      savedLayout = await loadSetting('readerLayout')
+    } catch (e) { console.warn('[openBook] load layout failed', e) }
+    if (savedLayout) {
+      try {
+        const parsed = JSON.parse(savedLayout) as ReaderLayout
+        layoutRef.current = parsed
+        setLayoutState(parsed)
+      } catch (e) { console.warn('[openBook] parse savedLayout failed', e) }
+    }
+
     const rendition = book.renderTo('viewer', {
       width: '100%',
       height: '100%',
       spread: 'none',
       allowScriptedContent: true,
+      flow: layoutRef.current.flow || 'paginated',
     })
     renditionRef.current = rendition
 
@@ -179,23 +193,14 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
     }
     syncRef.current = sync
 
-    // load saved data BEFORE display
+    // load saved progress & theme BEFORE display
     let saved: { progress: number; cfi: string; index: number } | null = null
     let savedTheme: string | null = null
-    let savedLayout: string | null = null
     try {
-      const r = await Promise.all([loadProgress(filePath), loadSetting('readerTheme'), loadSetting('readerLayout')])
+      const r = await Promise.all([loadProgress(filePath), loadSetting('readerTheme')])
       saved = r[0]
       savedTheme = r[1]
-      savedLayout = r[2]
     } catch (e) { console.warn('[openBook] load saved failed', e) }
-    if (savedLayout) {
-      try {
-        const parsed = JSON.parse(savedLayout) as ReaderLayout
-        layoutRef.current = parsed
-        setLayoutState(parsed)
-      } catch {}
-    }
 
     // apply theme
     if (savedTheme && ['light', 'dark', 'sepia'].includes(savedTheme)) {
@@ -250,9 +255,9 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
           if (rendition && typeof rendition.annotations?.highlight === 'function') {
             rendition.annotations.highlight(hl.cfiRange, {}, () => {}, 'epub-highlight', { fill: hl.color, 'fill-opacity': '0.3' })
           }
-        } catch {}
+        } catch (e) { console.warn('[openBook] restore highlight failed', e) }
       })
-    } catch {}
+    } catch (e) { console.warn('[openBook] load bookmarks/highlights failed', e) }
   }, [])
 
   useEffect(() => {
@@ -268,7 +273,7 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
           try {
             const cfiRange = rend.getCfiFromRange(range)
             setSelectionInfo({ text: e.data.text, cfiRange, bounds: e.data.bounds })
-          } catch {}
+          } catch (e) { console.warn('[selection] getCfiFromRange failed', e) }
         }, 50)
       }
     }
@@ -312,6 +317,16 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
     layoutRef.current = next
     setLayoutState(next)
     saveSetting('readerLayout', JSON.stringify(next))
+    if (patch.flow) {
+      try {
+        renditionRef.current?.flow(next.flow)
+        requestAnimationFrame(() => {
+          try { renditionRef.current?.themes.select(themeRef.current) } catch (e) { console.warn('[updateLayout] re-select theme failed', e) }
+        })
+      } catch (e) {
+        console.warn('[updateLayout] flow change failed:', e)
+      }
+    }
     applyLayout()
   }, [applyLayout])
 
@@ -403,7 +418,7 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
     try {
       await renditionRef.current?.display(cfi)
       requestAnimationFrame(syncRef.current)
-    } catch {}
+    } catch (e) { console.warn('[goToCfi] display failed', e) }
   }, [])
 
   const getReadingSeconds = useCallback(() => {
@@ -510,7 +525,7 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
     setHighlights(prev => [...prev, { id, filePath: fp, cfiRange: info.cfiRange, text: info.text, note, color, createdAt: Date.now() }])
     try {
       renditionRef.current?.annotations?.highlight(info.cfiRange, {}, () => {}, 'epub-highlight', { fill: color, 'fill-opacity': '0.3' })
-    } catch {}
+    } catch (e) { console.warn('[addHighlight] annotation highlight failed', e) }
     setSelectionInfo(null)
   }, [selectionInfo])
 
@@ -519,7 +534,7 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
     setHighlights(prev => prev.filter(h => h.id !== id))
     try {
       renditionRef.current?.annotations?.remove(cfiRange, 'highlight')
-    } catch {}
+    } catch (e) { console.warn('[removeHighlight] annotation remove failed', e) }
   }, [])
 
   const buildSearchIndex = useCallback(async () => {
@@ -534,7 +549,7 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
         const html = await book.archive.getText(item.url)
         const text = html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
         index.push({ href: item.href, text })
-      } catch { index.push({ href: item.href, text: '' }) }
+      } catch (e) { console.warn('[buildSearchIndex] getText failed for', item.href, e); index.push({ href: item.href, text: '' }) }
     }
     searchIndexRef.current = index
   }, [])
@@ -594,10 +609,10 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
       setTimeout(() => {
         const iframe = document.querySelector<HTMLIFrameElement>('#viewer iframe')
         if (iframe?.contentWindow) {
-          try { iframe.contentWindow.find(result.matchText) } catch {}
+          try { iframe.contentWindow.find(result.matchText) } catch (e) { console.warn('[navigateToSearchResult] find failed', e) }
         }
       }, 150)
-    } catch {}
+    } catch (e) { console.warn('[navigateToSearchResult] display failed', e) }
   }, [])
 
   const destroy = useCallback(() => {

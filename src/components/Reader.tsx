@@ -111,6 +111,18 @@ export function Reader({
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [searching, setSearching] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const flowRef = useRef(layout.flow)
+  flowRef.current = layout.flow
+  const showLayoutRef = useRef(showLayout)
+  showLayoutRef.current = showLayout
+  const showSearchRef = useRef(showSearch)
+  showSearchRef.current = showSearch
+  const showMarkersRef = useRef(showMarkers)
+  showMarkersRef.current = showMarkers
+  const showAIRef = useRef(showAI)
+  showAIRef.current = showAI
+  const bookmarkRef = useRef(onToggleBookmark)
+  bookmarkRef.current = onToggleBookmark
 
   useEffect(() => {
     if (!ctxBmId) return
@@ -135,6 +147,8 @@ export function Reader({
   useEffect(() => {
     const handler = (e: WheelEvent) => {
       if ((e.target as HTMLElement).closest('[data-scroll]')) return
+      // scroll mode: let native scroll handle wheel
+      if (flowRef.current !== 'paginated') return
       e.preventDefault()
       if (wheelTimer.current) return
       wheelTimer.current = setTimeout(() => { wheelTimer.current = undefined }, 200)
@@ -194,6 +208,35 @@ export function Reader({
     return () => clearTimeout(searchTimer.current)
   }, [searchQuery, onSearch])
 
+  // window-level keyboard — works in both paginated and scroll mode
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      if (e.key === 'ArrowRight' || (e.key === ' ' && flowRef.current === 'paginated' && !e.shiftKey)) { e.preventDefault(); nextRef.current(); showControls(); return }
+      if (e.key === 'ArrowLeft' || (e.key === ' ' && e.shiftKey)) { e.preventDefault(); prevRef.current(); showControls(); return }
+      if (e.key === 'Escape') {
+        if (showSearchRef.current) setShowSearch(false)
+        else if (showLayoutRef.current) setShowLayout(false)
+        else if (showMarkersRef.current) setShowMarkers(false)
+        else if (showAIRef.current) setShowAI(false)
+        showControls(); return
+      }
+      if ((e.key === 'f' || e.key === 'F') && (e.ctrlKey || e.metaKey)) { e.preventDefault(); setShowSearch(v => !v); showControls(); return }
+      if ((e.key === 'b' || e.key === 'B') && !e.ctrlKey && !e.metaKey) { bookmarkRef.current(); showControls(); return }
+      if (e.key === 'F11') { e.preventDefault(); window.electronAPI?.toggleFullscreen() }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+
+  const closeTopPanel = () => {
+    if (showSearch) setShowSearch(false)
+    else if (showLayout) setShowLayout(false)
+    else if (showMarkers) setShowMarkers(false)
+    else if (showAI) setShowAI(false)
+  }
+
   const dark = theme === 'dark'
   const fg = dark ? '#c8c8e0' : '#2d2b55'
 
@@ -203,11 +246,17 @@ export function Reader({
       <div
         onClick={handleViewerClick}
         onKeyDown={e => {
+          if (e.key === ' ') e.preventDefault()
+          if (e.key === 'Escape') { closeTopPanel(); showControls(); return }
           if (e.key === 'ArrowRight') { e.preventDefault(); nextRef.current() }
           if (e.key === 'ArrowLeft') { e.preventDefault(); prevRef.current() }
+          showControls()
         }}
         tabIndex={0}
-        style={{ position: 'absolute', inset: 0, zIndex: 1, outline: 'none' }}
+        style={{
+          position: 'absolute', inset: 0, zIndex: 1, outline: 'none',
+          pointerEvents: layout.flow === 'scrolled-doc' ? 'none' : undefined,
+        }}
       />
 
       {/* top bar */}
@@ -270,6 +319,9 @@ export function Reader({
               background: showMarkers ? 'rgba(99,102,241,0.3)' : 'transparent',
             }}
           >☰</button>
+          <button onClick={(e) => { e.stopPropagation(); window.electronAPI?.toggleFullscreen() }}
+            style={{ ...btn(fg), padding: '7px 10px', opacity: 1, fontSize: 14 }}
+          >⛶</button>
         </div>
         {showLayout && (
           <div onClick={e => e.stopPropagation()} style={{
@@ -338,6 +390,28 @@ export function Reader({
             </div>
             <div style={{ textAlign: 'right', fontSize: 11, color: fg, opacity: 0.4, marginTop: 2 }}>{layout.margin}px</div>
           </div>
+
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: fg, opacity: 0.6, marginBottom: 6 }}>翻页模式</div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button onClick={() => onLayoutChange({ flow: 'paginated' })}
+                style={{
+                  flex: 1, padding: '6px 0', borderRadius: 8, cursor: 'pointer', fontSize: 12,
+                  background: layout.flow === 'paginated' ? 'rgba(99,102,241,0.3)' : 'rgba(255,255,255,0.08)',
+                  border: layout.flow === 'paginated' ? '1px solid rgba(99,102,241,0.4)' : '1px solid rgba(255,255,255,0.1)',
+                  color: fg, fontWeight: layout.flow === 'paginated' ? 600 : 400, transition: 'all 0.15s',
+                }}
+              >📄 分页</button>
+              <button onClick={() => onLayoutChange({ flow: 'scrolled-doc' })}
+                style={{
+                  flex: 1, padding: '6px 0', borderRadius: 8, cursor: 'pointer', fontSize: 12,
+                  background: layout.flow === 'scrolled-doc' ? 'rgba(99,102,241,0.3)' : 'rgba(255,255,255,0.08)',
+                  border: layout.flow === 'scrolled-doc' ? '1px solid rgba(99,102,241,0.4)' : '1px solid rgba(255,255,255,0.1)',
+                  color: fg, fontWeight: layout.flow === 'scrolled-doc' ? 600 : 400, transition: 'all 0.15s',
+                }}
+              >📜 滚动</button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -372,7 +446,7 @@ export function Reader({
           )}
           <div data-scroll="true" style={{ maxHeight: 280, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
             {searchResults.map((r, idx) => (
-              <div key={`${r.chapterIndex}-${r.matchIndex}`} onClick={() => { onNavigateToSearchResult(r); setShowSearch(false) }}
+              <div key={`${r.chapterIndex}-${r.matchIndex}`} onClick={() => onNavigateToSearchResult(r)}
                 style={{
                   padding: '8px 10px', borderRadius: 8, cursor: 'pointer',
                   transition: 'background 0.1s',

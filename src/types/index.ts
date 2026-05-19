@@ -56,6 +56,7 @@ export interface ReaderLayout {
   fontFamily: string
   lineHeight: number
   margin: number
+  flow: 'paginated' | 'scrolled-doc'
 }
 
 export type ThemeMode = 'light' | 'dark' | 'sepia'
@@ -65,6 +66,7 @@ export const defaultLayout: ReaderLayout = {
   fontFamily: 'system-ui',
   lineHeight: 1.6,
   margin: 20,
+  flow: 'paginated',
 }
 
 export const fontFamilies = [
