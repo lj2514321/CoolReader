@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import { BookMeta, ThemeMode, AIConfig, ReaderLayout, fontFamilies, defaultLayout, Bookmark, Highlight, highlightColors, SearchResult } from '../types'
 import { AIPanel } from './AIPanel'
 
@@ -46,27 +46,8 @@ const themeBg: Record<ThemeMode, string> = {
   dark: '#0a0a1a',
 }
 
-const glass = (dark: boolean) => ({
-  background: dark ? 'rgba(15,12,41,0.45)' : 'rgba(255,255,255,0.55)',
-  backdropFilter: 'blur(20px) saturate(140%)',
-  WebkitBackdropFilter: 'blur(20px) saturate(140%)',
-})
-
-const btn = (fg: string) => ({
-  background: 'none',
-  border: 'none',
-  cursor: 'pointer' as const,
-  color: fg,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  borderRadius: 10,
-  padding: '7px 14px',
-  fontSize: 13,
-  fontWeight: 600 as const,
-  opacity: 0.7,
-  transition: 'all 0.15s ease',
-})
+const rangeSliderStyle = { flex: 1, height: 4, accentColor: '#6366f1', cursor: 'pointer' as const }
+const layoutStepBtn = { padding: '4px 10px', fontSize: 14, opacity: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 8 }
 
 export function Reader({
   filePath, meta, theme, layout, onLayoutChange, progress, onLoad, onBack, onNext, onPrev, onToggleSidebar, onThemeChange, onSeek, onResize, aiConfig, onGetChapterText, onGetFullBookText, bookmarks, highlights, currentCfi, selectionInfo, onToggleBookmark, onRemoveBookmark, onAddHighlight, onRemoveHighlight, onClearSelection, onGoToCfi, onSearch, onNavigateToSearchResult,
@@ -239,6 +220,17 @@ export function Reader({
 
   const dark = theme === 'dark'
   const fg = dark ? '#c8c8e0' : '#2d2b55'
+  const glassStyle = useMemo(() => ({
+    background: dark ? 'rgba(15,12,41,0.45)' : 'rgba(255,255,255,0.55)',
+    backdropFilter: 'blur(20px) saturate(140%)',
+    WebkitBackdropFilter: 'blur(20px) saturate(140%)',
+  }), [dark])
+  const btnStyle = useMemo(() => ({
+    background: 'none', border: 'none', cursor: 'pointer' as const,
+    color: fg, display: 'flex', alignItems: 'center', justifyContent: 'center',
+    borderRadius: 10, padding: '7px 14px', fontSize: 13, fontWeight: 600 as const,
+    opacity: 0.7, transition: 'all 0.15s ease',
+  }), [fg])
 
   return (
     <div ref={containerRef} style={{ height: '100%', background: themeBg[theme], overflow: 'hidden', position: 'relative' }}>
@@ -271,23 +263,23 @@ export function Reader({
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10,
           borderRadius: 14, padding: '8px 14px',
-          ...glass(dark),
+          ...glassStyle,
         }}>
-          <button onClick={onBack} style={btn(fg)}
+          <button onClick={onBack} style={btnStyle}
             onMouseEnter={e => e.currentTarget.style.opacity = '1'}
             onMouseLeave={e => e.currentTarget.style.opacity = '0.7'}
           >←&ensp;返回</button>
           <span style={{ flex: 1, fontWeight: 600, fontSize: 14, color: fg, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {meta?.title || ''}
           </span>
-          <button onClick={onToggleSidebar} style={btn(fg)}
+          <button onClick={onToggleSidebar} style={btnStyle}
             onMouseEnter={e => e.currentTarget.style.opacity = '1'}
             onMouseLeave={e => e.currentTarget.style.opacity = '0.7'}
           >目录</button>
           {themes.map(t => (
             <button key={t.key} onClick={(e) => { e.stopPropagation(); onThemeChange(t.key) }}
               style={{
-                ...btn(fg),
+                ...btnStyle,
                 padding: '7px 10px',
                 background: theme === t.key ? 'rgba(99,102,241,0.3)' : 'transparent',
                 opacity: 1,
@@ -297,30 +289,30 @@ export function Reader({
           ))}
           <button onClick={(e) => { e.stopPropagation(); setShowLayout(v => !v); setShowMarkers(false); setShowAI(false) }}
             style={{
-              ...btn(fg), padding: '7px 12px', opacity: 1,
+              ...btnStyle, padding: '7px 12px', opacity: 1,
               background: showLayout ? 'rgba(99,102,241,0.3)' : 'transparent',
             }}
           >Aa</button>
           <button onClick={(e) => { e.stopPropagation(); onToggleBookmark() }}
             style={{
-              ...btn(fg), padding: '7px 12px', opacity: 1, fontSize: 16,
+              ...btnStyle, padding: '7px 12px', opacity: 1, fontSize: 16,
               background: isBookmarked ? 'rgba(99,102,241,0.3)' : 'transparent',
             }}
           >🔖</button>
           <button onClick={(e) => { e.stopPropagation(); setShowSearch(v => !v); setShowLayout(false); setShowMarkers(false); setShowAI(false) }}
             style={{
-              ...btn(fg), padding: '7px 12px', opacity: 1, fontSize: 15,
+              ...btnStyle, padding: '7px 12px', opacity: 1, fontSize: 15,
               background: showSearch ? 'rgba(99,102,241,0.3)' : 'transparent',
             }}
           >🔍</button>
           <button onClick={(e) => { e.stopPropagation(); setShowMarkers(v => !v); setShowLayout(false); setShowAI(false) }}
             style={{
-              ...btn(fg), padding: '7px 12px', opacity: 1,
+              ...btnStyle, padding: '7px 12px', opacity: 1,
               background: showMarkers ? 'rgba(99,102,241,0.3)' : 'transparent',
             }}
           >☰</button>
           <button onClick={(e) => { e.stopPropagation(); window.electronAPI?.toggleFullscreen() }}
-            style={{ ...btn(fg), padding: '7px 10px', opacity: 1, fontSize: 14 }}
+            style={{ ...btnStyle, padding: '7px 10px', opacity: 1, fontSize: 14 }}
           >⛶</button>
         </div>
         {showLayout && (
@@ -328,7 +320,7 @@ export function Reader({
             position: 'absolute', top: 'calc(100% + 8px)', right: 16, zIndex: 10,
           width: 260,
           borderRadius: 14, padding: '16px 18px',
-          ...glass(dark),
+          ...glassStyle,
           border: '1px solid rgba(255,255,255,0.1)',
           boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
           display: 'flex', flexDirection: 'column', gap: 14,
@@ -337,12 +329,12 @@ export function Reader({
             <div style={{ fontSize: 12, fontWeight: 600, color: fg, opacity: 0.6, marginBottom: 6 }}>字号</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <button onClick={() => onLayoutChange({ fontSize: Math.max(75, layout.fontSize - 10) })}
-                style={{ ...btn(fg), padding: '4px 10px', fontSize: 14, opacity: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 8 }}>A−</button>
+                style={{ ...btnStyle, padding: '4px 10px', fontSize: 14, opacity: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 8 }}>A−</button>
               <input type="range" min={75} max={200} value={layout.fontSize}
                 onChange={e => onLayoutChange({ fontSize: Number(e.target.value) })}
-                style={{ flex: 1, height: 4, accentColor: '#6366f1', cursor: 'pointer' }} />
+                style={rangeSliderStyle} />
               <button onClick={() => onLayoutChange({ fontSize: Math.min(200, layout.fontSize + 10) })}
-                style={{ ...btn(fg), padding: '4px 10px', fontSize: 14, opacity: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 8 }}>A+</button>
+                style={{ ...btnStyle, padding: '4px 10px', fontSize: 14, opacity: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 8 }}>A+</button>
             </div>
             <div style={{ textAlign: 'right', fontSize: 11, color: fg, opacity: 0.4, marginTop: 2 }}>{layout.fontSize}%</div>
           </div>
@@ -367,12 +359,12 @@ export function Reader({
             <div style={{ fontSize: 12, fontWeight: 600, color: fg, opacity: 0.6, marginBottom: 6 }}>行距</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <button onClick={() => onLayoutChange({ lineHeight: Math.max(1, +(layout.lineHeight - 0.2).toFixed(1)) })}
-                style={{ ...btn(fg), padding: '4px 10px', fontSize: 14, opacity: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 8 }}>−</button>
+                style={{ ...btnStyle, padding: '4px 10px', fontSize: 14, opacity: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 8 }}>−</button>
               <input type="range" min={10} max={25} value={Math.round(layout.lineHeight * 10)}
                 onChange={e => onLayoutChange({ lineHeight: Number(e.target.value) / 10 })}
-                style={{ flex: 1, height: 4, accentColor: '#6366f1', cursor: 'pointer' }} />
+                style={rangeSliderStyle} />
               <button onClick={() => onLayoutChange({ lineHeight: Math.min(2.5, +(layout.lineHeight + 0.2).toFixed(1)) })}
-                style={{ ...btn(fg), padding: '4px 10px', fontSize: 14, opacity: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 8 }}>+</button>
+                style={{ ...btnStyle, padding: '4px 10px', fontSize: 14, opacity: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 8 }}>+</button>
             </div>
             <div style={{ textAlign: 'right', fontSize: 11, color: fg, opacity: 0.4, marginTop: 2 }}>{layout.lineHeight.toFixed(1)}</div>
           </div>
@@ -381,12 +373,12 @@ export function Reader({
             <div style={{ fontSize: 12, fontWeight: 600, color: fg, opacity: 0.6, marginBottom: 6 }}>边距</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <button onClick={() => onLayoutChange({ margin: Math.max(0, layout.margin - 5) })}
-                style={{ ...btn(fg), padding: '4px 10px', fontSize: 14, opacity: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 8 }}>−</button>
+                style={{ ...btnStyle, padding: '4px 10px', fontSize: 14, opacity: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 8 }}>−</button>
               <input type="range" min={0} max={40} value={layout.margin}
                 onChange={e => onLayoutChange({ margin: Number(e.target.value) })}
-                style={{ flex: 1, height: 4, accentColor: '#6366f1', cursor: 'pointer' }} />
+                style={rangeSliderStyle} />
               <button onClick={() => onLayoutChange({ margin: Math.min(40, layout.margin + 5) })}
-                style={{ ...btn(fg), padding: '4px 10px', fontSize: 14, opacity: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 8 }}>+</button>
+                style={{ ...btnStyle, padding: '4px 10px', fontSize: 14, opacity: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 8 }}>+</button>
             </div>
             <div style={{ textAlign: 'right', fontSize: 11, color: fg, opacity: 0.4, marginTop: 2 }}>{layout.margin}px</div>
           </div>
@@ -420,7 +412,7 @@ export function Reader({
           position: 'absolute', top: 'calc(100% + 8px)', right: 16, zIndex: 10,
           width: 320,
           borderRadius: 14, padding: '12px 14px',
-          ...glass(dark),
+          ...glassStyle,
           border: '1px solid rgba(255,255,255,0.1)',
           boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
           display: 'flex', flexDirection: 'column', gap: 8,
@@ -483,9 +475,9 @@ export function Reader({
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10,
           borderRadius: 14, padding: '8px 16px',
-          ...glass(dark),
+          ...glassStyle,
         }}>
-          <button onClick={onPrev} style={btn(fg)}
+          <button onClick={onPrev} style={btnStyle}
             onMouseEnter={e => e.currentTarget.style.opacity = '1'}
             onMouseLeave={e => e.currentTarget.style.opacity = '0.7'}
           >◂&ensp;上一页</button>
@@ -519,7 +511,7 @@ export function Reader({
             <span style={{ fontSize: 11, fontWeight: 600, color: fg, opacity: 0.5, minWidth: 32, textAlign: 'right' }}>{progress}%</span>
           </div>
 
-          <button onClick={onNext} style={btn(fg)}
+          <button onClick={onNext} style={btnStyle}
             onMouseEnter={e => e.currentTarget.style.opacity = '1'}
             onMouseLeave={e => e.currentTarget.style.opacity = '0.7'}
           >下一页&ensp;▸</button>
@@ -533,7 +525,7 @@ export function Reader({
           top: selectionInfo.bounds.top - 50, left: Math.max(16, selectionInfo.bounds.left + selectionInfo.bounds.width / 2 - 100),
           display: 'flex', alignItems: 'center', gap: 6,
           borderRadius: 12, padding: '8px 14px',
-          ...glass(dark),
+          ...glassStyle,
           border: '1px solid rgba(255,255,255,0.12)',
           boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
         }}>
@@ -550,7 +542,7 @@ export function Reader({
           ))}
           <button onClick={onClearSelection}
             style={{
-              ...btn(fg), padding: '4px 8px', opacity: 0.6, fontSize: 14,
+              ...btnStyle, padding: '4px 8px', opacity: 0.6, fontSize: 14,
               borderLeft: '1px solid rgba(255,255,255,0.1)', borderRadius: 0,
             }}
           >✕</button>
@@ -567,7 +559,7 @@ export function Reader({
             zIndex: 10,
             borderRadius: 14, overflow: 'hidden',
             display: 'flex', flexDirection: 'column',
-            ...glass(dark),
+            ...glassStyle,
             border: '1px solid rgba(255,255,255,0.1)',
             boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
           }}>
@@ -604,7 +596,7 @@ export function Reader({
                     <div style={{ fontSize: 10, color: fg, opacity: 0.35, marginTop: 1 }}>{new Date(b.createdAt).toLocaleString()}</div>
                   </div>
                   <button onClick={e => { e.stopPropagation(); onRemoveBookmark(b.id!) }}
-                    style={{ ...btn(fg), padding: '2px 6px', fontSize: 12, opacity: 0.6, flexShrink: 0 }}
+                    style={{ ...btnStyle, padding: '2px 6px', fontSize: 12, opacity: 0.6, flexShrink: 0 }}
                     onMouseEnter={e => e.currentTarget.style.opacity = '1'}
                     onMouseLeave={e => e.currentTarget.style.opacity = '0.6'}
                   >✕</button>
@@ -624,7 +616,7 @@ export function Reader({
                     {h.note && <div style={{ fontSize: 10, color: fg, opacity: 0.5, marginTop: 2, fontStyle: 'italic' }}>{h.note}</div>}
                   </div>
                   <button onClick={() => onRemoveHighlight(h.id!, h.cfiRange)}
-                    style={{ ...btn(fg), padding: '2px 6px', fontSize: 12, opacity: 0.6, flexShrink: 0 }}
+                    style={{ ...btnStyle, padding: '2px 6px', fontSize: 12, opacity: 0.6, flexShrink: 0 }}
                     onMouseEnter={e => e.currentTarget.style.opacity = '1'}
                     onMouseLeave={e => e.currentTarget.style.opacity = '0.6'}
                   >✕</button>

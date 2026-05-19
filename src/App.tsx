@@ -4,10 +4,11 @@ import { Reader } from './components/Reader'
 import { Sidebar } from './components/Sidebar'
 import { TitleBar } from './components/TitleBar'
 import { useEpub } from './hooks/useEpub'
-import { BookEntry, ThemeMode, WebDAVConfig, AIConfig } from './types'
-import { saveBook, loadAllBooks, saveProgress, deleteBook as dbDeleteBook, loadReadingTime, loadWebDAVConfig, loadAIConfig, updateLastOpenedAt, loadAllProgress } from './utils/db'
-
-type Page = 'library' | 'reader'
+import { useDragDrop } from './hooks/useDragDrop'
+import { useProgressTimer } from './hooks/useProgressTimer'
+import { useInitialLoad } from './hooks/useInitialLoad'
+import { BookEntry, ThemeMode, Page, WebDAVConfig, AIConfig } from './types'
+import { saveBook, saveCover, saveProgress, deleteBook as dbDeleteBook, updateLastOpenedAt } from './utils/db'
 
 declare global {
   interface Window {
@@ -20,7 +21,6 @@ declare global {
       maximize: () => void
       close: () => void
       toggleFullscreen: () => void
-      // WebDAV
       webdavTestConn: (config: any) => Promise<{ success: boolean; error?: string }>
       webdavListFiles: (config: any) => Promise<any[]>
       webdavUploadBook: (config: any, localPath: string, fileName: string) => Promise<void>
@@ -32,7 +32,6 @@ declare global {
       webdavDeleteRemote: (config: any, remotePath: string) => Promise<void>
       webdavSyncAll: (config: any, localBooks: any, localProgress: any, localReadingTime: any) => Promise<any>
       onSyncProgress: (cb: (data: any) => void) => () => void
-      // AI
       aiChat: (config: any, messages: any) => Promise<any>
       aiStream: (config: any, messages: any) => Promise<any>
       onAIToken: (cb: (token: string) => void) => () => void
@@ -60,82 +59,60 @@ export default function App() {
   const [bgGradient, setBgGradient] = useState('linear-gradient(135deg, #0a0a1a 0%, #1a1040 40%, #0d1137 100%)')
   const [webdavConfig, setWebdavConfig] = useState<WebDAVConfig | null>(null)
   const [aiConfig, setAiConfig] = useState<AIConfig | null>(null)
-  const [isDragging, setIsDragging] = useState(false)
-  const [toast, setToast] = useState<string | null>(null)
 
   const doImport = useCallback(async (filePath: string) => {
     if (!filePath) return
     if (books.some((b) => b.filePath === filePath)) return
     try {
-      const meta = await extractMeta(filePath)
+      const result = await extractMeta(filePath)
+      const { coverData, ...meta } = result
       const lastOpenedAt = Date.now()
       setBooks((prev) => [...prev, { filePath, meta, lastOpenedAt }])
-      saveBook({ filePath, title: meta.title, author: meta.author, cover: meta.cover, lastOpenedAt })
+      saveBook({ filePath, title: meta.title, author: meta.author, lastOpenedAt })
+      if (coverData) saveCover(filePath, coverData, meta.coverMime)
     } catch (err) {
       setError(String(err))
     }
   }, [books, extractMeta])
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    if (page !== 'library') return
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'copy'
-    setIsDragging(true)
-  }, [page])
+  const { isDragging, toast, handleDragOver, handleDragLeave, handleDrop } = useDragDrop(page, doImport)
 
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    if (e.currentTarget === e.target || !e.currentTarget.contains(e.relatedTarget as Node)) {
-      setIsDragging(false)
-    }
+  useInitialLoad({
+    onBooksLoaded: setBooks,
+    initReadingTime,
+    setReadingTime,
+    onWebDAVConfig: setWebdavConfig,
+    onAIConfig: setAiConfig,
+  })
+
+  useProgressTimer({
+    currentBook,
+    page,
+    indexRef,
+    cfiRef,
+    progressRef,
+    getChapterLabel,
+    saveReadingTime,
+    getReadingSeconds,
+    setReadingTime,
+  })
+
+  const importRef = useRef(doImport)
+  importRef.current = doImport
+
+  useEffect(() => {
+    window.electronAPI?.onOpenFile((path) => importRef.current(path))
   }, [])
 
-  const handleDrop = useCallback(async (e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(false)
-    if (page !== 'library') return
-    const file = e.dataTransfer.files[0]
-    if (!file) return
-    if (!file.name.endsWith('.epub')) {
-      setToast(`不支持的文件格式: ${file.name}，仅支持 EPUB 文件`)
-      return
-    }
-    const filePath = (file as any).path
-    if (!filePath) return
-    doImport(filePath)
-  }, [page, doImport])
+  useEffect(() => {
+    return () => destroy()
+  }, [destroy])
 
-  // save progress + CFI + index every 2s, update reading time
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (currentBook && cfiRef.current) {
-        const chapterLabel = getChapterLabel(indexRef.current)
-        saveProgress(currentBook, progressRef.current, cfiRef.current, indexRef.current, chapterLabel)
-      }
-      if (currentBook) saveReadingTime()
-      setReadingTime(getReadingSeconds())
-    }, 2000)
-    return () => clearInterval(interval)
-  }, [currentBook, progressRef, cfiRef, indexRef, saveReadingTime, getReadingSeconds, getChapterLabel])
-  // load books + reading time from IndexedDB on mount
-  useEffect(() => {
-    Promise.all([loadAllBooks(), loadAllProgress()]).then(([bookRecords, progressRecords]) => {
-      const progressMap = new Map(progressRecords.map(p => [p.filePath, p]))
-      const entries: BookEntry[] = bookRecords.map((r) => ({
-        filePath: r.filePath,
-        meta: { title: r.title, author: r.author, cover: r.cover },
-        lastOpenedAt: r.lastOpenedAt,
-        progress: progressMap.get(r.filePath)?.progress,
-        chapterLabel: progressMap.get(r.filePath)?.chapterLabel,
-      }))
-      setBooks(entries)
-    }).catch((e) => console.warn('[App]', e))
-    loadReadingTime(new Date().toISOString().slice(0, 10)).then((time) => {
-      initReadingTime(time)
-      setReadingTime(time)
-    }).catch((e) => console.warn('[App]', e))
-    loadWebDAVConfig().then(setWebdavConfig).catch(() => {})
-    loadAIConfig().then(setAiConfig).catch(() => {})
-  }, [])
+    const handleUnload = () => { if (currentBook) saveReadingTime() }
+    window.addEventListener('beforeunload', handleUnload)
+    return () => window.removeEventListener('beforeunload', handleUnload)
+  }, [currentBook, saveReadingTime])
 
   const handleOpenBook = useCallback((filePath: string) => {
     console.log('[App] handleOpenBook called:', filePath)
@@ -160,7 +137,6 @@ export default function App() {
     const idx = indexRef.current
     const label = getChapterLabel(idx)
     if (currentBook) {
-      console.log('[handleBack] saving', { pct, cfi, idx, label })
       saveProgress(currentBook, pct, cfi, idx, label)
       setBooks(prev => prev.map(b =>
         b.filePath === currentBook ? { ...b, progress: pct, chapterLabel: label } : b
@@ -207,31 +183,6 @@ export default function App() {
     setAiConfig(config)
   }, [])
 
-  const importRef = useRef(doImport)
-  importRef.current = doImport
-
-  useEffect(() => {
-    window.electronAPI?.onOpenFile((path) => importRef.current(path))
-  }, [])
-
-  useEffect(() => {
-    return () => destroy()
-  }, [destroy])
-
-  // auto-dismiss toast
-  useEffect(() => {
-    if (!toast) return
-    const t = setTimeout(() => setToast(null), 3500)
-    return () => clearTimeout(t)
-  }, [toast])
-
-  // save reading time on window close
-  useEffect(() => {
-    const handleUnload = () => { if (currentBook) saveReadingTime() }
-    window.addEventListener('beforeunload', handleUnload)
-    return () => window.removeEventListener('beforeunload', handleUnload)
-  }, [currentBook, saveReadingTime])
-
   const isLibrary = page === 'library'
   const opacity = phase === 'idle' ? 1 : phase === 'leaving' ? 0 : 1
   const scale = phase === 'idle' ? 1 : phase === 'leaving' ? 0.97 : 1
@@ -277,15 +228,14 @@ export default function App() {
           transition: 'opacity 0.25s ease, transform 0.25s ease, visibility 0.25s ease',
           pointerEvents: !isLibrary ? 'auto' : 'none',
         }}>
-          {/* reader content */}
           <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
             {sidebarOpen && (
               <Sidebar
                 toc={toc}
                 activeHref={activeTocSrc}
                 onNavigate={async (href) => {
-                  await goToHref(href)
                   setSidebarOpen(false)
+                  await goToHref(href)
                 }}
                 onClose={() => setSidebarOpen(false)}
                 theme={theme}

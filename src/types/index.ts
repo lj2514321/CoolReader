@@ -2,6 +2,7 @@ export interface BookMeta {
   title: string
   author: string
   cover?: string
+  coverMime?: string
 }
 
 export interface NavItem {
@@ -108,6 +109,12 @@ export interface SearchResult {
   matchText: string
   contextAfter: string
 }
+
+export interface ReadingGoal {
+  dailyMinutes: number
+}
+
+export type Page = 'library' | 'reader'
 
 export const themeStyles: Record<ThemeMode, string> = {
   light: 'body.light { background: #ffffff !important; color: #000000 !important; }',

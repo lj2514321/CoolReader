@@ -15,7 +15,7 @@ export function TitleBar() {
         marginLeft: 16,
         fontWeight: 500,
         letterSpacing: 0.3,
-      }}>EPUB Reader</span>
+      }}>CoolReader</span>
       <div style={{ display: 'flex', height: '100%' }} className="titlebar-no-drag">
         <button
           onClick={() => window.electronAPI?.minimize()}

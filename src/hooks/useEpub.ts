@@ -28,6 +28,7 @@ export function useEpub() {
   const [highlights, setHighlights] = useState<Highlight[]>([])
   const [selectionInfo, setSelectionInfo] = useState<{ text: string; cfiRange: string; bounds: { top: number; left: number; width: number; height: number } } | null>(null)
   const bookPathRef = useRef('')
+  const navigatingRef = useRef(false)
   const tocRef = useRef<NavItem[]>([])
   const searchIndexRef = useRef<{ href: string; text: string }[]>([])
   const [currentCfi, setCurrentCfi] = useState('')
@@ -36,27 +37,25 @@ export function useEpub() {
     return window.electronAPI!.readFile(filePath)
   }, [])
 
-  const extractMeta = useCallback(async (filePath: string): Promise<BookMeta> => {
+  const extractMeta = useCallback(async (filePath: string): Promise<BookMeta & { coverData?: ArrayBuffer }> => {
     console.log('[extractMeta] reading file...')
     const data = await readFile(filePath)
     const book = ePub(data)
     await book.ready
     const { title, creator } = book.packaging.metadata
-    let cover: string | undefined
+    let coverData: ArrayBuffer | undefined
+    let coverMime: string | undefined
     try {
       const coverUrl = await book.coverUrl()
       if (coverUrl) {
         const resp = await fetch(coverUrl)
         const blob = await resp.blob()
-        cover = await new Promise<string>((resolve) => {
-          const reader = new FileReader()
-          reader.onloadend = () => resolve(reader.result as string)
-          reader.readAsDataURL(blob)
-        })
+        coverMime = blob.type || 'image/png'
+        coverData = await blob.arrayBuffer()
       }
     } catch { console.warn('[extractMeta] cover fetch failed') }
     book.destroy()
-    return { title: title || 'Untitled', author: creator || 'Unknown', cover }
+    return { title: title || 'Untitled', author: creator || 'Unknown', cover: undefined, coverData, coverMime }
   }, [])
 
   const openBook = useCallback(async (filePath: string) => {
@@ -283,12 +282,14 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
 
   const clearSelection = useCallback(() => setSelectionInfo(null), [])
 
-  const seekTo = useCallback((pct: number) => {
+  const seekTo = useCallback(async (pct: number) => {
     const rendition = renditionRef.current
     const count = totalSectionsRef.current
     if (!rendition || count === 0) return
     const idx = Math.max(0, Math.min(count - 1, Math.floor(pct / 100 * count)))
-    rendition.display(idx)
+    navigatingRef.current = true
+    await rendition.display(idx)
+    navigatingRef.current = false
   }, [])
 
   const applyLayout = useCallback(() => {
@@ -342,19 +343,25 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
   }, [])
 
   const goNext = useCallback(async () => {
+    navigatingRef.current = true
     await renditionRef.current?.next()
     requestAnimationFrame(syncRef.current)
+    navigatingRef.current = false
   }, [])
   const goPrev = useCallback(async () => {
+    navigatingRef.current = true
     await renditionRef.current?.prev()
     requestAnimationFrame(syncRef.current)
+    navigatingRef.current = false
   }, [])
   const goToHref = useCallback(async (href: string) => {
+    navigatingRef.current = true
     console.log('[goToHref] called with:', href, 'rendition:', !!renditionRef.current, 'book:', !!bookRef.current)
     const rendition = renditionRef.current
     const book = bookRef.current
     if (!rendition || !book) {
       console.warn('[goToHref] abort: rendition or book null')
+      navigatingRef.current = false
       return
     }
     try {
@@ -380,6 +387,8 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
       const loc = rendition.currentLocation()
       console.log('[goToHref] currentLocation:', JSON.stringify(loc))
       requestAnimationFrame(syncRef.current)
+      navigatingRef.current = false
+      requestAnimationFrame(() => renditionRef.current?.resize())
       return
     } catch (err) {
       console.log('[goToHref] direct display failed:', href, err)
@@ -395,6 +404,8 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
           ),
         ])
         requestAnimationFrame(syncRef.current)
+        navigatingRef.current = false
+        requestAnimationFrame(() => renditionRef.current?.resize())
         return
       } catch (err2) {
         console.log('[goToHref] fallback also failed:', href, err2)
@@ -413,12 +424,17 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
     } catch (e) {
       console.error('[goToHref] all navigation attempts failed', e)
     }
+    navigatingRef.current = false
+    requestAnimationFrame(() => renditionRef.current?.resize())
   }, [])
   const goToCfi = useCallback(async (cfi: string) => {
+    navigatingRef.current = true
     try {
       await renditionRef.current?.display(cfi)
       requestAnimationFrame(syncRef.current)
     } catch (e) { console.warn('[goToCfi] display failed', e) }
+    navigatingRef.current = false
+    requestAnimationFrame(() => renditionRef.current?.resize())
   }, [])
 
   const getReadingSeconds = useCallback(() => {
@@ -448,6 +464,7 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
   }, [getBookReadingSeconds])
 
   const resizeViewer = useCallback(() => {
+    if (navigatingRef.current) return
     try {
       renditionRef.current?.resize()
     } catch (e) {

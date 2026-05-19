@@ -1,5 +1,27 @@
 # 更新日志
 
+## [1.4.0] — 2026-05-19
+
+### 优化
+
+- **2s 定时器拆分** — 进度保存改为变化检测（`lastSavedIdxRef` + `lastSavedCfiRef` 对比，未翻页不写 DB）；阅读时间保存频率从 2s 降至 15s（每秒精度足够）；`setReadingTime` 改为仅 Library 页面触发，Reader 页面跳过重渲染
+- **封面存储分离** — 新增 `covers` 对象存储（DB_VERSION 7），封面从 `books` 的 base64 字段拆出，改为 `ArrayBuffer` 格式直接存储，消除 base64 膨胀 ~33%
+- **封面懒加载** — `BookCard` 通过 `useEffect` + `loadCover` 异步加载封面，`URL.createObjectURL` 生成 blob URL，effect cleanup 精确 `revokeObjectURL` 防内存泄漏
+- **渐进式迁移** — 应用启动时自动检测旧 base64 封面，异步解码为 `ArrayBuffer` 写入 `covers` store，不阻塞首次渲染，幂等跳过已迁移项
+- **Inline 样式对象去重** — 消除每次渲染新建样式对象导致的 GC 压力：`Reader.tsx` `glass(dark)`/`btn(fg)` → `useMemo`；`rangeSliderStyle`/`layoutStepBtn` 提取为模块级常量；`AIPanel.tsx` `glass(dark)` → `useMemo`；`Library.tsx` `pageAnim()` → 预计算三页面动画对象 `useMemo` 元组；`SidebarNav.tsx` `baseBtn(active)` → 三组 `useMemo`；`ReadingStats`/`SyncSettings` 重复 gradient 字符串 → 模块常量
+- **DB getAll 改用 IDBKeyRange** — `loadReadingTimeRange` 直用 `IDBKeyRange.bound(from, to)` 替代全量加载后 JS 过滤；`loadBookReadingTimeRange` 新增 `date` 索引（DB_VERSION 8），同上改用 key range 查询；移除未使用的 `loadAllBookReadingTime`
+- **App.tsx 逻辑拆分** — 拖拽逻辑提取为 `useDragDrop` hook（`isDragging`/`toast`/`handleDrag*`）；2s/15s 定时器提取为 `useProgressTimer` hook（变化检测 + 阅读时间持久化）；挂载初始化（书架/进度/封面迁移/配置加载）提取为 `useInitialLoad` hook；`Page` 类型移至 `types/index.ts` 共享
+
+### 新特性
+
+- **阅读目标设定** — 设置页新增「🎯 阅读目标」项，支持设定每日阅读分钟数（0=关闭），数据复用 `settings` store 持久化；统计页第四个卡片替换为今日目标（进度条 + 百分比/已达标）；书架今日阅读时间旁显示迷你目标指示 `🎯 Xm / Ym`
+- **首页继续阅读区** — 书架顶栏下方新增横向滚动「📖 继续阅读」区，按 `lastOpenedAt` 取最近 5 本书；每张卡片横排展示封面缩略图、书名、作者、进度条 + 百分比 + 章节名；主网格自动排除已在继续阅读区的书，避免重复
+
+### Bug 修复
+
+- **Escape 关闭面板失效** — 覆盖层 `onKeyDown` 直接处理 Escape + window 级兜底，解决冒泡中断导致面板不响应的问题
+- **导航竞态导致跳转章节后回退** — 移除 `relocatedRef`/off-on 模式，改用 `navigatingRef` 守卫（`goToHref/goToCfi/goNext/goPrev/seekTo`），`resizeViewer` 遇导航跳过，导航完成末尾 `requestAnimationFrame(() => rendition.resize())` 确保布局稳定
+
 ## [1.3.6] — 2026-05-19
 
 ### 优化

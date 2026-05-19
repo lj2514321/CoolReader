@@ -20,6 +20,7 @@ const btnBase: CSSProperties = {
   fontSize: 13, fontWeight: 600, cursor: 'pointer',
   transition: 'all 0.15s',
 }
+const formCardBg = 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 100%)'
 
 interface SyncSettingsProps {
   config: WebDAVConfig | null
@@ -112,7 +113,7 @@ export function SyncSettings({ config, onConfigChange }: SyncSettingsProps) {
       {/* Connection form */}
       <div style={{
         borderRadius: 14,
-        background: 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 100%)',
+        background: formCardBg,
         border: '1px solid rgba(168,85,247,0.12)',
         padding: '20px 24px',
         marginBottom: 16,
@@ -156,7 +157,7 @@ export function SyncSettings({ config, onConfigChange }: SyncSettingsProps) {
       {/* Sync section */}
       <div style={{
         borderRadius: 14,
-        background: 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 100%)',
+        background: formCardBg,
         border: '1px solid rgba(168,85,247,0.12)',
         padding: '20px 24px',
       }}>

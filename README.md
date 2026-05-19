@@ -1,4 +1,4 @@
-# EPUB Reader
+# CoolReader
 
 基于 Electron + React + TypeScript + epub.js 的桌面 EPUB 阅读器，全窗毛玻璃风格。
 
@@ -50,7 +50,7 @@ npm run dist
 ## 项目结构
 
 ```
-epub-reader-demo/
+coolreader/
 ├── electron/
 │   ├── main/
 │   │   ├── index.ts         # 主进程 (frameless, IPC handlers)

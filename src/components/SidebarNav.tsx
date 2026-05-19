@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { btnGlass } from '../utils/styles'
 
 export type LibPage = 'books' | 'settings' | 'stats'
@@ -9,17 +10,26 @@ interface SidebarNavProps {
   onImport: () => void
 }
 
-const baseBtn = (active: boolean): React.CSSProperties => ({
-  ...btnGlass,
-  textAlign: 'center',
-  background: active ? 'rgba(99,102,241,0.3)' : 'rgba(255,255,255,0.08)',
-  borderColor: active ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.1)',
-})
-
 export function SidebarNav({ libPage, bookCount, onSwitchPage, onImport }: SidebarNavProps) {
   const bookActive = libPage === 'books'
   const statsActive = libPage === 'stats'
   const settingActive = libPage === 'settings'
+
+  const bookBtnStyle = useMemo(() => ({
+    ...btnGlass, textAlign: 'center' as const,
+    background: bookActive ? 'rgba(99,102,241,0.3)' : 'rgba(255,255,255,0.08)',
+    borderColor: bookActive ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.1)',
+  }), [bookActive])
+  const statsBtnStyle = useMemo(() => ({
+    ...btnGlass, textAlign: 'center' as const,
+    background: statsActive ? 'rgba(99,102,241,0.3)' : 'rgba(255,255,255,0.08)',
+    borderColor: statsActive ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.1)',
+  }), [statsActive])
+  const settingBtnStyle = useMemo(() => ({
+    ...btnGlass, textAlign: 'center' as const,
+    background: settingActive ? 'rgba(99,102,241,0.3)' : 'rgba(255,255,255,0.08)',
+    borderColor: settingActive ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.1)',
+  }), [settingActive])
 
   const hoverIn = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.currentTarget.style.background = 'rgba(99,102,241,0.3)'
@@ -49,15 +59,15 @@ export function SidebarNav({ libPage, bookCount, onSwitchPage, onImport }: Sideb
         </p>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, justifyContent: 'flex-start', paddingTop: 20 }}>
-        <button onClick={() => onSwitchPage('books')} style={baseBtn(bookActive)}
+        <button onClick={() => onSwitchPage('books')} style={bookBtnStyle}
           onMouseEnter={hoverIn}
           onMouseLeave={hoverOut('books')}
         >📚 书架</button>
-        <button onClick={() => onSwitchPage('stats')} style={baseBtn(statsActive)}
+        <button onClick={() => onSwitchPage('stats')} style={statsBtnStyle}
           onMouseEnter={hoverIn}
           onMouseLeave={hoverOut('stats')}
         >📊 统计</button>
-        <button onClick={() => onSwitchPage('settings')} style={baseBtn(settingActive)}
+        <button onClick={() => onSwitchPage('settings')} style={settingBtnStyle}
           onMouseEnter={hoverIn}
           onMouseLeave={hoverOut('settings')}
         >⚙ 设置</button>

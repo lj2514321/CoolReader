@@ -1,9 +1,36 @@
 import { useState, useEffect, useMemo } from 'react'
 import { BookEntry } from '../types'
-import { loadReadingTimeRange, loadBookReadingTimeRange, BookReadingTimeRecord } from '../utils/db'
+import { loadReadingTimeRange, loadBookReadingTimeRange, loadSetting, BookReadingTimeRecord } from '../utils/db'
+
+const statCardBg = 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 100%)'
 
 interface ReadingStatsProps {
   books: BookEntry[]
+}
+
+function GoalBar({ secs, goalMin }: { secs: number; goalMin: number }) {
+  const pct = Math.min(100, Math.round((secs / 60 / goalMin) * 100))
+  return (
+    <div style={{ marginTop: 8 }}>
+      <div style={{
+        height: 4, borderRadius: 2,
+        background: 'rgba(255,255,255,0.1)',
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          width: `${pct}%`, height: '100%',
+          borderRadius: 2,
+          background: pct >= 100
+            ? 'linear-gradient(90deg, #22c55e, #16a34a)'
+            : 'linear-gradient(90deg, rgba(99,102,241,0.7), rgba(168,85,247,0.6))',
+          transition: 'width 0.3s ease',
+        }} />
+      </div>
+      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginTop: 4 }}>
+        {pct >= 100 ? '🎉 已达标' : `${pct}%`}
+      </div>
+    </div>
+  )
 }
 
 function formatDuration(secs: number): string {
@@ -53,6 +80,7 @@ export function ReadingStats({ books }: ReadingStatsProps) {
   const [dailyData, setDailyData] = useState<{ date: string; seconds: number }[]>([])
   const [bookData, setBookData] = useState<BookReadingTimeRecord[]>([])
   const [loaded, setLoaded] = useState(false)
+  const [goalMin, setGoalMin] = useState(0)
 
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10)
@@ -63,9 +91,13 @@ export function ReadingStats({ books }: ReadingStatsProps) {
     Promise.all([
       loadReadingTimeRange(from, today),
       loadBookReadingTimeRange(from, today),
-    ]).then(([totalRange, bookRange]) => {
+      loadSetting('readingGoal'),
+    ]).then(([totalRange, bookRange, goalRaw]) => {
       setDailyData(totalRange)
       setBookData(bookRange)
+      if (goalRaw) {
+        try { setGoalMin(JSON.parse(goalRaw).dailyMinutes || 0) } catch { setGoalMin(0) }
+      }
       setLoaded(true)
     })
   }, [])
@@ -122,21 +154,22 @@ export function ReadingStats({ books }: ReadingStatsProps) {
               { label: '今日', value: todaySecs },
               { label: '本周', value: weekSecs },
               { label: '本月', value: monthSecs },
-              { label: '总计', value: totalSecs },
-            ].map(item => (
+              { label: goalMin > 0 ? '今日目标' : '总计', value: goalMin > 0 ? todaySecs : totalSecs },
+            ].map((item, i) => (
               <div key={item.label} style={{
                 padding: '16px 18px',
                 borderRadius: 12,
-                background: 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 100%)',
-                border: '1px solid rgba(168,85,247,0.12)',
+                background: statCardBg,
+                border: i === 3 && goalMin > 0 ? '1px solid rgba(99,102,241,0.3)' : '1px solid rgba(168,85,247,0.12)',
                 textAlign: 'center',
               }}>
                 <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontWeight: 500, marginBottom: 6 }}>
                   {item.label}
                 </div>
                 <div style={{ fontSize: 22, fontWeight: 700, color: '#fff', letterSpacing: -0.3 }}>
-                  {formatDuration(item.value)}
+                  {goalMin > 0 && i === 3 ? `${Math.floor(item.value / 60)}m / ${goalMin}m` : formatDuration(item.value)}
                 </div>
+                {goalMin > 0 && i === 3 && <GoalBar secs={item.value} goalMin={goalMin} />}
               </div>
             ))}
           </div>
@@ -145,7 +178,7 @@ export function ReadingStats({ books }: ReadingStatsProps) {
           <div style={{
             padding: '20px 24px',
             borderRadius: 12,
-            background: 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 100%)',
+            background: statCardBg,
             border: '1px solid rgba(168,85,247,0.12)',
             marginBottom: 20,
           }}>
@@ -182,7 +215,7 @@ export function ReadingStats({ books }: ReadingStatsProps) {
             <div style={{
               padding: '20px 24px',
               borderRadius: 12,
-              background: 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 100%)',
+              background: statCardBg,
               border: '1px solid rgba(168,85,247,0.12)',
             }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: 12 }}>

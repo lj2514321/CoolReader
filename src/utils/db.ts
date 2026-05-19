@@ -1,5 +1,5 @@
 const DB_NAME = 'epub-reader'
-const DB_VERSION = 6
+const DB_VERSION = 8
 
 let dbSingleton: Promise<IDBDatabase> | null = null
 
@@ -34,6 +34,12 @@ function openDB(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains('bookReadingTime')) {
         db.createObjectStore('bookReadingTime', { keyPath: ['filePath', 'date'] })
       }
+      if (!db.objectStoreNames.contains('covers')) {
+        db.createObjectStore('covers', { keyPath: 'filePath' })
+      }
+      if (db.objectStoreNames.contains('bookReadingTime') && !req.transaction!.objectStore('bookReadingTime').indexNames.contains('date')) {
+        req.transaction!.objectStore('bookReadingTime').createIndex('date', 'date', { unique: false })
+      }
     }
     req.onsuccess = () => resolve(req.result)
     req.onerror = () => { dbSingleton = null; reject(req.error) }
@@ -56,7 +62,6 @@ export interface BookRecord {
   filePath: string
   title: string
   author: string
-  cover?: string
   lastOpenedAt?: number
 }
 
@@ -93,6 +98,7 @@ export async function deleteBook(filePath: string): Promise<void> {
         await Promise.all(hlRecords.map(r => requestPromise(hlTx.objectStore('highlights').delete(r.id!))))
       }
     })(),
+    requestPromise(store(db, 'covers', 'readwrite').delete(filePath)),
   ])
 }
 
@@ -103,6 +109,31 @@ export async function loadAllBooks(): Promise<BookRecord[]> {
     req.onsuccess = () => resolve(req.result)
     req.onerror = () => reject(req.error)
   })
+}
+
+export interface CoverRecord {
+  filePath: string
+  data: ArrayBuffer
+  mime?: string
+}
+
+export async function saveCover(filePath: string, data: ArrayBuffer, mime?: string): Promise<void> {
+  const db = await openDB()
+  await requestPromise(store(db, 'covers', 'readwrite').put({ filePath, data, mime }))
+}
+
+export async function loadCover(filePath: string): Promise<CoverRecord | undefined> {
+  const db = await openDB()
+  return new Promise((resolve) => {
+    const req = store(db, 'covers').get(filePath)
+    req.onsuccess = () => resolve(req.result ?? undefined)
+    req.onerror = () => resolve(undefined)
+  })
+}
+
+export async function deleteCover(filePath: string): Promise<void> {
+  const db = await openDB()
+  await requestPromise(store(db, 'covers', 'readwrite').delete(filePath))
 }
 
 export interface ProgressRecord {
@@ -163,11 +194,9 @@ export async function loadReadingTime(date: string): Promise<number> {
 export async function loadReadingTimeRange(from: string, to: string): Promise<ReadingTimeRecord[]> {
   const db = await openDB()
   return new Promise((resolve) => {
-    const req = store(db, 'readingTime').getAll()
-    req.onsuccess = () => {
-      const all = req.result as ReadingTimeRecord[]
-      resolve(all.filter(r => r.date >= from && r.date <= to))
-    }
+    const range = IDBKeyRange.bound(from, to)
+    const req = store(db, 'readingTime').getAll(range)
+    req.onsuccess = () => resolve(req.result as ReadingTimeRecord[])
     req.onerror = () => resolve([])
   })
 }
@@ -192,23 +221,12 @@ export async function loadBookReadingTime(filePath: string, date: string): Promi
   })
 }
 
-export async function loadAllBookReadingTime(): Promise<BookReadingTimeRecord[]> {
-  const db = await openDB()
-  return new Promise((resolve) => {
-    const req = store(db, 'bookReadingTime').getAll()
-    req.onsuccess = () => resolve(req.result)
-    req.onerror = () => resolve([])
-  })
-}
-
 export async function loadBookReadingTimeRange(from: string, to: string): Promise<BookReadingTimeRecord[]> {
   const db = await openDB()
   return new Promise((resolve) => {
-    const req = store(db, 'bookReadingTime').getAll()
-    req.onsuccess = () => {
-      const all = req.result as BookReadingTimeRecord[]
-      resolve(all.filter(r => r.date >= from && r.date <= to))
-    }
+    const range = IDBKeyRange.bound(from, to)
+    const req = db.transaction('bookReadingTime', 'readonly').objectStore('bookReadingTime').index('date').getAll(range)
+    req.onsuccess = () => resolve(req.result as BookReadingTimeRecord[])
     req.onerror = () => resolve([])
   })
 }

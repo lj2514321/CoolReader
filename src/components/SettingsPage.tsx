@@ -1,9 +1,9 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { bgPresets } from '../utils/styles'
-import { saveSetting } from '../utils/db'
+import { saveSetting, loadSetting } from '../utils/db'
 import { SyncSettings } from './SyncSettings'
 import { AISettings } from './AISettings'
-import type { WebDAVConfig, AIConfig } from '../types'
+import type { WebDAVConfig, AIConfig, ReadingGoal } from '../types'
 import type { CSSProperties } from 'react'
 
 const settingItem: CSSProperties = {
@@ -34,6 +34,19 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
   const subRef = useRef<ReturnType<typeof setTimeout>>()
   useEffect(() => () => clearTimeout(subRef.current), [])
   useEffect(() => { setSettingView(null); setSubPhase('idle') }, [resetKey])
+
+  const [goalMinutes, setGoalMinutes] = useState(30)
+  const [goalLoaded, setGoalLoaded] = useState(false)
+  useEffect(() => {
+    loadSetting('readingGoal').then((v) => {
+      if (v) {
+        try { setGoalMinutes(JSON.parse(v).dailyMinutes || 0) } catch { setGoalMinutes(0) }
+      } else {
+        setGoalMinutes(0)
+      }
+      setGoalLoaded(true)
+    })
+  }, [])
 
   const pushDetail = (id: string) => {
     if (subPhase !== 'idle') return
@@ -70,6 +83,7 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
         <p style={{ color: '#fff', fontSize: 18, fontWeight: 700, margin: '0 0 24px', letterSpacing: -0.3 }}>设置</p>
         {[
           { id: 'bgPreset', label: '首页背景', summary: bgPresets.find((b) => b.key === bgKey)?.label || '' },
+          { id: 'readingGoal', label: '阅读目标', summary: goalMinutes > 0 ? `${goalMinutes} 分钟/天` : '未设置' },
           { id: 'webdav', label: 'WebDAV 同步', summary: webdavConfig ? `已配置 (${webdavConfig.url})` : '' },
           { id: 'ai', label: 'AI 助手', summary: aiConfig ? `已配置 (${aiConfig.model})` : '' },
         ].map((item) => (
@@ -103,7 +117,7 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
             onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.5)'}
           >‹</span>
           <p style={{ color: '#fff', fontSize: 18, fontWeight: 700, margin: 0, letterSpacing: -0.3, pointerEvents: 'none' }}>
-            {settingView === 'bgPreset' ? '首页背景' : settingView === 'webdav' ? 'WebDAV 同步' : settingView === 'ai' ? 'AI 助手' : ''}
+            {settingView === 'bgPreset' ? '首页背景' : settingView === 'readingGoal' ? '阅读目标' : settingView === 'webdav' ? 'WebDAV 同步' : settingView === 'ai' ? 'AI 助手' : ''}
           </p>
         </div>
 
@@ -146,6 +160,42 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
 
         {settingView === 'ai' && (
           <AISettings config={aiConfig ?? null} onConfigChange={onAIConfigChange ?? (() => {})} />
+        )}
+
+        {settingView === 'readingGoal' && (
+          <div style={{
+            borderRadius: 14,
+            background: 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 100%)',
+            border: '1px solid rgba(168,85,247,0.12)',
+            padding: '24px 28px',
+          }}>
+            <div style={{ color: '#fff', fontSize: 14, fontWeight: 600, marginBottom: 16 }}>每日阅读目标</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+              <input type="number" min={0} max={480} step={5}
+                value={goalMinutes}
+                onChange={e => setGoalMinutes(Math.max(0, Math.min(480, parseInt(e.target.value) || 0)))}
+                style={{
+                  width: 80, padding: '8px 12px', borderRadius: 8,
+                  background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)',
+                  color: '#fff', fontSize: 16, fontWeight: 600, outline: 'none',
+                }}
+              />
+              <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>分钟 / 天</span>
+            </div>
+            <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 12, marginBottom: 16 }}>
+              设为 0 关闭阅读目标
+            </div>
+            <button onClick={() => {
+              saveSetting('readingGoal', JSON.stringify({ dailyMinutes: goalMinutes } as ReadingGoal))
+              popDetail()
+            }}
+              style={{
+                padding: '10px 28px', borderRadius: 8, cursor: 'pointer',
+                background: 'linear-gradient(135deg, rgba(99,102,241,0.5) 0%, rgba(168,85,247,0.4) 100%)',
+                border: '1px solid rgba(168,85,247,0.3)', color: '#fff', fontSize: 14, fontWeight: 600,
+              }}
+            >保存</button>
+          </div>
         )}
       </div>
     </>

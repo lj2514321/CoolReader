@@ -24,13 +24,6 @@ const themeBg: Record<string, string> = {
   dark: '#0f0c29',
 }
 
-const glass = (dark: boolean) => ({
-  background: dark ? 'rgba(15,12,41,0.85)' : 'rgba(255,255,255,0.85)',
-  backdropFilter: 'blur(20px) saturate(140%)',
-  WebkitBackdropFilter: 'blur(20px) saturate(140%)',
-  borderTop: `1px solid ${dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
-})
-
 const ChatMessageItem = memo(function ChatMessageItem({ msg, fg, dark }: { msg: AIChatMessage; fg: string; dark: boolean }) {
   return (
     <div style={{
@@ -66,6 +59,12 @@ export function AIPanel({ visible, onClose, config, theme, onGetChapterText, onG
   const dark = theme === 'dark'
   const fg = dark ? '#c8c8e0' : '#2d2b55'
   const muted = dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)'
+  const glassStyle = useMemo(() => ({
+    background: dark ? 'rgba(15,12,41,0.85)' : 'rgba(255,255,255,0.85)',
+    backdropFilter: 'blur(20px) saturate(140%)',
+    WebkitBackdropFilter: 'blur(20px) saturate(140%)',
+    borderTop: `1px solid ${dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
+  }), [dark])
 
   useEffect(() => {
     return () => cleanRef.current?.()
@@ -169,7 +168,7 @@ export function AIPanel({ visible, onClose, config, theme, onGetChapterText, onG
           position: 'absolute', bottom: 0, left: 0, right: 0,
           height: `${panelHeight}vh`, zIndex: 10,
           display: 'flex', flexDirection: 'column',
-          ...glass(dark),
+          ...glassStyle,
           transform: visible ? 'translateY(0)' : 'translateY(100%)',
           transition: 'transform 0.3s ease',
         }}>

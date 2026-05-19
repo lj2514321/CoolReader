@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { BookEntry, WebDAVConfig, AIConfig } from '../types'
 import { loadSetting } from '../utils/db'
 import { bgPresets, defGrad } from '../utils/styles'
@@ -58,19 +58,21 @@ export function Library({ books, readingTime, onOpenBook, onImport, onDelete, on
     }, 400)
   }
 
-  const pageAnim = (page: LibPage): { opacity: number; transform: string } => {
-    const active = libPage === page
+  const [booksAnim, statsAnim, settingsAnim] = useMemo(() => {
     const outY = direction === 'up' ? -28 : 28
     const startY = direction === 'up' ? 28 : -28
-
-    if (transition === 'idle') return { opacity: active ? 1 : 0, transform: 'translateY(0)' }
-    if (transition === 'out') {
-      if (active) return { opacity: 0, transform: `translateY(${outY}px)` }
-      return { opacity: 0, transform: `translateY(${startY}px)` }
+    const anim = (page: LibPage) => {
+      const active = libPage === page
+      if (transition === 'idle') return { opacity: active ? 1 : 0, transform: 'translateY(0)' }
+      if (transition === 'out') {
+        if (active) return { opacity: 0, transform: `translateY(${outY}px)` }
+        return { opacity: 0, transform: `translateY(${startY}px)` }
+      }
+      if (active) return { opacity: 1, transform: 'translateY(0)' }
+      return { opacity: 0, transform: `translateY(${outY}px)` }
     }
-    if (active) return { opacity: 1, transform: 'translateY(0)' }
-    return { opacity: 0, transform: `translateY(${outY}px)` }
-  }
+    return [anim('books'), anim('stats'), anim('settings')] as const
+  }, [libPage, direction, transition])
 
   const handlePresetChange = (key: string, gradient: string) => {
     setBgKey(key)
@@ -96,7 +98,7 @@ export function Library({ books, readingTime, onOpenBook, onImport, onDelete, on
           position: 'absolute', inset: 0,
           transition: 'opacity 0.4s ease, transform 0.4s ease',
           pointerEvents: transition !== 'idle' || libPage !== 'books' ? 'none' : 'auto',
-          ...pageAnim('books'),
+          ...booksAnim,
         }}>
           <BookShelf books={books} readingTime={readingTime} onOpenBook={onOpenBook} onDelete={onDelete} />
         </div>
@@ -106,7 +108,7 @@ export function Library({ books, readingTime, onOpenBook, onImport, onDelete, on
           position: 'absolute', inset: 0, overflow: 'hidden',
           transition: 'opacity 0.4s ease, transform 0.4s ease',
           pointerEvents: transition !== 'idle' || libPage !== 'stats' ? 'none' : 'auto',
-          ...pageAnim('stats'),
+          ...statsAnim,
         }}>
           <ReadingStats books={books} />
         </div>
@@ -116,7 +118,7 @@ export function Library({ books, readingTime, onOpenBook, onImport, onDelete, on
           position: 'absolute', inset: 0, overflow: 'hidden',
           transition: 'opacity 0.4s ease, transform 0.4s ease',
           pointerEvents: transition !== 'idle' || libPage !== 'settings' ? 'none' : 'auto',
-          ...pageAnim('settings'),
+          ...settingsAnim,
         }}>
           <SettingsPage bgKey={bgKey} onPresetChange={handlePresetChange} resetKey={settingsResetKey} visible={libPage === 'settings'} webdavConfig={webdavConfig ?? null} onWebDAVConfigChange={onWebDAVConfigChange} aiConfig={aiConfig ?? null} onAIConfigChange={onAIConfigChange} />
         </div>
