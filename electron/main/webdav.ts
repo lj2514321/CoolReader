@@ -2,13 +2,7 @@ import { createClient, type WebDAVClient } from 'webdav'
 import { promises as fs } from 'fs'
 import path from 'path'
 import os from 'os'
-
-interface WebDAVConfig {
-  url: string
-  username: string
-  password: string
-  path: string
-}
+import type { WebDAVConfig } from '../../src/types'
 
 interface RemoteBook {
   fileName: string

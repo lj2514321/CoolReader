@@ -1,5 +1,17 @@
 # 更新日志
 
+## [1.4.1] — 2026-05-20
+
+### 新特性
+
+- **自定义阅读主题** — Aa 面板新增自定义背景功能，支持纯色（颜色选择器 + 透明度）和渐变（线性/径向 + 色标编辑器）两种模式；内置碧海/极光/日出/极光紫四套渐变预设
+
+### Bug 修复
+
+- **主题切换选中状态丢失** — `setTheme` 函数未调用 `setThemeState` 更新 React 状态，导致主题按钮选中样式始终不变
+- **浅色/深色主题下 UI 对比度不足** — Aa 面板、搜索面板、书签/标注面板中文字颜色硬编码，深色/浅色模式下对比度不足；改用主题自适应变量（`panelText`/`panelMuted`/`panelBorder`/`panelInputBg`/`panelHoverBg`）根据主题动态切换
+- **自定义主题面板文字不可见** — 自定义背景选项展开后，预设按钮及纯色/渐变切换按钮文字与背景冲突；选中状态使用深色文字 `#1a1a2e`，未选中状态使用主题自适应颜色
+
 ## [1.4.0] — 2026-05-19
 
 ### 优化
@@ -11,6 +23,10 @@
 - **Inline 样式对象去重** — 消除每次渲染新建样式对象导致的 GC 压力：`Reader.tsx` `glass(dark)`/`btn(fg)` → `useMemo`；`rangeSliderStyle`/`layoutStepBtn` 提取为模块级常量；`AIPanel.tsx` `glass(dark)` → `useMemo`；`Library.tsx` `pageAnim()` → 预计算三页面动画对象 `useMemo` 元组；`SidebarNav.tsx` `baseBtn(active)` → 三组 `useMemo`；`ReadingStats`/`SyncSettings` 重复 gradient 字符串 → 模块常量
 - **DB getAll 改用 IDBKeyRange** — `loadReadingTimeRange` 直用 `IDBKeyRange.bound(from, to)` 替代全量加载后 JS 过滤；`loadBookReadingTimeRange` 新增 `date` 索引（DB_VERSION 8），同上改用 key range 查询；移除未使用的 `loadAllBookReadingTime`
 - **App.tsx 逻辑拆分** — 拖拽逻辑提取为 `useDragDrop` hook（`isDragging`/`toast`/`handleDrag*`）；2s/15s 定时器提取为 `useProgressTimer` hook（变化检测 + 阅读时间持久化）；挂载初始化（书架/进度/封面迁移/配置加载）提取为 `useInitialLoad` hook；`Page` 类型移至 `types/index.ts` 共享
+- **God Hook 拆分** — `useEpub.ts`（643 行）拆为 4 个独立 hook：`useBookEngine`（书籍生命周期/meta/TOC/sync）、`useReaderControls`（主题/布局/导航/阅读时间）、`useAnnotations`（书签/标注/文本选择）、`useSearch`（全文搜索/结果跳转）；共享 refs 通过参数传递，`index.ts` 组合对外保持 `useEpub()` 接口不变，调用方零改动
+- **IPC 通道名集中管理** — 新增 `electron/ipc-channels.ts` 统一定义 ~20 个 IPC 通道名，`main/index.ts` 和 `preload/index.ts` 均从该文件导入，消除硬编码字符串重复，改一处即生效
+- **便携版数据跟随可执行文件** — 便携版（Windows portable / Linux AppImage）自动检测 `PORTABLE_EXECUTABLE_DIR` / `APPIMAGE` 环境变量，将 IndexedDB、缓存等所有数据写入 exe 同级 `CoolReaderData` 目录；NSIS 安装版行为不变，数据仍在 `%APPDATA%\CoolReader`
+- **3D 透视页面过渡动画** — Library 页面切换升级为 `perspective: 1200px` 3D 滑入效果：退出页缩小至 95% + 后退 + 微旋转，进入页放大至 100% + 前推 + 反向旋转；缓动曲线改为 `cubic-bezier(0.4, 0, 0.2, 1)`（Material Design 标准曲线），400ms 时长不变
 
 ### 新特性
 

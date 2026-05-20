@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, useMemo } from 'react'
-import { BookMeta, ThemeMode, AIConfig, ReaderLayout, fontFamilies, defaultLayout, Bookmark, Highlight, highlightColors, SearchResult } from '../types'
+import { useEffect, useRef, useState } from 'react'
+import { BookMeta, ThemeMode, AIConfig, ReaderLayout, fontFamilies, defaultLayout, Bookmark, Highlight, highlightColors, SearchResult, CustomTheme, defaultCustomTheme } from '../types'
+import { parseRGBA } from '../utils/customTheme'
 import { AIPanel } from './AIPanel'
 
 interface ReaderProps {
@@ -15,6 +16,8 @@ interface ReaderProps {
   onPrev: () => void
   onToggleSidebar: () => void
   onThemeChange: (t: ThemeMode) => void
+  onCustomThemeChange?: (t: CustomTheme) => void
+  customTheme?: CustomTheme
   onSeek: (pct: number) => void
   onResize?: () => void
   aiConfig?: AIConfig | null
@@ -46,11 +49,30 @@ const themeBg: Record<ThemeMode, string> = {
   dark: '#0a0a1a',
 }
 
-const rangeSliderStyle = { flex: 1, height: 4, accentColor: '#6366f1', cursor: 'pointer' as const }
-const layoutStepBtn = { padding: '4px 10px', fontSize: 14, opacity: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 8 }
+const glass = (dark: boolean) => ({
+  background: dark ? 'rgba(15,12,41,0.45)' : 'rgba(255,255,255,0.55)',
+  backdropFilter: 'blur(20px) saturate(140%)',
+  WebkitBackdropFilter: 'blur(20px) saturate(140%)',
+})
+
+const btn = (fg: string) => ({
+  background: 'none',
+  border: 'none',
+  cursor: 'pointer' as const,
+  color: fg,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  borderRadius: 10,
+  padding: '7px 14px',
+  fontSize: 13,
+  fontWeight: 600 as const,
+  opacity: 0.7,
+  transition: 'all 0.15s ease',
+})
 
 export function Reader({
-  filePath, meta, theme, layout, onLayoutChange, progress, onLoad, onBack, onNext, onPrev, onToggleSidebar, onThemeChange, onSeek, onResize, aiConfig, onGetChapterText, onGetFullBookText, bookmarks, highlights, currentCfi, selectionInfo, onToggleBookmark, onRemoveBookmark, onAddHighlight, onRemoveHighlight, onClearSelection, onGoToCfi, onSearch, onNavigateToSearchResult,
+  filePath, meta, theme, layout, onLayoutChange, progress, onLoad, onBack, onNext, onPrev, onToggleSidebar, onThemeChange, onCustomThemeChange, customTheme, onSeek, onResize, aiConfig, onGetChapterText, onGetFullBookText, bookmarks, highlights, currentCfi, selectionInfo, onToggleBookmark, onRemoveBookmark, onAddHighlight, onRemoveHighlight, onClearSelection, onGoToCfi, onSearch, onNavigateToSearchResult,
 }: ReaderProps) {
   const nextRef = useRef(onNext)
   const prevRef = useRef(onPrev)
@@ -81,6 +103,8 @@ export function Reader({
 
   const [showUI, setShowUI] = useState(true)
   const [showLayout, setShowLayout] = useState(false)
+  const [showCustomTheme, setShowCustomTheme] = useState(false)
+  const [localCustomTheme, setLocalCustomTheme] = useState<CustomTheme>(customTheme ?? defaultCustomTheme)
   const [showAI, setShowAI] = useState(false)
   const [showMarkers, setShowMarkers] = useState(false)
   const [markerTab, setMarkerTab] = useState<'bookmarks' | 'highlights'>('bookmarks')
@@ -220,17 +244,11 @@ export function Reader({
 
   const dark = theme === 'dark'
   const fg = dark ? '#c8c8e0' : '#2d2b55'
-  const glassStyle = useMemo(() => ({
-    background: dark ? 'rgba(15,12,41,0.45)' : 'rgba(255,255,255,0.55)',
-    backdropFilter: 'blur(20px) saturate(140%)',
-    WebkitBackdropFilter: 'blur(20px) saturate(140%)',
-  }), [dark])
-  const btnStyle = useMemo(() => ({
-    background: 'none', border: 'none', cursor: 'pointer' as const,
-    color: fg, display: 'flex', alignItems: 'center', justifyContent: 'center',
-    borderRadius: 10, padding: '7px 14px', fontSize: 13, fontWeight: 600 as const,
-    opacity: 0.7, transition: 'all 0.15s ease',
-  }), [fg])
+  const panelText = dark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.6)'
+  const panelMuted = dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.45)'
+  const panelBorder = dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'
+  const panelInputBg = dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'
+  const panelHoverBg = dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'
 
   return (
     <div ref={containerRef} style={{ height: '100%', background: themeBg[theme], overflow: 'hidden', position: 'relative' }}>
@@ -263,25 +281,26 @@ export function Reader({
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10,
           borderRadius: 14, padding: '8px 14px',
-          ...glassStyle,
+          ...glass(dark),
         }}>
-          <button onClick={onBack} style={btnStyle}
+          <button onClick={onBack} style={btn(fg)}
             onMouseEnter={e => e.currentTarget.style.opacity = '1'}
             onMouseLeave={e => e.currentTarget.style.opacity = '0.7'}
           >←&ensp;返回</button>
           <span style={{ flex: 1, fontWeight: 600, fontSize: 14, color: fg, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {meta?.title || ''}
           </span>
-          <button onClick={onToggleSidebar} style={btnStyle}
+          <button onClick={onToggleSidebar} style={btn(fg)}
             onMouseEnter={e => e.currentTarget.style.opacity = '1'}
             onMouseLeave={e => e.currentTarget.style.opacity = '0.7'}
           >目录</button>
           {themes.map(t => (
             <button key={t.key} onClick={(e) => { e.stopPropagation(); onThemeChange(t.key) }}
               style={{
-                ...btnStyle,
+                ...btn(fg),
                 padding: '7px 10px',
-                background: theme === t.key ? 'rgba(99,102,241,0.3)' : 'transparent',
+                background: theme === t.key ? 'rgba(99,102,241,0.4)' : 'transparent',
+                border: theme === t.key ? '2px solid rgba(99,102,241,0.8)' : '2px solid transparent',
                 opacity: 1,
                 fontWeight: theme === t.key ? 700 : 400,
               }}
@@ -289,30 +308,30 @@ export function Reader({
           ))}
           <button onClick={(e) => { e.stopPropagation(); setShowLayout(v => !v); setShowMarkers(false); setShowAI(false) }}
             style={{
-              ...btnStyle, padding: '7px 12px', opacity: 1,
+              ...btn(fg), padding: '7px 12px', opacity: 1,
               background: showLayout ? 'rgba(99,102,241,0.3)' : 'transparent',
             }}
           >Aa</button>
           <button onClick={(e) => { e.stopPropagation(); onToggleBookmark() }}
             style={{
-              ...btnStyle, padding: '7px 12px', opacity: 1, fontSize: 16,
+              ...btn(fg), padding: '7px 12px', opacity: 1, fontSize: 16,
               background: isBookmarked ? 'rgba(99,102,241,0.3)' : 'transparent',
             }}
           >🔖</button>
           <button onClick={(e) => { e.stopPropagation(); setShowSearch(v => !v); setShowLayout(false); setShowMarkers(false); setShowAI(false) }}
             style={{
-              ...btnStyle, padding: '7px 12px', opacity: 1, fontSize: 15,
+              ...btn(fg), padding: '7px 12px', opacity: 1, fontSize: 15,
               background: showSearch ? 'rgba(99,102,241,0.3)' : 'transparent',
             }}
           >🔍</button>
           <button onClick={(e) => { e.stopPropagation(); setShowMarkers(v => !v); setShowLayout(false); setShowAI(false) }}
             style={{
-              ...btnStyle, padding: '7px 12px', opacity: 1,
+              ...btn(fg), padding: '7px 12px', opacity: 1,
               background: showMarkers ? 'rgba(99,102,241,0.3)' : 'transparent',
             }}
           >☰</button>
           <button onClick={(e) => { e.stopPropagation(); window.electronAPI?.toggleFullscreen() }}
-            style={{ ...btnStyle, padding: '7px 10px', opacity: 1, fontSize: 14 }}
+            style={{ ...btn(fg), padding: '7px 10px', opacity: 1, fontSize: 14 }}
           >⛶</button>
         </div>
         {showLayout && (
@@ -320,21 +339,175 @@ export function Reader({
             position: 'absolute', top: 'calc(100% + 8px)', right: 16, zIndex: 10,
           width: 260,
           borderRadius: 14, padding: '16px 18px',
-          ...glassStyle,
+          ...glass(dark),
           border: '1px solid rgba(255,255,255,0.1)',
           boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
           display: 'flex', flexDirection: 'column', gap: 14,
         }}>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {themes.filter(t => t.key !== 'custom').map(t => (
+              <button key={t.key} onClick={() => { onThemeChange(t.key); setShowCustomTheme(false) }}
+                onMouseEnter={e => { if (theme !== t.key) e.currentTarget.style.background = panelHoverBg }}
+                onMouseLeave={e => { if (theme !== t.key) e.currentTarget.style.background = panelInputBg }}
+                style={{
+                  flex: 1, padding: '6px 0', borderRadius: 8, cursor: 'pointer', fontSize: 13,
+                  background: theme === t.key ? 'rgba(99,102,241,0.5)' : panelInputBg,
+                  border: theme === t.key ? '2px solid rgba(99,102,241,0.9)' : `1px solid ${panelBorder}`,
+                  color: theme === t.key ? '#1a1a2e' : panelText,
+                  fontWeight: theme === t.key ? 700 : 500,
+                  transition: 'all 0.15s',
+                }}
+              >{t.icon}</button>
+            ))}
+            <button onClick={() => { onThemeChange('custom'); setShowCustomTheme(true) }}
+              onMouseEnter={e => { if (theme !== 'custom') e.currentTarget.style.background = panelHoverBg }}
+              onMouseLeave={e => { if (theme !== 'custom') e.currentTarget.style.background = panelInputBg }}
+              style={{
+                flex: 1, padding: '6px 0', borderRadius: 8, cursor: 'pointer', fontSize: 13,
+                background: theme === 'custom' ? 'rgba(99,102,241,0.5)' : panelInputBg,
+                border: theme === 'custom' ? '2px solid rgba(99,102,241,0.9)' : `1px solid ${panelBorder}`,
+                color: theme === 'custom' ? '#1a1a2e' : panelText,
+                fontWeight: theme === 'custom' ? 700 : 500,
+                transition: 'all 0.15s',
+              }}
+            >🎨</button>
+          </div>
+          {showCustomTheme && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => setLocalCustomTheme(t => ({ ...t, type: 'solid' }))}
+                  style={{
+                    flex: 1, padding: '6px 0', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                    background: localCustomTheme.type === 'solid' ? 'rgba(99,102,241,0.5)' : panelInputBg,
+                    border: localCustomTheme.type === 'solid' ? '2px solid rgba(99,102,241,0.9)' : `1px solid ${panelBorder}`,
+                    color: localCustomTheme.type === 'solid' ? '#1a1a2e' : panelText,
+                    transition: 'all 0.15s',
+                  }}>
+                  纯色
+                </button>
+                <button onClick={() => setLocalCustomTheme(t => ({ ...t, type: 'gradient' }))}
+                  style={{
+                    flex: 1, padding: '6px 0', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                    background: localCustomTheme.type === 'gradient' ? 'rgba(99,102,241,0.5)' : panelInputBg,
+                    border: localCustomTheme.type === 'gradient' ? '2px solid rgba(99,102,241,0.9)' : `1px solid ${panelBorder}`,
+                    color: localCustomTheme.type === 'gradient' ? '#1a1a2e' : panelText,
+                    transition: 'all 0.15s',
+                  }}>
+                  渐变
+                </button>
+              </div>
+              {localCustomTheme.type === 'solid' && (
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <input
+                    type="color"
+                    value={'#' + parseRGBA(localCustomTheme.color || 'rgba(255,255,255,1)').slice(0, 3).map(c => c.toString(16).padStart(2, '0')).join('')}
+                    onChange={e => { const [r,g,b] = parseRGBA(e.target.value); setLocalCustomTheme(t => ({ ...t, color: `rgba(${r},${g},${b},1)` })) }}
+                    style={{ width: 40, height: 32, border: 'none', cursor: 'pointer', borderRadius: 6, padding: 2, background: panelInputBg }}
+                  />
+                  <span style={{ fontSize: 12, color: panelText, whiteSpace: 'nowrap' }}>透明度</span>
+                  <input
+                    type="range" min={70} max={100} value={Math.round((parseRGBA(localCustomTheme.color || 'rgba(255,255,255,1)')[3]) * 100)}
+                    onChange={e => {
+                      const a = Number(e.target.value) / 100
+                      const [r,g,b] = parseRGBA(localCustomTheme.color || 'rgba(255,255,255,1)')
+                      setLocalCustomTheme(t => ({ ...t, color: `rgba(${r},${g},${b},${a})` }))
+                      onCustomThemeChange?.({ ...localCustomTheme, color: `rgba(${r},${g},${b},${a})` })
+                    }}
+                    style={{ flex: 1, accentColor: '#6366f1', cursor: 'pointer' }}
+                  />
+                  <span style={{ fontSize: 12, color: panelText, minWidth: 32 }}>
+                    {Math.round(parseRGBA(localCustomTheme.color || 'rgba(255,255,255,1)')[3] * 100)}%
+                  </span>
+                </div>
+              )}
+              {localCustomTheme.type === 'gradient' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <button onClick={() => setLocalCustomTheme(t => ({ ...t, gradientType: 'linear' }))}
+                      style={{ padding: '5px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600, background: (localCustomTheme.gradientType || 'linear') === 'linear' ? 'rgba(99,102,241,0.5)' : panelInputBg, border: (localCustomTheme.gradientType || 'linear') === 'linear' ? '2px solid rgba(99,102,241,0.9)' : `1px solid ${panelBorder}`, color: (localCustomTheme.gradientType || 'linear') === 'linear' ? '#1a1a2e' : panelText, transition: 'all 0.15s' }}>
+                      线性
+                    </button>
+                    <button onClick={() => setLocalCustomTheme(t => ({ ...t, gradientType: 'radial' }))}
+                      style={{ padding: '5px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600, background: localCustomTheme.gradientType === 'radial' ? 'rgba(99,102,241,0.5)' : panelInputBg, border: localCustomTheme.gradientType === 'radial' ? '2px solid rgba(99,102,241,0.9)' : `1px solid ${panelBorder}`, color: localCustomTheme.gradientType === 'radial' ? '#1a1a2e' : panelText, transition: 'all 0.15s' }}>
+                      径向
+                    </button>
+                    {(localCustomTheme.gradientType || 'linear') === 'linear' && (
+                      <>
+                        <span style={{ fontSize: 12, color: panelText }}>角度</span>
+                        <input
+                          type="range" min={0} max={360} step={15} value={localCustomTheme.gradientAngle ?? 135}
+                          onChange={e => setLocalCustomTheme(t => ({ ...t, gradientAngle: Number(e.target.value) }))}
+                          style={{ flex: 1, accentColor: '#6366f1', cursor: 'pointer' }}
+                        />
+                        <span style={{ fontSize: 12, color: panelText, minWidth: 32 }}>{localCustomTheme.gradientAngle ?? 135}°</span>
+                      </>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {[
+                      { label: '碧海', stops: [{ color: 'rgba(59,130,246,0.85)', position: 0 }, { color: 'rgba(16,42,67,0.95)', position: 100 }], angle: 135, type: 'linear' as const },
+                      { label: '极光', stops: [{ color: 'rgba(34,197,94,0.8)', position: 0 }, { color: 'rgba(6,78,59,0.9)', position: 100 }], angle: 135, type: 'linear' as const },
+                      { label: '日出', stops: [{ color: 'rgba(255,183,77,0.9)', position: 0 }, { color: 'rgba(245,158,66,0.95)', position: 100 }], angle: 180, type: 'linear' as const },
+                      { label: '极光紫', stops: [{ color: 'rgba(167,139,250,0.85)', position: 0 }, { color: 'rgba(109,40,217,0.9)', position: 100 }], angle: 120, type: 'linear' as const },
+                    ].map(p => {
+                      const isSelected = localCustomTheme.gradientType === p.type &&
+                        localCustomTheme.gradientAngle === p.angle &&
+                        localCustomTheme.gradientStops?.length === p.stops.length &&
+                        localCustomTheme.gradientStops?.every((s, i) => s.color === p.stops[i].color && s.position === p.stops[i].position)
+                      return (
+                        <button key={p.label} onClick={() => setLocalCustomTheme({ type: 'gradient', gradientType: p.type, gradientAngle: p.angle, gradientStops: p.stops })}
+                          style={{ padding: '5px 12px', borderRadius: 14, fontSize: 12, cursor: 'pointer', background: isSelected ? 'rgba(99,102,241,0.5)' : panelInputBg, border: isSelected ? '2px solid rgba(99,102,241,0.9)' : `1px solid ${panelBorder}`, color: isSelected ? '#1a1a2e' : panelText, fontWeight: isSelected ? 600 : 500, transition: 'all 0.15s' }}>
+                          {p.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div style={{ height: 36, borderRadius: 8, background: (() => {
+                    const stops = (localCustomTheme.gradientStops || []).map(s => `${s.color} ${s.position}%`).join(', ')
+                    if (!stops) return panelInputBg
+                    return localCustomTheme.gradientType === 'radial' ? `radial-gradient(ellipse at center, ${stops})` : `linear-gradient(${localCustomTheme.gradientAngle ?? 135}deg, ${stops})`
+                  })(), border: `1px solid ${panelBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ fontSize: 11, color: dark ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.8)', background: dark ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.95)', padding: '2px 8px', borderRadius: 4 }}>预览</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button onClick={() => setLocalCustomTheme(t => ({ ...t, gradientStops: [...(t.gradientStops || []), { color: 'rgba(128,128,128,0.8)', position: 50 }] }))}
+                      style={{ padding: '4px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer', background: panelInputBg, border: `1px solid ${panelBorder}`, color: panelText }}>
+                      +色标
+                    </button>
+                    {(localCustomTheme.gradientStops || []).length > 0 && (
+                      <button onClick={() => setLocalCustomTheme(t => ({ ...t, gradientStops: t.gradientStops?.slice(0, -1) }))}
+                        style={{ padding: '4px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer', background: panelInputBg, border: `1px solid ${panelBorder}`, color: panelText }}>
+                        -色标
+                      </button>
+                    )}
+                  </div>
+                  {(localCustomTheme.gradientStops || []).map((stop, idx) => (
+                    <div key={idx} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                      <input type="color" value={'#' + parseRGBA(stop.color).slice(0, 3).map(c => c.toString(16).padStart(2, '0')).join('')} onChange={e => { const [r,g,b] = parseRGBA(e.target.value); const s = [...(localCustomTheme.gradientStops || [])]; s[idx] = { ...s[idx], color: `rgba(${r},${g},${b},1)` }; setLocalCustomTheme(t => ({ ...t, gradientStops: s })) }} style={{ width: 30, height: 26, border: 'none', cursor: 'pointer', borderRadius: 4, padding: 2, background: panelInputBg }} />
+                      <input type="range" min={0} max={100} value={stop.position} onChange={e => { const s = [...(localCustomTheme.gradientStops || [])]; s[idx] = { ...s[idx], position: Number(e.target.value) }; setLocalCustomTheme(t => ({ ...t, gradientStops: s })) }} style={{ flex: 1, accentColor: '#6366f1', cursor: 'pointer' }} />
+                      <span style={{ fontSize: 12, color: panelText, minWidth: 32 }}>{stop.position}%</span>
+                      <button onClick={() => { const s = (localCustomTheme.gradientStops || []).filter((_, i) => i !== idx); setLocalCustomTheme(t => ({ ...t, gradientStops: s })) }}
+                        style={{ background: 'none', border: 'none', color: 'rgba(255,100,100,0.8)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '2px 6px' }}>×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button onClick={() => { onCustomThemeChange?.(localCustomTheme); onThemeChange('custom') }}
+                style={{ padding: '8px 0', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 700, background: 'rgba(99,102,241,0.5)', border: '2px solid rgba(99,102,241,0.9)', color: '#1a1a2e' }}>
+                应用主题
+              </button>
+            </div>
+          )}
           <div>
             <div style={{ fontSize: 12, fontWeight: 600, color: fg, opacity: 0.6, marginBottom: 6 }}>字号</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <button onClick={() => onLayoutChange({ fontSize: Math.max(75, layout.fontSize - 10) })}
-                style={{ ...btnStyle, padding: '4px 10px', fontSize: 14, opacity: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 8 }}>A−</button>
+                style={{ ...btn(fg), padding: '4px 10px', fontSize: 14, opacity: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 8 }}>A−</button>
               <input type="range" min={75} max={200} value={layout.fontSize}
                 onChange={e => onLayoutChange({ fontSize: Number(e.target.value) })}
-                style={rangeSliderStyle} />
+                style={{ flex: 1, height: 4, accentColor: '#6366f1', cursor: 'pointer' }} />
               <button onClick={() => onLayoutChange({ fontSize: Math.min(200, layout.fontSize + 10) })}
-                style={{ ...btnStyle, padding: '4px 10px', fontSize: 14, opacity: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 8 }}>A+</button>
+                style={{ ...btn(fg), padding: '4px 10px', fontSize: 14, opacity: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 8 }}>A+</button>
             </div>
             <div style={{ textAlign: 'right', fontSize: 11, color: fg, opacity: 0.4, marginTop: 2 }}>{layout.fontSize}%</div>
           </div>
@@ -359,12 +532,12 @@ export function Reader({
             <div style={{ fontSize: 12, fontWeight: 600, color: fg, opacity: 0.6, marginBottom: 6 }}>行距</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <button onClick={() => onLayoutChange({ lineHeight: Math.max(1, +(layout.lineHeight - 0.2).toFixed(1)) })}
-                style={{ ...btnStyle, padding: '4px 10px', fontSize: 14, opacity: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 8 }}>−</button>
+                style={{ ...btn(fg), padding: '4px 10px', fontSize: 14, opacity: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 8 }}>−</button>
               <input type="range" min={10} max={25} value={Math.round(layout.lineHeight * 10)}
                 onChange={e => onLayoutChange({ lineHeight: Number(e.target.value) / 10 })}
-                style={rangeSliderStyle} />
+                style={{ flex: 1, height: 4, accentColor: '#6366f1', cursor: 'pointer' }} />
               <button onClick={() => onLayoutChange({ lineHeight: Math.min(2.5, +(layout.lineHeight + 0.2).toFixed(1)) })}
-                style={{ ...btnStyle, padding: '4px 10px', fontSize: 14, opacity: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 8 }}>+</button>
+                style={{ ...btn(fg), padding: '4px 10px', fontSize: 14, opacity: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 8 }}>+</button>
             </div>
             <div style={{ textAlign: 'right', fontSize: 11, color: fg, opacity: 0.4, marginTop: 2 }}>{layout.lineHeight.toFixed(1)}</div>
           </div>
@@ -373,12 +546,12 @@ export function Reader({
             <div style={{ fontSize: 12, fontWeight: 600, color: fg, opacity: 0.6, marginBottom: 6 }}>边距</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <button onClick={() => onLayoutChange({ margin: Math.max(0, layout.margin - 5) })}
-                style={{ ...btnStyle, padding: '4px 10px', fontSize: 14, opacity: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 8 }}>−</button>
+                style={{ ...btn(fg), padding: '4px 10px', fontSize: 14, opacity: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 8 }}>−</button>
               <input type="range" min={0} max={40} value={layout.margin}
                 onChange={e => onLayoutChange({ margin: Number(e.target.value) })}
-                style={rangeSliderStyle} />
+                style={{ flex: 1, height: 4, accentColor: '#6366f1', cursor: 'pointer' }} />
               <button onClick={() => onLayoutChange({ margin: Math.min(40, layout.margin + 5) })}
-                style={{ ...btnStyle, padding: '4px 10px', fontSize: 14, opacity: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 8 }}>+</button>
+                style={{ ...btn(fg), padding: '4px 10px', fontSize: 14, opacity: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 8 }}>+</button>
             </div>
             <div style={{ textAlign: 'right', fontSize: 11, color: fg, opacity: 0.4, marginTop: 2 }}>{layout.margin}px</div>
           </div>
@@ -412,7 +585,7 @@ export function Reader({
           position: 'absolute', top: 'calc(100% + 8px)', right: 16, zIndex: 10,
           width: 320,
           borderRadius: 14, padding: '12px 14px',
-          ...glassStyle,
+          ...glass(dark),
           border: '1px solid rgba(255,255,255,0.1)',
           boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
           display: 'flex', flexDirection: 'column', gap: 8,
@@ -424,17 +597,17 @@ export function Reader({
               placeholder="搜索全书..."
               style={{
                 flex: 1, padding: '8px 12px', borderRadius: 8, fontSize: 13,
-                background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)',
-                color: fg, outline: 'none',
+                background: panelInputBg, border: `1px solid ${panelBorder}`,
+                color: panelText, outline: 'none',
               }}
             />
-            {searching && <span style={{ fontSize: 12, color: fg, opacity: 0.5, alignSelf: 'center' }}>搜索中...</span>}
+            {searching && <span style={{ fontSize: 12, color: panelText, alignSelf: 'center' }}>搜索中...</span>}
           </div>
           {searchResults.length > 0 && (
-            <div style={{ fontSize: 11, color: fg, opacity: 0.5, padding: '0 4px' }}>找到 {searchResults.length} 处匹配</div>
+            <div style={{ fontSize: 11, color: panelText, padding: '0 4px' }}>找到 {searchResults.length} 处匹配</div>
           )}
           {searchQuery && searchResults.length === 0 && !searching && (
-            <div style={{ padding: '16px', textAlign: 'center', fontSize: 12, color: fg, opacity: 0.4 }}>未找到匹配</div>
+            <div style={{ padding: '16px', textAlign: 'center', fontSize: 12, color: panelMuted }}>未找到匹配</div>
           )}
           <div data-scroll="true" style={{ maxHeight: 280, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
             {searchResults.map((r, idx) => (
@@ -443,17 +616,17 @@ export function Reader({
                   padding: '8px 10px', borderRadius: 8, cursor: 'pointer',
                   transition: 'background 0.1s',
                 }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+                onMouseEnter={e => e.currentTarget.style.background = panelHoverBg}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
               >
-                <div style={{ fontSize: 10, color: fg, opacity: 0.45, marginBottom: 3 }}>{r.chapterLabel}</div>
-                <div style={{ fontSize: 12, color: fg, lineHeight: 1.4 }}>
+                <div style={{ fontSize: 10, color: panelMuted, marginBottom: 3 }}>{r.chapterLabel}</div>
+                <div style={{ fontSize: 12, color: panelText, lineHeight: 1.4 }}>
                   {r.contextBefore ? (
-                    <span style={{ opacity: 0.4 }}>...{r.contextBefore}</span>
+                    <span style={{ color: panelMuted }}>...{r.contextBefore}</span>
                   ) : null}
                   <span style={{ background: 'rgba(255,213,0,0.35)', borderRadius: 2, padding: '0 1px' }}>{r.matchText}</span>
                   {r.contextAfter ? (
-                    <span style={{ opacity: 0.4 }}>{r.contextAfter}...</span>
+                    <span style={{ color: panelMuted }}>{r.contextAfter}...</span>
                   ) : null}
                 </div>
               </div>
@@ -475,9 +648,9 @@ export function Reader({
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10,
           borderRadius: 14, padding: '8px 16px',
-          ...glassStyle,
+          ...glass(dark),
         }}>
-          <button onClick={onPrev} style={btnStyle}
+          <button onClick={onPrev} style={btn(fg)}
             onMouseEnter={e => e.currentTarget.style.opacity = '1'}
             onMouseLeave={e => e.currentTarget.style.opacity = '0.7'}
           >◂&ensp;上一页</button>
@@ -511,7 +684,7 @@ export function Reader({
             <span style={{ fontSize: 11, fontWeight: 600, color: fg, opacity: 0.5, minWidth: 32, textAlign: 'right' }}>{progress}%</span>
           </div>
 
-          <button onClick={onNext} style={btnStyle}
+          <button onClick={onNext} style={btn(fg)}
             onMouseEnter={e => e.currentTarget.style.opacity = '1'}
             onMouseLeave={e => e.currentTarget.style.opacity = '0.7'}
           >下一页&ensp;▸</button>
@@ -525,7 +698,7 @@ export function Reader({
           top: selectionInfo.bounds.top - 50, left: Math.max(16, selectionInfo.bounds.left + selectionInfo.bounds.width / 2 - 100),
           display: 'flex', alignItems: 'center', gap: 6,
           borderRadius: 12, padding: '8px 14px',
-          ...glassStyle,
+          ...glass(dark),
           border: '1px solid rgba(255,255,255,0.12)',
           boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
         }}>
@@ -542,7 +715,7 @@ export function Reader({
           ))}
           <button onClick={onClearSelection}
             style={{
-              ...btnStyle, padding: '4px 8px', opacity: 0.6, fontSize: 14,
+              ...btn(fg), padding: '4px 8px', opacity: 0.6, fontSize: 14,
               borderLeft: '1px solid rgba(255,255,255,0.1)', borderRadius: 0,
             }}
           >✕</button>
@@ -559,7 +732,7 @@ export function Reader({
             zIndex: 10,
             borderRadius: 14, overflow: 'hidden',
             display: 'flex', flexDirection: 'column',
-            ...glassStyle,
+            ...glass(dark),
             border: '1px solid rgba(255,255,255,0.1)',
             boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
           }}>
@@ -581,7 +754,7 @@ export function Reader({
             </div>
             <div data-scroll="true" style={{ overflowY: 'auto', maxHeight: 320, padding: '8px 0' }}>
               {markerTab === 'bookmarks' && bookmarks.length === 0 && (
-                <div style={{ padding: '24px', textAlign: 'center', fontSize: 12, color: fg, opacity: 0.4 }}>暂无书签</div>
+                <div style={{ padding: '24px', textAlign: 'center', fontSize: 12, color: panelMuted }}>暂无书签</div>
               )}
               {markerTab === 'bookmarks' && bookmarks.map(b => (
                 <div key={b.id} style={{
@@ -593,17 +766,17 @@ export function Reader({
                   <span style={{ fontSize: 12 }}>🔖</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12, color: fg, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.label}</div>
-                    <div style={{ fontSize: 10, color: fg, opacity: 0.35, marginTop: 1 }}>{new Date(b.createdAt).toLocaleString()}</div>
+                    <div style={{ fontSize: 10, color: panelMuted, marginTop: 1 }}>{new Date(b.createdAt).toLocaleString()}</div>
                   </div>
                   <button onClick={e => { e.stopPropagation(); onRemoveBookmark(b.id!) }}
-                    style={{ ...btnStyle, padding: '2px 6px', fontSize: 12, opacity: 0.6, flexShrink: 0 }}
+                    style={{ ...btn(fg), padding: '2px 6px', fontSize: 12, opacity: 0.6, flexShrink: 0 }}
                     onMouseEnter={e => e.currentTarget.style.opacity = '1'}
                     onMouseLeave={e => e.currentTarget.style.opacity = '0.6'}
                   >✕</button>
                 </div>
               ))}
               {markerTab === 'highlights' && highlights.length === 0 && (
-                <div style={{ padding: '24px', textAlign: 'center', fontSize: 12, color: fg, opacity: 0.4 }}>暂无标注</div>
+                <div style={{ padding: '24px', textAlign: 'center', fontSize: 12, color: panelMuted }}>暂无标注</div>
               )}
               {markerTab === 'highlights' && highlights.map(h => (
                 <div key={h.id} style={{
@@ -613,10 +786,10 @@ export function Reader({
                   <div style={{ width: 12, height: 12, borderRadius: 3, background: h.color, flexShrink: 0, marginTop: 2 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 11, color: fg, lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>"{h.text}"</div>
-                    {h.note && <div style={{ fontSize: 10, color: fg, opacity: 0.5, marginTop: 2, fontStyle: 'italic' }}>{h.note}</div>}
+                    {h.note && <div style={{ fontSize: 10, color: panelMuted, marginTop: 2, fontStyle: 'italic' }}>{h.note}</div>}
                   </div>
                   <button onClick={() => onRemoveHighlight(h.id!, h.cfiRange)}
-                    style={{ ...btnStyle, padding: '2px 6px', fontSize: 12, opacity: 0.6, flexShrink: 0 }}
+                    style={{ ...btn(fg), padding: '2px 6px', fontSize: 12, opacity: 0.6, flexShrink: 0 }}
                     onMouseEnter={e => e.currentTarget.style.opacity = '1'}
                     onMouseLeave={e => e.currentTarget.style.opacity = '0.6'}
                   >✕</button>

@@ -59,17 +59,19 @@ export function Library({ books, readingTime, onOpenBook, onImport, onDelete, on
   }
 
   const [booksAnim, statsAnim, settingsAnim] = useMemo(() => {
-    const outY = direction === 'up' ? -28 : 28
-    const startY = direction === 'up' ? 28 : -28
+    const outY = direction === 'up' ? -20 : 20
+    const startY = direction === 'up' ? 20 : -20
+    const outRot = direction === 'up' ? 2 : -2
+    const startRot = direction === 'up' ? -2 : 2
     const anim = (page: LibPage) => {
       const active = libPage === page
-      if (transition === 'idle') return { opacity: active ? 1 : 0, transform: 'translateY(0)' }
+      if (transition === 'idle') return { opacity: active ? 1 : 0, transform: 'translateY(0) scale(1) rotateX(0)' }
       if (transition === 'out') {
-        if (active) return { opacity: 0, transform: `translateY(${outY}px)` }
-        return { opacity: 0, transform: `translateY(${startY}px)` }
+        if (active) return { opacity: 0, transform: `translateY(${outY}px) scale(0.95) rotateX(${outRot}deg)` }
+        return { opacity: 0, transform: `translateY(${startY}px) scale(0.95) rotateX(${startRot}deg)` }
       }
-      if (active) return { opacity: 1, transform: 'translateY(0)' }
-      return { opacity: 0, transform: `translateY(${outY}px)` }
+      if (active) return { opacity: 1, transform: 'translateY(0) scale(1) rotateX(0)' }
+      return { opacity: 0, transform: `translateY(${outY}px) scale(0.95) rotateX(${outRot}deg)` }
     }
     return [anim('books'), anim('stats'), anim('settings')] as const
   }, [libPage, direction, transition])
@@ -92,11 +94,13 @@ export function Library({ books, readingTime, onOpenBook, onImport, onDelete, on
 
       <SidebarNav libPage={libPage} bookCount={books.length} onSwitchPage={switchPage} onImport={onImport} />
 
-      <div style={{ flex: 1, position: 'relative', overflow: 'hidden', zIndex: 1 }}>
+      <div style={{ flex: 1, position: 'relative', overflow: 'hidden', zIndex: 1, perspective: '1200px' }}>
         {/* books page */}
         <div style={{
           position: 'absolute', inset: 0,
-          transition: 'opacity 0.4s ease, transform 0.4s ease',
+          transition: 'opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+          transformStyle: 'preserve-3d',
+          backfaceVisibility: 'hidden',
           pointerEvents: transition !== 'idle' || libPage !== 'books' ? 'none' : 'auto',
           ...booksAnim,
         }}>
@@ -106,7 +110,9 @@ export function Library({ books, readingTime, onOpenBook, onImport, onDelete, on
         {/* stats page */}
         <div style={{
           position: 'absolute', inset: 0, overflow: 'hidden',
-          transition: 'opacity 0.4s ease, transform 0.4s ease',
+          transition: 'opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+          transformStyle: 'preserve-3d',
+          backfaceVisibility: 'hidden',
           pointerEvents: transition !== 'idle' || libPage !== 'stats' ? 'none' : 'auto',
           ...statsAnim,
         }}>
@@ -116,7 +122,9 @@ export function Library({ books, readingTime, onOpenBook, onImport, onDelete, on
         {/* settings page */}
         <div style={{
           position: 'absolute', inset: 0, overflow: 'hidden',
-          transition: 'opacity 0.4s ease, transform 0.4s ease',
+          transition: 'opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+          transformStyle: 'preserve-3d',
+          backfaceVisibility: 'hidden',
           pointerEvents: transition !== 'idle' || libPage !== 'settings' ? 'none' : 'auto',
           ...settingsAnim,
         }}>

@@ -2,10 +2,10 @@ name: Build & Release
 
 on:
   push:
-    branches: [main]
+    branches: [master]
     tags: ['v*']
   pull_request:
-    branches: [main]
+    branches: [master]
   workflow_dispatch:
 
 jobs:
@@ -54,11 +54,11 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            *.exe
-            *.dmg
-            *.AppImage
-            *.zip
-            *.deb
-            *.rpm
+            release/*.exe
+            release/*.dmg
+            release/*.AppImage
+            release/*.zip
+            release/*.deb
+            release/*.rpm
           fail_on_unmatched_files: false
           generate_release_notes: true

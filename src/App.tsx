@@ -55,7 +55,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [currentBook, setCurrentBook] = useState<string | null>(null)
   const [readingTime, setReadingTime] = useState(0)
-  const { meta, toc, theme, progress, progressRef, cfiRef, indexRef, sectionHrefRef, extractMeta, openBook, initReadingTime, setTheme, goNext, goPrev, goToHref, goToCfi, seekTo, getReadingSeconds, saveReadingTime, resizeViewer, destroy, getChapterText, getFullBookText, layout, updateLayout, bookmarks, highlights, selectionInfo, currentCfi, toggleBookmark, removeBookmarkById, addHighlight, removeHighlight, clearSelection, searchText, navigateToSearchResult, getChapterLabel } = useEpub()
+  const { meta, toc, theme, progress, progressRef, cfiRef, indexRef, sectionHrefRef, extractMeta, openBook, initReadingTime, setTheme, setCustomTheme, goNext, goPrev, goToHref, goToCfi, seekTo, getReadingSeconds, saveReadingTime, resizeViewer, destroy, getChapterText, getFullBookText, layout, updateLayout, bookmarks, highlights, selectionInfo, currentCfi, toggleBookmark, removeBookmarkById, addHighlight, removeHighlight, clearSelection, searchText, navigateToSearchResult, getChapterLabel, customThemeRef } = useEpub()
   const [bgGradient, setBgGradient] = useState('linear-gradient(135deg, #0a0a1a 0%, #1a1040 40%, #0d1137 100%)')
   const [webdavConfig, setWebdavConfig] = useState<WebDAVConfig | null>(null)
   const [aiConfig, setAiConfig] = useState<AIConfig | null>(null)
@@ -247,6 +247,7 @@ export default function App() {
                 meta={meta}
                 theme={theme}
                 layout={layout}
+                customTheme={customThemeRef.current}
                 onLayoutChange={updateLayout}
                 onLoad={openBook}
                 onBack={handleBack}
@@ -256,6 +257,7 @@ export default function App() {
                 progress={progress}
                 onSeek={seekTo}
                 onThemeChange={setTheme}
+                onCustomThemeChange={setCustomTheme}
                 onResize={resizeViewer}
                 aiConfig={aiConfig}
                 onGetChapterText={getChapterText}

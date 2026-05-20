@@ -1,13 +1,4 @@
-interface AIConfig {
-  apiUrl: string
-  apiKey: string
-  model: string
-}
-
-interface AIChatMessage {
-  role: 'system' | 'user' | 'assistant'
-  content: string
-}
+import type { AIConfig, AIChatMessage } from '../../src/types'
 
 export async function callAI(config: AIConfig, messages: AIChatMessage[]): Promise<string> {
   const url = `${config.apiUrl.replace(/\/+$/, '')}/chat/completions`
