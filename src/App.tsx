@@ -55,7 +55,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [currentBook, setCurrentBook] = useState<string | null>(null)
   const [readingTime, setReadingTime] = useState(0)
-  const { meta, toc, theme, progress, progressRef, cfiRef, indexRef, sectionHrefRef, extractMeta, openBook, initReadingTime, setTheme, setCustomTheme, goNext, goPrev, goToHref, goToCfi, seekTo, getReadingSeconds, saveReadingTime, resizeViewer, destroy, getChapterText, getFullBookText, layout, updateLayout, bookmarks, highlights, selectionInfo, currentCfi, toggleBookmark, removeBookmarkById, addHighlight, removeHighlight, clearSelection, searchText, navigateToSearchResult, getChapterLabel, customThemeRef } = useEpub()
+  const { meta, toc, theme, progress, progressRef, cfiRef, indexRef, sectionHrefRef, extractMeta, openBook, initReadingTime, setTheme, setCustomTheme, setAnimationMode, setReducedMotion, goNext, goPrev, goToHref, goToCfi, seekTo, getReadingSeconds, saveReadingTime, resizeViewer, destroy, getChapterText, getFullBookText, layout, updateLayout, bookmarks, highlights, selectionInfo, currentCfi, toggleBookmark, removeBookmarkById, addHighlight, removeHighlight, clearSelection, searchText, navigateToSearchResult, getChapterLabel, customThemeRef } = useEpub()
   const [bgGradient, setBgGradient] = useState('linear-gradient(135deg, #0a0a1a 0%, #1a1040 40%, #0d1137 100%)')
   const [webdavConfig, setWebdavConfig] = useState<WebDAVConfig | null>(null)
   const [aiConfig, setAiConfig] = useState<AIConfig | null>(null)
@@ -77,12 +77,30 @@ export default function App() {
 
   const { isDragging, toast, handleDragOver, handleDragLeave, handleDrop } = useDragDrop(page, doImport)
 
+  const handleOpenBook = useCallback((filePath: string) => {
+    console.log('[App] handleOpenBook called:', filePath)
+    setCurrentBook(filePath)
+    updateLastOpenedAt(filePath)
+    setBooks((prev) => prev.map((b) =>
+      b.filePath === filePath ? { ...b, lastOpenedAt: Date.now() } : b
+    ))
+    setPhase('leaving')
+    setTimeout(() => {
+      setPage('reader')
+      setPhase('entering')
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => setPhase('idle'))
+      })
+    }, 200)
+  }, [])
+
   useInitialLoad({
     onBooksLoaded: setBooks,
     initReadingTime,
     setReadingTime,
     onWebDAVConfig: setWebdavConfig,
     onAIConfig: setAiConfig,
+    onAutoOpenBook: handleOpenBook,
   })
 
   useProgressTimer({
@@ -113,23 +131,6 @@ export default function App() {
     window.addEventListener('beforeunload', handleUnload)
     return () => window.removeEventListener('beforeunload', handleUnload)
   }, [currentBook, saveReadingTime])
-
-  const handleOpenBook = useCallback((filePath: string) => {
-    console.log('[App] handleOpenBook called:', filePath)
-    setCurrentBook(filePath)
-    updateLastOpenedAt(filePath)
-    setBooks((prev) => prev.map((b) =>
-      b.filePath === filePath ? { ...b, lastOpenedAt: Date.now() } : b
-    ))
-    setPhase('leaving')
-    setTimeout(() => {
-      setPage('reader')
-      setPhase('entering')
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => setPhase('idle'))
-      })
-    }, 200)
-  }, [])
 
   const handleBack = useCallback(() => {
     const pct = progressRef.current
@@ -249,6 +250,8 @@ export default function App() {
                 layout={layout}
                 customTheme={customThemeRef.current}
                 onLayoutChange={updateLayout}
+                onAnimationModeChange={setAnimationMode}
+                onReducedMotionChange={setReducedMotion}
                 onLoad={openBook}
                 onBack={handleBack}
                 onNext={goNext}

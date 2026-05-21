@@ -3,6 +3,7 @@ import { bgPresets } from '../utils/styles'
 import { saveSetting, loadSetting } from '../utils/db'
 import { SyncSettings } from './SyncSettings'
 import { AISettings } from './AISettings'
+import { defaultLayout } from '../types'
 import type { WebDAVConfig, AIConfig, ReadingGoal } from '../types'
 import type { CSSProperties } from 'react'
 
@@ -48,6 +49,25 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
     })
   }, [])
 
+  const [enableMediaKey, setEnableMediaKey] = useState(true)
+  useEffect(() => {
+    loadSetting('readerLayout').then((v) => {
+      if (v) {
+        try {
+          const parsed = JSON.parse(v)
+          setEnableMediaKey(parsed.enableMediaKey ?? true)
+        } catch { setEnableMediaKey(true) }
+      }
+    })
+  }, [])
+
+  const [startupBehavior, setStartupBehavior] = useState<'library' | 'resume'>('library')
+  useEffect(() => {
+    loadSetting('startupBehavior').then((v) => {
+      if (v === 'library' || v === 'resume') setStartupBehavior(v)
+    })
+  }, [])
+
   const pushDetail = (id: string) => {
     if (subPhase !== 'idle') return
     setSubPhase('push-out')
@@ -86,6 +106,8 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
           { id: 'readingGoal', label: '阅读目标', summary: goalMinutes > 0 ? `${goalMinutes} 分钟/天` : '未设置' },
           { id: 'webdav', label: 'WebDAV 同步', summary: webdavConfig ? `已配置 (${webdavConfig.url})` : '' },
           { id: 'ai', label: 'AI 助手', summary: aiConfig ? `已配置 (${aiConfig.model})` : '' },
+          { id: 'startup', label: '启动行为', summary: startupBehavior === 'resume' ? '继续阅读' : '显示书架' },
+          { id: 'mediaKey', label: '媒体键翻页', summary: enableMediaKey ? '已启用' : '已禁用' },
         ].map((item) => (
           <div key={item.id} onClick={() => pushDetail(item.id)}
             style={settingItem}
@@ -117,7 +139,7 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
             onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.5)'}
           >‹</span>
           <p style={{ color: '#fff', fontSize: 18, fontWeight: 700, margin: 0, letterSpacing: -0.3, pointerEvents: 'none' }}>
-            {settingView === 'bgPreset' ? '首页背景' : settingView === 'readingGoal' ? '阅读目标' : settingView === 'webdav' ? 'WebDAV 同步' : settingView === 'ai' ? 'AI 助手' : ''}
+            {settingView === 'bgPreset' ? '首页背景' : settingView === 'readingGoal' ? '阅读目标' : settingView === 'webdav' ? 'WebDAV 同步' : settingView === 'ai' ? 'AI 助手' : settingView === 'startup' ? '启动行为' : settingView === 'mediaKey' ? '媒体键翻页' : ''}
           </p>
         </div>
 
@@ -187,6 +209,83 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
             </div>
             <button onClick={() => {
               saveSetting('readingGoal', JSON.stringify({ dailyMinutes: goalMinutes } as ReadingGoal))
+              popDetail()
+            }}
+              style={{
+                padding: '10px 28px', borderRadius: 8, cursor: 'pointer',
+                background: 'linear-gradient(135deg, rgba(99,102,241,0.5) 0%, rgba(168,85,247,0.4) 100%)',
+                border: '1px solid rgba(168,85,247,0.3)', color: '#fff', fontSize: 14, fontWeight: 600,
+              }}
+            >保存</button>
+          </div>
+        )}
+
+        {settingView === 'startup' && (
+          <div style={{
+            borderRadius: 14,
+            background: 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 100%)',
+            border: '1px solid rgba(168,85,247,0.12)',
+            padding: '24px 28px',
+          }}>
+            <div style={{ color: '#fff', fontSize: 14, fontWeight: 600, marginBottom: 16 }}>启动后显示</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
+              {[
+                { value: 'library' as const, label: '书架', desc: '启动时显示书架页面' },
+                { value: 'resume' as const, label: '继续阅读', desc: '自动打开上次阅读的图书' },
+              ].map(opt => (
+                <label key={opt.value} style={{
+                  display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer',
+                  padding: '12px 16px', borderRadius: 10,
+                  background: startupBehavior === opt.value ? 'rgba(99,102,241,0.2)' : 'transparent',
+                  border: `1px solid ${startupBehavior === opt.value ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.08)'}`,
+                  transition: 'all 0.15s',
+                }}>
+                  <input type="radio" name="startup" value={opt.value}
+                    checked={startupBehavior === opt.value}
+                    onChange={() => setStartupBehavior(opt.value)}
+                    style={{ accentColor: '#6366f1', width: 18, height: 18, cursor: 'pointer' }}
+                  />
+                  <div>
+                    <div style={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>{opt.label}</div>
+                    <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, marginTop: 2 }}>{opt.desc}</div>
+                  </div>
+                </label>
+              ))}
+            </div>
+            <button onClick={() => {
+              saveSetting('startupBehavior', startupBehavior)
+              popDetail()
+            }}
+              style={{
+                padding: '10px 28px', borderRadius: 8, cursor: 'pointer',
+                background: 'linear-gradient(135deg, rgba(99,102,241,0.5) 0%, rgba(168,85,247,0.4) 100%)',
+                border: '1px solid rgba(168,85,247,0.3)', color: '#fff', fontSize: 14, fontWeight: 600,
+              }}
+            >保存</button>
+          </div>
+        )}
+
+        {settingView === 'mediaKey' && (
+          <div style={{
+            borderRadius: 14,
+            background: 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 100%)',
+            border: '1px solid rgba(168,85,247,0.12)',
+            padding: '24px 28px',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <div>
+                <div style={{ color: '#fff', fontSize: 14, fontWeight: 600 }}>启用媒体键</div>
+                <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, marginTop: 4 }}>
+                  支持 Mac 触控栏和蓝牙键盘的 ◀▸ 按钮翻页
+                </div>
+              </div>
+              <input type="checkbox" checked={enableMediaKey}
+                onChange={e => setEnableMediaKey(e.target.checked)}
+                style={{ width: 20, height: 20, cursor: 'pointer', accentColor: '#6366f1' }}
+              />
+            </div>
+            <button onClick={() => {
+              saveSetting('readerLayout', JSON.stringify({ ...defaultLayout, enableMediaKey }))
               popDetail()
             }}
               style={{

@@ -18,6 +18,7 @@ export function useEpub() {
     sectionHrefRef: useRef(''),
     themeRef: useRef<ThemeMode>('light'),
     layoutRef: useRef<ReaderLayout>(defaultLayout),
+    setLayoutStateRef: useRef<((layout: ReaderLayout) => void) | null>(null),
     totalSectionsRef: useRef(0),
     sessionStartRef: useRef(0),
     todaySecondsRef: useRef(0),
@@ -70,6 +71,8 @@ export function useEpub() {
     // Theme & layout
     setTheme: bookEngine.setTheme,
     setCustomTheme: bookEngine.setCustomTheme,
+    setAnimationMode: bookEngine.setAnimationMode,
+    setReducedMotion: bookEngine.setReducedMotion,
     updateLayout: controls.updateLayout,
 
     // Navigation

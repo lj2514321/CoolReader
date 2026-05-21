@@ -111,6 +111,15 @@ export async function loadAllBooks(): Promise<BookRecord[]> {
   })
 }
 
+export async function loadLastOpenedBook(): Promise<BookRecord | null> {
+  const all = await loadAllBooks()
+  if (all.length === 0) return null
+  return all.reduce((best, b) =>
+    !best.lastOpenedAt || (b.lastOpenedAt && b.lastOpenedAt > best.lastOpenedAt) ? b : best,
+    all[0]
+  )
+}
+
 export interface CoverRecord {
   filePath: string
   data: ArrayBuffer

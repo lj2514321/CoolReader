@@ -74,7 +74,7 @@ export function generateCustomThemeCSS(theme: CustomTheme): string {
     }
   }
 
-  return `body.custom { background: ${bg} !important; color: ${textColor} !important; }`
+  return `body.custom, body.custom * { background: ${bg} !important; color: ${textColor} !important; } body.custom { background: ${bg} !important; }`
 }
 
 export function applyColorAlpha(color: string, alpha: number): string {

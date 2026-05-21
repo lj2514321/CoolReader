@@ -3,9 +3,10 @@ import { ThemeMode, ReaderLayout } from '../../types'
 import { saveSetting, saveReadingTime as persistReadingTimeToDB, saveBookReadingTime as persistBookReadingTime } from '../../utils/db'
 import type { SharedRefs } from './useBookEngine'
 import { enableSmoothScroll } from '../../utils/enableSmoothScroll'
+import { applyPageAnimation, clearAnimationCache } from '../../utils/animation'
 
 export function useReaderControls(shared: SharedRefs) {
-  const { bookRef, renditionRef, syncRef, navigatingRef, indexRef, cfiRef, progressRef, themeRef, layoutRef, totalSectionsRef, sessionStartRef, todaySecondsRef, bookTodayRef, bookSessionStartRef, bookPathRef } = shared
+  const { bookRef, renditionRef, syncRef, navigatingRef, indexRef, cfiRef, progressRef, themeRef, layoutRef, setLayoutStateRef, totalSectionsRef, sessionStartRef, todaySecondsRef, bookTodayRef, bookSessionStartRef, bookPathRef } = shared
 
   const setTheme = useCallback((t: ThemeMode) => {
     themeRef.current = t
@@ -29,10 +30,13 @@ export function useReaderControls(shared: SharedRefs) {
       iframe.contentDocument.head.appendChild(style)
     }
     style.textContent = `
-      body {
+      body, body * {
         font-size: ${l.fontSize}% !important;
         font-family: ${l.fontFamily} !important;
+        font-weight: ${l.fontWeight} !important;
         line-height: ${l.lineHeight} !important;
+      }
+      body {
         padding: 0 ${l.margin}px !important;
         max-width: 100% !important;
       }
@@ -42,6 +46,7 @@ export function useReaderControls(shared: SharedRefs) {
   const updateLayout = useCallback((patch: Partial<ReaderLayout>) => {
     const next = { ...layoutRef.current, ...patch }
     layoutRef.current = next
+    setLayoutStateRef.current?.(next)
     saveSetting('readerLayout', JSON.stringify(next))
     if (patch.flow) {
       try {
@@ -62,15 +67,33 @@ export function useReaderControls(shared: SharedRefs) {
   const goNext = useCallback(async () => {
     navigatingRef.current = true
     await renditionRef.current?.next()
-    navigatingRef.current = false
-    requestAnimationFrame(syncRef.current)
+    const animMode = layoutRef.current.animationMode || 'slide'
+    const reducedMotion = layoutRef.current.reducedMotion || false
+    if (animMode === '3d') {
+      navigatingRef.current = false
+      requestAnimationFrame(syncRef.current)
+      return
+    }
+    applyPageAnimation(renditionRef.current, 'next', animMode, reducedMotion, () => {
+      navigatingRef.current = false
+      requestAnimationFrame(syncRef.current)
+    })
   }, [])
 
   const goPrev = useCallback(async () => {
     navigatingRef.current = true
     await renditionRef.current?.prev()
-    navigatingRef.current = false
-    requestAnimationFrame(syncRef.current)
+    const animMode = layoutRef.current.animationMode || 'slide'
+    const reducedMotion = layoutRef.current.reducedMotion || false
+    if (animMode === '3d') {
+      navigatingRef.current = false
+      requestAnimationFrame(syncRef.current)
+      return
+    }
+    applyPageAnimation(renditionRef.current, 'prev', animMode, reducedMotion, () => {
+      navigatingRef.current = false
+      requestAnimationFrame(syncRef.current)
+    })
   }, [])
 
   const goToHref = useCallback(async (href: string) => {

@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import ePub, { Book, Rendition } from 'epubjs'
-import { BookMeta, NavItem, ThemeMode, themeStyles, ReaderLayout, defaultLayout, Bookmark, Highlight, CustomTheme, defaultCustomTheme } from '../../types'
+import { BookMeta, NavItem, ThemeMode, themeStyles, ReaderLayout, defaultLayout, Bookmark, Highlight, CustomTheme, defaultCustomTheme, AnimationMode } from '../../types'
 import { loadProgress, loadReadingTime, loadSetting, loadBookmarks as dbLoadBookmarks, loadHighlights as dbLoadHighlights, saveBookReadingTime as persistBookReadingTime, loadBookReadingTime as dbLoadBookReadingTime, saveSetting } from '../../utils/db'
 import { enableSmoothScroll } from '../../utils/enableSmoothScroll'
 import { generateCustomThemeCSS } from '../../utils/customTheme'
@@ -16,6 +16,7 @@ export interface SharedRefs {
   sectionHrefRef: React.MutableRefObject<string>
   themeRef: React.MutableRefObject<ThemeMode>
   layoutRef: React.MutableRefObject<ReaderLayout>
+  setLayoutStateRef: React.MutableRefObject<((layout: ReaderLayout) => void) | null>
   totalSectionsRef: React.MutableRefObject<number>
   sessionStartRef: React.MutableRefObject<number>
   todaySecondsRef: React.MutableRefObject<number>
@@ -37,13 +38,15 @@ export function useBookEngine(shared: SharedRefs, opts: {
   setSelectionInfo: React.Dispatch<React.SetStateAction<{ text: string; cfiRange: string; bounds: { top: number; left: number; width: number; height: number } } | null>>
 }) {
   const { applyLayout, saveBookReadingTime, setCurrentCfi, setBookmarks, setHighlights, setSelectionInfo } = opts
-  const { bookRef, renditionRef, syncRef, navigatingRef, progressRef, cfiRef, indexRef, sectionHrefRef, themeRef, layoutRef, totalSectionsRef, sessionStartRef, todaySecondsRef, bookTodayRef, bookSessionStartRef, bookPathRef, tocRef, hookRegistered, searchIndexRef, customThemeRef } = shared
+  const { bookRef, renditionRef, syncRef, navigatingRef, progressRef, cfiRef, indexRef, sectionHrefRef, themeRef, layoutRef, setLayoutStateRef, totalSectionsRef, sessionStartRef, todaySecondsRef, bookTodayRef, bookSessionStartRef, bookPathRef, tocRef, hookRegistered, searchIndexRef, customThemeRef } = shared
 
   const [meta, setMeta] = useState<BookMeta | null>(null)
   const [toc, setToc] = useState<NavItem[]>([])
   const [theme, setThemeState] = useState<ThemeMode>('light')
   const [progress, setProgress] = useState(0)
   const [layout, setLayoutState] = useState<ReaderLayout>(defaultLayout)
+
+  setLayoutStateRef.current = setLayoutState
 
   const readFile = useCallback(async (filePath: string) => {
     return window.electronAPI!.readFile(filePath)
@@ -161,14 +164,23 @@ export function useBookEngine(shared: SharedRefs, opts: {
           doc.head.appendChild(style)
         }
         style.textContent = `
-          body {
+          body, body * {
             font-size: ${l.fontSize}% !important;
             font-family: ${l.fontFamily} !important;
+            font-weight: ${l.fontWeight} !important;
             line-height: ${l.lineHeight} !important;
+          }
+          body {
             padding: 0 ${l.margin}px !important;
             max-width: 100% !important;
           }
         `
+
+        try {
+          rendition.themes.select(themeRef.current)
+        } catch (e) {
+          console.warn('[content hook] theme re-select failed', e)
+        }
 
         const selScript = doc.createElement('script')
         selScript.id = '_reader_sel'
@@ -323,6 +335,18 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
     }
   }, [])
 
+  const setAnimationMode = useCallback((mode: AnimationMode) => {
+    layoutRef.current = { ...layoutRef.current, animationMode: mode }
+    setLayoutStateRef.current?.(layoutRef.current)
+    saveSetting('readerLayout', JSON.stringify(layoutRef.current))
+  }, [])
+
+  const setReducedMotion = useCallback((reduced: boolean) => {
+    layoutRef.current = { ...layoutRef.current, reducedMotion: reduced }
+    setLayoutStateRef.current?.(layoutRef.current)
+    saveSetting('readerLayout', JSON.stringify(layoutRef.current))
+  }, [])
+
   const resizeViewer = useCallback(() => {
     if (navigatingRef.current) return
     try {
@@ -340,6 +364,6 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
   return {
     meta, toc, theme, progress, layout,
     extractMeta, openBook, resizeViewer, destroy,
-    setTheme, setCustomTheme,
+    setTheme, setCustomTheme, setAnimationMode, setReducedMotion,
   }
 }

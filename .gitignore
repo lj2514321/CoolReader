@@ -11,3 +11,4 @@ yarn-debug.log*
 yarn-error.log*
 .claude/
 .opencode/
+AGENTS.md

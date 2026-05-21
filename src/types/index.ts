@@ -52,12 +52,18 @@ export interface AIChatMessage {
   content: string
 }
 
+export type AnimationMode = 'fade' | 'slide' | 'blur-focus' | 'slide-fade'
+
 export interface ReaderLayout {
   fontSize: number
   fontFamily: string
+  fontWeight?: number
   lineHeight: number
   margin: number
   flow: 'paginated' | 'scrolled-doc'
+  animationMode?: AnimationMode
+  reducedMotion?: boolean
+  enableMediaKey?: boolean
 }
 
 export type ThemeMode = 'light' | 'dark' | 'sepia' | 'custom'
@@ -103,9 +109,11 @@ export const defaultCustomTheme: CustomTheme = {
 export const defaultLayout: ReaderLayout = {
   fontSize: 100,
   fontFamily: 'system-ui',
+  fontWeight: 400,
   lineHeight: 1.6,
   margin: 20,
   flow: 'paginated',
+  enableMediaKey: true,
 }
 
 export const fontFamilies = [
@@ -155,7 +163,7 @@ export interface ReadingGoal {
 export type Page = 'library' | 'reader'
 
 export const themeStyles = {
-  light: 'body.light { background: #ffffff !important; color: #000000 !important; }',
-  dark: 'body.dark { background: #1a1a2e !important; color: #e0e0e0 !important; }',
-  sepia: 'body.sepia { background: #f5e6c8 !important; color: #5b4636 !important; }',
+  light: 'body.light, body.light * { background: #ffffff !important; color: #000000 !important; } body.light { background: #ffffff !important; }',
+  dark: 'body.dark, body.dark * { background: #1a1a2e !important; color: #e0e0e0 !important; } body.dark { background: #1a1a2e !important; }',
+  sepia: 'body.sepia, body.sepia * { background: #f5e6c8 !important; color: #5b4636 !important; } body.sepia { background: #f5e6c8 !important; }',
 }

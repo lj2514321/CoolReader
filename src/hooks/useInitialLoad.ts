@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { loadAllBooks, loadAllProgress, loadCover, saveCover, loadReadingTime, loadWebDAVConfig, loadAIConfig } from '../utils/db'
+import { loadAllBooks, loadAllProgress, loadCover, saveCover, loadReadingTime, loadWebDAVConfig, loadAIConfig, loadSetting, loadLastOpenedBook } from '../utils/db'
 import type { BookEntry, BookMeta, WebDAVConfig, AIConfig } from '../types'
 
 export function useInitialLoad(params: {
@@ -8,8 +8,9 @@ export function useInitialLoad(params: {
   setReadingTime: (secs: number) => void
   onWebDAVConfig: (config: WebDAVConfig | null) => void
   onAIConfig: (config: AIConfig | null) => void
+  onAutoOpenBook?: (filePath: string) => void
 }) {
-  const { onBooksLoaded, initReadingTime, setReadingTime, onWebDAVConfig, onAIConfig } = params
+  const { onBooksLoaded, initReadingTime, setReadingTime, onWebDAVConfig, onAIConfig, onAutoOpenBook } = params
 
   useEffect(() => {
     Promise.all([loadAllBooks(), loadAllProgress()]).then(([bookRecords, progressRecords]) => {
@@ -22,6 +23,14 @@ export function useInitialLoad(params: {
         chapterLabel: progressMap.get(r.filePath)?.chapterLabel,
       }))
       onBooksLoaded(entries)
+      // 自动续读
+      if (onAutoOpenBook) {
+        Promise.all([loadSetting('startupBehavior'), loadLastOpenedBook()]).then(([behavior, lastBook]) => {
+          if (behavior === 'resume' && lastBook) {
+            onAutoOpenBook(lastBook.filePath)
+          }
+        })
+      }
       // 迁移旧 base64 封面到 covers store
       Promise.all(bookRecords
         .filter((r: any) => r.cover && typeof r.cover === 'string')

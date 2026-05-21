@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { BookMeta, ThemeMode, AIConfig, ReaderLayout, fontFamilies, defaultLayout, Bookmark, Highlight, highlightColors, SearchResult, CustomTheme, defaultCustomTheme } from '../types'
+import { BookMeta, ThemeMode, AIConfig, ReaderLayout, fontFamilies, defaultLayout, Bookmark, Highlight, highlightColors, SearchResult, CustomTheme, defaultCustomTheme, AnimationMode } from '../types'
 import { parseRGBA } from '../utils/customTheme'
 import { AIPanel } from './AIPanel'
 
@@ -9,6 +9,8 @@ interface ReaderProps {
   theme: ThemeMode
   layout: ReaderLayout
   onLayoutChange: (patch: Partial<ReaderLayout>) => void
+  onAnimationModeChange?: (mode: AnimationMode) => void
+  onReducedMotionChange?: (reduced: boolean) => void
   progress: number
   onLoad: (path: string) => void
   onBack: () => void
@@ -72,7 +74,7 @@ const btn = (fg: string) => ({
 })
 
 export function Reader({
-  filePath, meta, theme, layout, onLayoutChange, progress, onLoad, onBack, onNext, onPrev, onToggleSidebar, onThemeChange, onCustomThemeChange, customTheme, onSeek, onResize, aiConfig, onGetChapterText, onGetFullBookText, bookmarks, highlights, currentCfi, selectionInfo, onToggleBookmark, onRemoveBookmark, onAddHighlight, onRemoveHighlight, onClearSelection, onGoToCfi, onSearch, onNavigateToSearchResult,
+  filePath, meta, theme, layout, onLayoutChange, onAnimationModeChange, onReducedMotionChange, progress, onLoad, onBack, onNext, onPrev, onToggleSidebar, onThemeChange, onCustomThemeChange, customTheme, onSeek, onResize, aiConfig, onGetChapterText, onGetFullBookText, bookmarks, highlights, currentCfi, selectionInfo, onToggleBookmark, onRemoveBookmark, onAddHighlight, onRemoveHighlight, onClearSelection, onGoToCfi, onSearch, onNavigateToSearchResult,
 }: ReaderProps) {
   const nextRef = useRef(onNext)
   const prevRef = useRef(onPrev)
@@ -184,8 +186,17 @@ export function Reader({
     if (x < w * 0.22) { prevRef.current(); showControls(); return }
     if (x > w * 0.78) { nextRef.current(); showControls(); return }
 
-    setShowUI(v => !v)
-    clearTimeout(hideTimer.current)
+    const anyPanelOpen = showLayout || showMarkers || showSearch || showAI
+    if (anyPanelOpen) {
+      if (showSearch) setShowSearch(false)
+      if (showLayout) { setShowLayout(false); setShowCustomTheme(false) }
+      if (showMarkers) setShowMarkers(false)
+      if (showAI) setShowAI(false)
+      showControls()
+    } else {
+      setShowUI(v => !v)
+      clearTimeout(hideTimer.current)
+    }
   }
 
   useEffect(() => {
@@ -220,6 +231,8 @@ export function Reader({
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
       if (e.key === 'ArrowRight' || (e.key === ' ' && flowRef.current === 'paginated' && !e.shiftKey)) { e.preventDefault(); nextRef.current(); showControls(); return }
       if (e.key === 'ArrowLeft' || (e.key === ' ' && e.shiftKey)) { e.preventDefault(); prevRef.current(); showControls(); return }
+      if ((e.code === 'MediaNextTrack' || e.key === 'MediaNextTrack') && layout.enableMediaKey) { e.preventDefault(); nextRef.current(); showControls(); return }
+      if ((e.code === 'MediaPreviousTrack' || e.key === 'MediaPreviousTrack') && layout.enableMediaKey) { e.preventDefault(); prevRef.current(); showControls(); return }
       if (e.key === 'Escape') {
         if (showSearchRef.current) setShowSearch(false)
         else if (showLayoutRef.current) setShowLayout(false)
@@ -335,8 +348,12 @@ export function Reader({
           >⛶</button>
         </div>
         {showLayout && (
-          <div onClick={e => e.stopPropagation()} style={{
-            position: 'absolute', top: 'calc(100% + 8px)', right: 16, zIndex: 10,
+          <>
+            <div onClick={() => { setShowLayout(false); setShowCustomTheme(false) }} style={{
+              position: 'fixed', inset: 0, zIndex: 9, background: 'transparent',
+            }} />
+            <div onClick={e => e.stopPropagation()} style={{
+              position: 'absolute', top: 'calc(100% + 8px)', right: 16, zIndex: 10,
           width: 260,
           borderRadius: 14, padding: '16px 18px',
           ...glass(dark),
@@ -529,6 +546,22 @@ export function Reader({
           </div>
 
           <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: fg, opacity: 0.6, marginBottom: 6 }}>字重</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button onClick={() => onLayoutChange({ fontWeight: Math.max(300, (layout.fontWeight || 400) - 100) })}
+                style={{ ...btn(fg), padding: '4px 10px', fontSize: 14, opacity: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 8 }}>−</button>
+              <input type="range" min={300} max={700} step={100} value={layout.fontWeight || 400}
+                onChange={e => onLayoutChange({ fontWeight: Number(e.target.value) })}
+                style={{ flex: 1, height: 4, accentColor: '#6366f1', cursor: 'pointer' }} />
+              <button onClick={() => onLayoutChange({ fontWeight: Math.min(700, (layout.fontWeight || 400) + 100) })}
+                style={{ ...btn(fg), padding: '4px 10px', fontSize: 14, opacity: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 8 }}>+</button>
+            </div>
+            <div style={{ textAlign: 'right', fontSize: 11, color: fg, opacity: 0.4, marginTop: 2 }}>
+              {(layout.fontWeight || 400) === 300 ? '细体' : (layout.fontWeight || 400) === 400 ? '常规' : (layout.fontWeight || 400) === 500 ? '中等' : (layout.fontWeight || 400) === 600 ? '粗体' : (layout.fontWeight || 400) === 700 ? '特粗' : `${layout.fontWeight || 400}`}
+            </div>
+          </div>
+
+          <div>
             <div style={{ fontSize: 12, fontWeight: 600, color: fg, opacity: 0.6, marginBottom: 6 }}>行距</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <button onClick={() => onLayoutChange({ lineHeight: Math.max(1, +(layout.lineHeight - 0.2).toFixed(1)) })}
@@ -577,12 +610,51 @@ export function Reader({
               >📜 滚动</button>
             </div>
           </div>
-        </div>
-      )}
+
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: fg, opacity: 0.6, marginBottom: 6 }}>翻页动画</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
+              {[
+                { key: 'fade', label: '淡入淡出' },
+                { key: 'slide', label: '左右滑动' },
+                { key: 'blur-focus', label: '闪烁聚焦' },
+                { key: 'slide-fade', label: '滑动+淡出' },
+              ].map(opt => (
+                <button key={opt.key}
+                  onClick={() => onAnimationModeChange?.(opt.key as AnimationMode)}
+                  style={{
+                    padding: '6px 0', borderRadius: 8, cursor: 'pointer', fontSize: 11,
+                    background: (layout.animationMode || 'slide') === opt.key ? 'rgba(99,102,241,0.5)' : panelInputBg,
+                    border: (layout.animationMode || 'slide') === opt.key ? '2px solid rgba(99,102,241,0.9)' : `1px solid ${panelBorder}`,
+                    color: (layout.animationMode || 'slide') === opt.key ? '#1a1a2e' : panelText,
+                    fontWeight: (layout.animationMode || 'slide') === opt.key ? 600 : 500,
+                    transition: 'all 0.15s',
+                  }}
+                >{opt.label}</button>
+              ))}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
+              <label style={{ fontSize: 11, color: panelText, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <input type="checkbox"
+                  checked={layout.reducedMotion ?? false}
+                  onChange={e => onReducedMotionChange?.(e.target.checked)}
+                  style={{ accentColor: '#6366f1' }}
+                />
+                低性能模式
+              </label>
+            </div>
+          </div>
+          </div>
+          </>
+        )}
 
       {showSearch && (
-        <div onClick={e => e.stopPropagation()} style={{
-          position: 'absolute', top: 'calc(100% + 8px)', right: 16, zIndex: 10,
+        <>
+          <div onClick={() => setShowSearch(false)} style={{
+            position: 'fixed', inset: 0, zIndex: 9, background: 'transparent',
+          }} />
+          <div onClick={e => e.stopPropagation()} style={{
+            position: 'absolute', top: 'calc(100% + 8px)', right: 16, zIndex: 10,
           width: 320,
           borderRadius: 14, padding: '12px 14px',
           ...glass(dark),
@@ -632,8 +704,9 @@ export function Reader({
               </div>
             ))}
           </div>
-        </div>
-      )}
+          </div>
+          </>
+        )}
       </div>
 
       {/* bottom bar */}
@@ -703,7 +776,10 @@ export function Reader({
           boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
         }}>
           {highlightColors.map(color => (
-            <button key={color} onClick={() => onAddHighlight(color)}
+            <button key={color} onClick={() => {
+              const note = window.prompt('输入笔记（可选）：')
+              onAddHighlight(color, note?.trim() || undefined)
+            }}
               style={{
                 width: 22, height: 22, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.3)',
                 background: color, cursor: 'pointer', padding: 0,
