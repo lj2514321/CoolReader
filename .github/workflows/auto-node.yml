@@ -1,0 +1,41 @@
+name: Auto Node Script
+
+on:
+  schedule:
+    - cron: '0 0,12 * * *'
+  workflow_dispatch:
+
+env:
+  SUBSCRIPTION_URLS: ${{ secrets.SUBSCRIPTION_URLS }}
+  SMTP_HOST: smtp.qq.com
+  SMTP_PORT: 465
+  SMTP_USER: ${{ secrets.SMTP_USER }}
+  SMTP_PASS: ${{ secrets.SMTP_PASS }}
+  SMTP_FROM: ${{ secrets.SMTP_FROM }}
+  SMTP_TO: ${{ secrets.SMTP_TO }}
+  SPEED_TEST_URL: https://proof.ovh.net/files/5Mb.dat
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run main script
+        run: python scripts/main.py
+
+      - name: Commit and push results
+        run: |
+          git config user.name "Auto Node Bot"
+          git config user.email "bot@example.com"
+          git add output/
+          git diff --staged --quiet || git commit -m "chore: update node test results [skip ci]"
+          git push
