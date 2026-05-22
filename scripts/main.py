@@ -8,7 +8,7 @@ import logging
 from datetime import datetime
 from typing import List
 
-from scripts.utils import setup_logger, Config, Timer, ensure_dir
+from scripts.utils import Config, Timer, ensure_dir
 from scripts.fetcher import SubscriptionFetcher
 from scripts.parser import SubscriptionParser, ProxyNode
 from scripts.filter import NodeFilter
@@ -40,7 +40,11 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     level = logging.DEBUG if args.verbose else logging.INFO
-    setup_logger(__name__, level=level)
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     cfg = Config()
 
     logger.info("Starting auto node script")
