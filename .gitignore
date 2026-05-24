@@ -1,18 +1,46 @@
+# Dependencies
 node_modules/
+
+# Build outputs
 out/
 release/
 dist/
-build/
-.env
-.DS_Store
+
+# electron-vite cache
+.vite/
+
+# Logs
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.claude/
-.omo/
-.opencode/
-AGENTS.md
-output/
-__pycache__/
-*.pyc
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# electron-builder debug
+*.block
+*.packed
+*.map
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# TypeScript
+*.tsbuildinfo
+
+# IndexedDB files (browser data)
+*.db
+*.sqlite
+
+# Backup files
+*.bak
+*.orig
