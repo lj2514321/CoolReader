@@ -1,0 +1,24 @@
+F1: 全流程运行验证
+==================
+Date: 2026-05-22 21:18
+
+Dry-run: PASS
+  - "python -m scripts.main --dry-run" executed without errors
+  - Pipeline steps all logged: fetch, parse, filter, guard (no nodes), exit
+  - 0 ERROR-level log lines
+  - --verbose flag accepted
+
+Tests: 91/91 PASS
+  - Executed "python -m pytest tests/ -q"
+  - All 91 tests passed in 0.31s
+  - 0 FAILED, 0 ERRORS
+
+Imports: OK
+  - All 7 scripts modules import without errors
+  - Cross-module references resolve correctly
+
+Logging fix verification: PASS
+  - Changed from `setup_logger(__name__)` to `logging.basicConfig()`
+  - Child logger (scripts.fetcher) now shows output via root propagation
+
+VERDICT: APPROVE

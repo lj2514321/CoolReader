@@ -11,7 +11,10 @@
       "Bash(mkdir -p \"C:/Users/Luna/Desktop/学习/CoolReader_android/src/components\" \"C:/Users/Luna/Desktop/学习/CoolReader_android/src/hooks\" \"C:/Users/Luna/Desktop/学习/CoolReader_android/src/utils\" \"C:/Users/Luna/Desktop/学习/CoolReader_android/src/types\")",
       "Bash(rm -f \"C:/Users/Luna/Desktop/学习/CoolReader_android/src/App.css\" \"C:/Users/Luna/Desktop/学习/CoolReader_android/src/index.css\")",
       "Bash(npx vite *)",
-      "Bash(npx cap *)"
+      "Bash(npx cap *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git reset *)"
     ]
   }
 }

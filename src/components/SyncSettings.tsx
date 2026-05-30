@@ -1,26 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import type { WebDAVConfig, SyncResult, SyncProgressEvent } from '../types'
 import { saveWebDAVConfig, loadAllBooks, loadAllProgress, loadReadingTime } from '../utils/db'
-import type { CSSProperties } from 'react'
-
-const inputStyle: CSSProperties = {
-  width: '100%', boxSizing: 'border-box',
-  background: 'rgba(255,255,255,0.06)',
-  border: '1px solid rgba(255,255,255,0.1)',
-  borderRadius: 8, padding: '10px 14px',
-  color: '#fff', fontSize: 13, outline: 'none',
-  marginTop: 6,
-}
-const labelStyle: CSSProperties = {
-  color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: 600, letterSpacing: 0.3,
-  display: 'block', marginTop: 14,
-}
-const btnBase: CSSProperties = {
-  border: 'none', borderRadius: 10, padding: '10px 20px',
-  fontSize: 13, fontWeight: 600, cursor: 'pointer',
-  transition: 'all 0.15s',
-}
-const formCardBg = 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 100%)'
+import '../styles/components/settings-form.css'
 
 interface SyncSettingsProps {
   config: WebDAVConfig | null
@@ -111,43 +92,30 @@ export function SyncSettings({ config, onConfigChange }: SyncSettingsProps) {
   return (
     <div>
       {/* Connection form */}
-      <div style={{
-        borderRadius: 14,
-        background: formCardBg,
-        border: '1px solid rgba(168,85,247,0.12)',
-        padding: '20px 24px',
-        marginBottom: 16,
-      }}>
-        <label style={labelStyle}>服务器地址</label>
-        <input style={inputStyle} placeholder="https://example.com/dav/" value={url} onChange={e => setUrl(e.target.value)} />
+      <div className="form-container" style={{ marginBottom: 16 }}>
+        <label className="form-label">服务器地址</label>
+        <input className="form-input" placeholder="https://example.com/dav/" value={url} onChange={e => setUrl(e.target.value)} />
 
-        <label style={labelStyle}>用户名</label>
-        <input style={inputStyle} placeholder="username" value={username} onChange={e => setUsername(e.target.value)} />
+        <label className="form-label">用户名</label>
+        <input className="form-input" placeholder="username" value={username} onChange={e => setUsername(e.target.value)} />
 
-        <label style={labelStyle}>密码</label>
-        <input style={inputStyle} type="password" placeholder="password" value={password} onChange={e => setPassword(e.target.value)} />
+        <label className="form-label">密码</label>
+        <input className="form-input" type="password" placeholder="password" value={password} onChange={e => setPassword(e.target.value)} />
 
-        <label style={labelStyle}>同步路径</label>
-        <input style={inputStyle} placeholder="/CoolReader" value={path} onChange={e => setPath(e.target.value)} />
+        <label className="form-label">同步路径</label>
+        <input className="form-input" placeholder="/CoolReader" value={path} onChange={e => setPath(e.target.value)} />
 
-        <div style={{ display: 'flex', gap: 10, marginTop: 18, alignItems: 'center' }}>
+        <div className="form-actions">
           <button onClick={handleTest} disabled={testing || !url}
-            style={{
-              ...btnBase,
-              background: 'rgba(99,102,241,0.3)', color: '#fff',
-              opacity: testing || !url ? 0.5 : 1,
-            }}
+            className="form-btn" style={{ background: 'rgba(99,102,241,0.3)' }}
           >{testing ? '测试中...' : '测试连接'}</button>
 
           <button onClick={handleSave}
-            style={{
-              ...btnBase,
-              background: 'rgba(168,85,247,0.3)', color: '#fff',
-            }}
+            className="form-btn" style={{ background: 'rgba(168,85,247,0.3)' }}
           >{saved ? '已保存' : '保存配置'}</button>
 
           {testMsg && (
-            <span style={{ color: testMsg.ok ? 'rgba(74,222,128,0.9)' : 'rgba(248,113,113,0.9)', fontSize: 12 }}>
+            <span className={`form-helper form-status ${testMsg.ok ? 'success' : 'error'}`}>
               {testMsg.text}
             </span>
           )}
@@ -155,27 +123,17 @@ export function SyncSettings({ config, onConfigChange }: SyncSettingsProps) {
       </div>
 
       {/* Sync section */}
-      <div style={{
-        borderRadius: 14,
-        background: formCardBg,
-        border: '1px solid rgba(168,85,247,0.12)',
-        padding: '20px 24px',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <span style={{ color: '#fff', fontSize: 14, fontWeight: 600 }}>同步</span>
-          <button onClick={handleSync} disabled={syncing || !url || !saved && !config}
-            style={{
-              ...btnBase,
-              background: syncing ? 'rgba(255,255,255,0.1)' : 'linear-gradient(135deg, #667eea, #764ba2)',
-              color: '#fff',
-              opacity: syncing || (!saved && !config) ? 0.5 : 1,
-            }}
+      <div className="form-container">
+        <div className="form-section">
+          <span className="form-section-title">同步</span>
+          <button onClick={handleSync} disabled={syncing || !url || (!saved && !config)}
+            className="form-btn primary" style={{ background: syncing ? 'rgba(255,255,255,0.1)' : undefined }}
           >{syncing ? '同步中...' : '立即同步'}</button>
         </div>
 
         {/* Progress bar */}
         {syncProgress && (
-          <div style={{ marginTop: 8, marginBottom: 8 }}>
+          <div className="form-progress">
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 4 }}>
               <span>{syncProgress.message}</span>
               {syncProgress.total && syncProgress.current !== undefined && (
@@ -183,11 +141,8 @@ export function SyncSettings({ config, onConfigChange }: SyncSettingsProps) {
               )}
             </div>
             {syncProgress.total && syncProgress.current !== undefined && (
-              <div style={{ height: 4, background: 'rgba(255,255,255,0.08)', borderRadius: 2, overflow: 'hidden' }}>
-                <div style={{
-                  height: '100%', borderRadius: 2,
-                  background: 'linear-gradient(90deg, #667eea, #764ba2)',
-                  transition: 'width 0.3s ease',
+              <div className="form-progress-track">
+                <div className="form-progress-fill" style={{
                   width: `${Math.min(100, (syncProgress.current / syncProgress.total) * 100)}%`,
                 }} />
               </div>
@@ -197,17 +152,10 @@ export function SyncSettings({ config, onConfigChange }: SyncSettingsProps) {
 
         {/* Sync result */}
         {syncResult && (
-          <div style={{
-            marginTop: 8,
-            padding: '12px 16px',
-            borderRadius: 8,
-            background: syncResult.success ? 'rgba(74,222,128,0.08)' : 'rgba(248,113,113,0.08)',
-            border: `1px solid ${syncResult.success ? 'rgba(74,222,128,0.2)' : 'rgba(248,113,113,0.2)'}`,
-            fontSize: 12, color: 'rgba(255,255,255,0.7)',
-          }}>
+          <div className={`form-result ${syncResult.success ? '' : 'error'}`}>
             <div>上传: {syncResult.uploaded} 本 | 下载: {syncResult.downloaded} 本 | 冲突: {syncResult.conflicts}</div>
             {syncResult.errors.length > 0 && (
-              <div style={{ marginTop: 6, color: 'rgba(248,113,113,0.8)' }}>
+              <div className="form-result-errors">
                 {syncResult.errors.map((e, i) => <div key={i}>- {e}</div>)}
               </div>
             )}

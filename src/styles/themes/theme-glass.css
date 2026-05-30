@@ -1,0 +1,8 @@
+/*
+ * Glass Theme — baseline UI theme (Wave 1)
+ * Most values come from component CSS defaults.
+ * This file provides [data-ui-theme="glass"] overrides when needed.
+ */
+[data-ui-theme="glass"] {
+  /* Glass uses native component styles + backdrop-filter from tokens.css */
+}

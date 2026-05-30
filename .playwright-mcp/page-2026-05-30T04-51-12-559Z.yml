@@ -1,0 +1,75 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]: CoolReader
+    - generic [ref=e6]:
+      - button "–" [ref=e7] [cursor=pointer]
+      - button "□" [ref=e8] [cursor=pointer]
+      - button "✕" [ref=e9] [cursor=pointer]
+  - generic [ref=e12]:
+    - generic [ref=e13]:
+      - generic [ref=e14]:
+        - heading "CoolReader" [level=1] [ref=e15]
+        - paragraph
+      - generic [ref=e16]:
+        - button "📚书架" [ref=e17] [cursor=pointer]
+        - button "📊统计" [ref=e18] [cursor=pointer]
+        - button "⚙设置" [ref=e19] [cursor=pointer]
+      - button "📥导入" [ref=e21] [cursor=pointer]
+    - generic [ref=e22]:
+      - generic [ref=e24]:
+        - generic [ref=e25]:
+          - generic [ref=e26]: ⏱
+          - generic [ref=e27]:
+            - generic [ref=e29]: 0h 0m
+            - generic [ref=e30]: 今日阅读
+          - textbox "搜索书名/作者..." [ref=e31]
+          - generic [ref=e32]:
+            - button "最近阅读" [ref=e33] [cursor=pointer]
+            - button "书名" [ref=e34] [cursor=pointer]
+            - button "作者" [ref=e35] [cursor=pointer]
+        - generic [ref=e37]:
+          - generic [ref=e38]: 📚
+          - paragraph [ref=e39]: 还没有书
+          - paragraph [ref=e40]:
+            - text: 点击左侧「导入」
+            - text: 或拖拽 EPUB 文件到窗口
+      - generic:
+        - generic:
+          - heading "📊 阅读统计" [level=2]
+          - generic: 加载中...
+      - generic:
+        - generic:
+          - paragraph: 设置
+          - generic:
+            - generic:
+              - generic: 首页背景
+              - generic: 深紫
+            - generic: ›
+          - generic:
+            - generic:
+              - generic: 阅读目标
+              - generic: 30 分钟/天
+            - generic: ›
+          - generic:
+            - generic:
+              - generic: WebDAV 同步
+            - generic: ›
+          - generic:
+            - generic:
+              - generic: AI 助手
+            - generic: ›
+          - generic:
+            - generic:
+              - generic: 启动行为
+              - generic: 显示书架
+            - generic: ›
+          - generic:
+            - generic:
+              - generic: 媒体键翻页
+              - generic: 已启用
+            - generic: ›
+          - generic:
+            - generic:
+              - generic: 界面风格
+              - generic: 毛玻璃
+            - generic: ›

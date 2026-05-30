@@ -1,0 +1,49 @@
+F3: 代码质量审查
+==============
+Date: 2026-05-22 21:18
+
+scripts/ 下的所有 8 个 Python 文件已审查:
+
+scripts/fetcher.py:    [CLEAN]
+  - 指数退避重试 (1s, 2s, 4s)
+  - ThreadPoolExecutor 并发安全 (各 URL 独立)
+  - 日志记录充分: 成功/重试/全部失败
+
+scripts/parser.py:     [MINOR ISSUE]
+  - _decode_base64: except Exception 吞捕过广，建议限制为 ValueError/binascii.Error
+  - 其余解析逻辑无问题
+
+scripts/filter.py:     [CLEAN]
+  - 纯函数设计，无副作用
+  - 返回新列表而非修改传入列表
+  - pipeline 链式调用设计良好
+
+scripts/tester.py:     [CLEAN]
+  - ThreadPoolExecutor 安全: worker 返回基本类型，主线程赋值
+  - 先连接后速度的两阶段测试
+
+scripts/outputter.py:  [CLEAN]
+  - save_json 前 pop("raw_config") 移除敏感信息 ✓
+  - 统计逻辑正确
+  - 目录自动创建
+
+scripts/mailer.py:     [CLEAN]
+  - SMTP 配置检查 (smtp_configured) 防止崩溃
+  - 失败优雅返回 False
+  - HTML 转义处理
+
+scripts/utils.py:      [CLEAN]
+  - Config 只读，无敏感暴露
+  - Timer 正确 (perf_counter)
+
+scripts/main.py:       [FIXED]
+  - [CRITICAL] 日志配置修复: setup_logger(__name__) → logging.basicConfig()
+    - 子模块 (scripts.fetcher 等) 的 logger 现在正确传播到 root handler
+  - 其余: 干净的错误处理链，DRY-RUN 支持
+
+---
+Imports:           [CLEAN]          — 无未使用导入
+Security:          [PASS]           — 无硬编码密钥，JSON 不含敏感信息
+Error Handling:    [COVERED]        — 网络超时/解析失败/SMTP 失败/配置缺失 全覆盖
+Concurrency:       [SAFE]           — ThreadPoolExecutor 无共享可变状态
+VERDICT: APPROVE (评分 9/10 — 日志 Bug 已修复)

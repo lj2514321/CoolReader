@@ -1,13 +1,15 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { BookEntry, WebDAVConfig, AIConfig } from '../types'
 import { loadSetting } from '../utils/db'
-import { bgPresets, defGrad } from '../utils/styles'
+import { getPresets, defGrad, flatDefGrad } from '../utils/styles'
 import { SidebarNav, LibPage } from './SidebarNav'
 import { BookShelf } from './BookShelf'
 import { SettingsPage } from './SettingsPage'
 import { ReadingStats } from './ReadingStats'
+import '../styles/components/library.css'
 
 interface LibraryProps {
+  uiTheme?: string
   books: BookEntry[]
   readingTime: number
   onOpenBook: (filePath: string) => void
@@ -20,25 +22,33 @@ interface LibraryProps {
   onAIConfigChange?: (config: AIConfig | null) => void
 }
 
-export function Library({ books, readingTime, onOpenBook, onImport, onDelete, onBgChange, webdavConfig, onWebDAVConfigChange, aiConfig, onAIConfigChange }: LibraryProps) {
+export function Library({ uiTheme = 'glass', books, readingTime, onOpenBook, onImport, onDelete, onBgChange, webdavConfig, onWebDAVConfigChange, aiConfig, onAIConfigChange }: LibraryProps) {
   const [libPage, setLibPage] = useState<LibPage>('books')
   const [transition, setTransition] = useState<'idle' | 'out' | 'in'>('idle')
   const [direction, setDirection] = useState<'up' | 'down' | 'left' | 'right'>('up')
   const transRef = useRef<ReturnType<typeof setTimeout>>()
-  const [bgKey, setBgKey] = useState('deepPurple')
+  const [bgKey, setBgKey] = useState(() => uiTheme === 'flat' ? 'lightGray' : 'deepPurple')
   const [settingsResetKey, setSettingsResetKey] = useState(0)
 
   useEffect(() => {
-    loadSetting('bgPreset').then((v) => {
-      if (v) {
-        setBgKey(v)
-        const g = bgPresets.find((b) => b.key === v)?.gradient || defGrad
-        onBgChange?.(g)
-      } else {
-        onBgChange?.(defGrad)
+    const dbKey = uiTheme === 'flat' ? 'bgPreset-flat' : 'bgPreset'
+    const defaultKey = uiTheme === 'flat' ? 'lightGray' : 'deepPurple'
+    const defaultGrad = uiTheme === 'flat' ? flatDefGrad : defGrad
+    const presets = getPresets(uiTheme)
+    
+    loadSetting(dbKey).then((v) => {
+      let presetKey = defaultKey
+      if (v && presets.some((b) => b.key === v)) {
+        presetKey = v
       }
-    }).catch(() => onBgChange?.(defGrad))
-  }, [onBgChange])
+      setBgKey(presetKey)
+      const g = presets.find((b) => b.key === presetKey)?.gradient || defaultGrad
+      onBgChange?.(g)
+    }).catch(() => {
+      setBgKey(defaultKey)
+      onBgChange?.(defaultGrad)
+    })
+  }, [uiTheme, onBgChange])
 
   const pageOrder: LibPage[] = ['books', 'stats', 'settings']
 
@@ -82,25 +92,15 @@ export function Library({ books, readingTime, onOpenBook, onImport, onDelete, on
   }
 
   return (
-    <div style={{
-      height: '100%',
-      display: 'flex',
-      flexDirection: 'row',
-      position: 'relative',
-      overflow: 'hidden',
-    }}>
-      <div style={{ position: 'absolute', top: '0%', left: '20%', width: '60%', height: '60%', background: 'radial-gradient(ellipse, rgba(99,102,241,0.12) 0%, transparent 70%)', pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', bottom: '0%', right: '0%', width: '50%', height: '40%', background: 'radial-gradient(ellipse, rgba(168,85,247,0.08) 0%, transparent 70%)', pointerEvents: 'none' }} />
+    <div className="library-root">
+      <div className="library-glow-1" />
+      <div className="library-glow-2" />
 
       <SidebarNav libPage={libPage} bookCount={books.length} onSwitchPage={switchPage} onImport={onImport} />
 
-      <div style={{ flex: 1, position: 'relative', overflow: 'hidden', zIndex: 1, perspective: '1200px' }}>
+      <div className="library-content">
         {/* books page */}
-        <div style={{
-          position: 'absolute', inset: 0,
-          transition: 'opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-          transformStyle: 'preserve-3d',
-          backfaceVisibility: 'hidden',
+        <div className="library-page" style={{
           pointerEvents: transition !== 'idle' || libPage !== 'books' ? 'none' : 'auto',
           ...booksAnim,
         }}>
@@ -108,11 +108,8 @@ export function Library({ books, readingTime, onOpenBook, onImport, onDelete, on
         </div>
 
         {/* stats page */}
-        <div style={{
-          position: 'absolute', inset: 0, overflow: 'hidden',
-          transition: 'opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-          transformStyle: 'preserve-3d',
-          backfaceVisibility: 'hidden',
+        <div className="library-page" style={{
+          overflow: 'hidden',
           pointerEvents: transition !== 'idle' || libPage !== 'stats' ? 'none' : 'auto',
           ...statsAnim,
         }}>
@@ -120,11 +117,8 @@ export function Library({ books, readingTime, onOpenBook, onImport, onDelete, on
         </div>
 
         {/* settings page */}
-        <div style={{
-          position: 'absolute', inset: 0, overflow: 'hidden',
-          transition: 'opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-          transformStyle: 'preserve-3d',
-          backfaceVisibility: 'hidden',
+        <div className="library-page" style={{
+          overflow: 'hidden',
           pointerEvents: transition !== 'idle' || libPage !== 'settings' ? 'none' : 'auto',
           ...settingsAnim,
         }}>

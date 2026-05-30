@@ -1,0 +1,202 @@
+{
+  "schema_version": 2,
+  "active_work_id": "epub-ui-theme-system-662d2498",
+  "works": {
+    "sidebar-nav-hover-animation-c3a7739a": {
+      "work_id": "sidebar-nav-hover-animation-c3a7739a",
+      "active_plan": "C:\\Users\\Luna\\Desktop\\学习\\epub-reader-demo\\.omo\\plans\\sidebar-nav-hover-animation.md",
+      "plan_name": "sidebar-nav-hover-animation",
+      "status": "completed",
+      "started_at": "2026-05-30T02:49:49.678Z",
+      "updated_at": "2026-05-30T03:03:18.611Z",
+      "session_ids": [
+        "ses_1b06c2052ffeNfpGzSGsuBKV9I",
+        "ses_1892f4003ffeYc7gHe7FddEVHR"
+      ],
+      "session_origins": {
+        "ses_1b06c2052ffeNfpGzSGsuBKV9I": "direct",
+        "ses_1892f4003ffeYc7gHe7FddEVHR": "appended"
+      },
+      "agent": "atlas",
+      "task_sessions": {
+        "todo:1": {
+          "task_key": "todo:1",
+          "task_label": "1",
+          "task_title": "创建 `src/components/SidebarNav.css`",
+          "session_id": "ses_18934b7f1ffehSi7GIIOjLFajX",
+          "agent": "Sisyphus-Junior",
+          "category": "visual-engineering",
+          "started_at": "2026-05-30T02:52:19.175Z",
+          "status": "completed",
+          "updated_at": "2026-05-30T02:54:06.932Z",
+          "ended_at": "2026-05-30T02:54:06.932Z",
+          "elapsed_ms": 107757
+        },
+        "todo:2": {
+          "task_key": "todo:2",
+          "task_label": "2",
+          "task_title": "重构 `SidebarNav.tsx`",
+          "session_id": "ses_189318e5bffejR5KX0xXq3g69U",
+          "agent": "Sisyphus-Junior",
+          "category": "quick",
+          "started_at": "2026-05-30T02:55:49.562Z",
+          "status": "completed",
+          "updated_at": "2026-05-30T02:56:58.700Z",
+          "ended_at": "2026-05-30T02:56:58.700Z",
+          "elapsed_ms": 69138
+        },
+        "final-wave:f1": {
+          "task_key": "final-wave:f1",
+          "task_label": "F1",
+          "task_title": "**Plan Compliance Audit** — `oracle`",
+          "session_id": "ses_1892f4003ffeYc7gHe7FddEVHR",
+          "agent": "oracle",
+          "started_at": "2026-05-30T02:58:48.244Z",
+          "status": "completed",
+          "updated_at": "2026-05-30T03:01:56.803Z",
+          "ended_at": "2026-05-30T03:01:56.803Z",
+          "elapsed_ms": 188559
+        }
+      },
+      "ended_at": "2026-05-30T03:03:18.611Z",
+      "elapsed_ms": 808933
+    },
+    "epub-ui-theme-system-662d2498": {
+      "work_id": "epub-ui-theme-system-662d2498",
+      "active_plan": "C:\\Users\\Luna\\Desktop\\学习\\epub-reader-demo\\.omo\\plans\\epub-ui-theme-system.md",
+      "plan_name": "epub-ui-theme-system",
+      "status": "completed",
+      "started_at": "2026-05-30T03:57:40.099Z",
+      "updated_at": "2026-05-30T04:56:07.109Z",
+      "session_ids": [
+        "ses_1b06c2052ffeNfpGzSGsuBKV9I"
+      ],
+      "session_origins": {
+        "ses_1b06c2052ffeNfpGzSGsuBKV9I": "direct"
+      },
+      "agent": "atlas",
+      "task_sessions": {
+        "todo:1": {
+          "task_key": "todo:1",
+          "task_label": "1",
+          "task_title": "`src/styles/components/titlebar.css` — add flat overrides",
+          "session_id": "ses_188db2c9effeAzL8FG20SNVQpK",
+          "agent": "Sisyphus-Junior",
+          "category": "visual-engineering",
+          "started_at": "2026-05-30T04:01:46.970Z",
+          "ended_at": "2026-05-30T04:33:40.639Z",
+          "elapsed_ms": 1913669,
+          "status": "completed",
+          "updated_at": "2026-05-30T04:33:40.639Z"
+        },
+        "todo:12": {
+          "task_key": "todo:12",
+          "task_label": "12",
+          "task_title": "**Flat theme CSS implementation (all components)**",
+          "session_id": "ses_188db1c57ffe21TEcEwzn4xn4l",
+          "agent": "Sisyphus-Junior",
+          "category": "visual-engineering",
+          "started_at": "2026-05-30T04:17:46.410Z",
+          "status": "completed",
+          "updated_at": "2026-05-30T04:34:52.046Z",
+          "ended_at": "2026-05-30T04:34:52.046Z",
+          "elapsed_ms": 1025636
+        },
+        "todo:14": {
+          "task_key": "todo:14",
+          "task_label": "14",
+          "task_title": "**Settings page \"UI 风格\" selector**",
+          "session_id": "ses_188d5e9c1ffe47PbzZ0UZ3KINO",
+          "agent": "Sisyphus-Junior",
+          "category": "quick",
+          "started_at": "2026-05-30T04:37:08.372Z",
+          "status": "completed",
+          "updated_at": "2026-05-30T04:37:32.638Z",
+          "ended_at": "2026-05-30T04:37:32.638Z",
+          "elapsed_ms": 24266
+        },
+        "final-wave:f1": {
+          "task_key": "final-wave:f1",
+          "task_label": "F1",
+          "task_title": "**Plan Compliance Audit** — `oracle`",
+          "session_id": "ses_188d32f71ffem6T25hFu18kAjN",
+          "agent": "oracle",
+          "started_at": "2026-05-30T04:41:37.252Z",
+          "status": "completed",
+          "updated_at": "2026-05-30T04:54:53.587Z",
+          "ended_at": "2026-05-30T04:54:53.587Z",
+          "elapsed_ms": 796335
+        }
+      },
+      "ended_at": "2026-05-30T04:56:07.109Z",
+      "elapsed_ms": 3507010
+    }
+  },
+  "active_plan": "C:\\Users\\Luna\\Desktop\\学习\\epub-reader-demo\\.omo\\plans\\epub-ui-theme-system.md",
+  "started_at": "2026-05-30T03:57:40.099Z",
+  "status": "completed",
+  "updated_at": "2026-05-30T04:56:07.109Z",
+  "session_ids": [
+    "ses_1b06c2052ffeNfpGzSGsuBKV9I"
+  ],
+  "session_origins": {
+    "ses_1b06c2052ffeNfpGzSGsuBKV9I": "direct"
+  },
+  "plan_name": "epub-ui-theme-system",
+  "task_sessions": {
+    "todo:1": {
+      "task_key": "todo:1",
+      "task_label": "1",
+      "task_title": "`src/styles/components/titlebar.css` — add flat overrides",
+      "session_id": "ses_188db2c9effeAzL8FG20SNVQpK",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "started_at": "2026-05-30T04:01:46.970Z",
+      "ended_at": "2026-05-30T04:33:40.639Z",
+      "elapsed_ms": 1913669,
+      "status": "completed",
+      "updated_at": "2026-05-30T04:33:40.639Z"
+    },
+    "todo:12": {
+      "task_key": "todo:12",
+      "task_label": "12",
+      "task_title": "**Flat theme CSS implementation (all components)**",
+      "session_id": "ses_188db1c57ffe21TEcEwzn4xn4l",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "started_at": "2026-05-30T04:17:46.410Z",
+      "status": "completed",
+      "updated_at": "2026-05-30T04:34:52.046Z",
+      "ended_at": "2026-05-30T04:34:52.046Z",
+      "elapsed_ms": 1025636
+    },
+    "todo:14": {
+      "task_key": "todo:14",
+      "task_label": "14",
+      "task_title": "**Settings page \"UI 风格\" selector**",
+      "session_id": "ses_188d5e9c1ffe47PbzZ0UZ3KINO",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "started_at": "2026-05-30T04:37:08.372Z",
+      "status": "completed",
+      "updated_at": "2026-05-30T04:37:32.638Z",
+      "ended_at": "2026-05-30T04:37:32.638Z",
+      "elapsed_ms": 24266
+    },
+    "final-wave:f1": {
+      "task_key": "final-wave:f1",
+      "task_label": "F1",
+      "task_title": "**Plan Compliance Audit** — `oracle`",
+      "session_id": "ses_188d32f71ffem6T25hFu18kAjN",
+      "agent": "oracle",
+      "started_at": "2026-05-30T04:41:37.252Z",
+      "status": "completed",
+      "updated_at": "2026-05-30T04:54:53.587Z",
+      "ended_at": "2026-05-30T04:54:53.587Z",
+      "elapsed_ms": 796335
+    }
+  },
+  "agent": "atlas",
+  "ended_at": "2026-05-30T04:56:07.109Z",
+  "elapsed_ms": 3507010
+}

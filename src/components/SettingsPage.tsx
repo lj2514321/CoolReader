@@ -1,22 +1,12 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
-import { bgPresets } from '../utils/styles'
+import { useState, useRef, useEffect } from 'react'
+import { getPresets } from '../utils/styles'
 import { saveSetting, loadSetting } from '../utils/db'
 import { SyncSettings } from './SyncSettings'
 import { AISettings } from './AISettings'
 import { defaultLayout } from '../types'
 import type { WebDAVConfig, AIConfig, ReadingGoal } from '../types'
-import type { CSSProperties } from 'react'
-
-const settingItem: CSSProperties = {
-  borderRadius: 14,
-  background: 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 100%)',
-  border: '1px solid rgba(168,85,247,0.12)',
-  padding: '16px 20px',
-  marginBottom: 12,
-  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-  cursor: 'pointer',
-  transition: 'background 0.15s',
-}
+import { useTheme, type UiTheme } from '../styles/useTheme'
+import '../styles/components/settings.css'
 
 interface SettingsPageProps {
   bgKey: string
@@ -68,6 +58,8 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
     })
   }, [])
 
+  const { theme: uiTheme, setTheme: setUiTheme } = useTheme()
+
   const pushDetail = (id: string) => {
     if (subPhase !== 'idle') return
     setSubPhase('push-out')
@@ -89,87 +81,83 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
       subRef.current = setTimeout(() => setSubPhase('idle'), 400)
     }, 400)
   }
+
+  // Compute container class names
+  const listHidden = subPhase === 'idle' && settingView !== null
+  const listVisible = subPhase === 'pop-in' || (subPhase === 'idle' && settingView === null)
+  const listNoPointer = !(visible && subPhase === 'idle' && settingView === null)
+
+  const subViewHidden = subPhase === 'idle' && settingView === null
+  const subViewVisible = subPhase === 'push-in' || (subPhase === 'idle' && settingView !== null)
+  const subNoPointer = !(subPhase === 'idle' && settingView !== null)
+
+  const listClass = [
+    'settings-container',
+    listHidden ? 'hidden' : '',
+    listVisible ? 'visible' : 'invisible',
+    listNoPointer ? 'no-pointer' : '',
+  ].filter(Boolean).join(' ')
+
+  const subViewClass = [
+    'settings-sub-view',
+    subViewHidden ? 'hidden' : '',
+    subViewVisible ? 'visible' : 'exiting',
+    subNoPointer ? 'no-pointer' : '',
+  ].filter(Boolean).join(' ')
+
+  const subViewTitle = settingView === 'bgPreset' ? '首页背景'
+    : settingView === 'readingGoal' ? '阅读目标'
+    : settingView === 'webdav' ? 'WebDAV 同步'
+    : settingView === 'ai' ? 'AI 助手'
+    : settingView === 'startup' ? '启动行为'
+    : settingView === 'mediaKey' ? '媒体键翻页'
+    : settingView === 'theme' ? '界面风格' : ''
+
   return (
     <>
       {/* list view */}
-      <div style={{
-        position: 'absolute', inset: 0, overflowY: 'auto', padding: '28px 36px 32px 24px',
-        display: (subPhase !== 'idle' || settingView === null) ? '' : 'none',
-        transition: 'opacity 0.4s ease, transform 0.4s ease',
-        opacity: subPhase === 'pop-in' || (subPhase === 'idle' && settingView === null) ? 1 : 0,
-        transform: subPhase === 'pop-in' || (subPhase === 'idle' && settingView === null) ? 'translateY(0)' : 'translateY(24px)',
-        pointerEvents: visible && subPhase === 'idle' && settingView === null ? 'auto' : 'none',
-      }}>
-        <p style={{ color: '#fff', fontSize: 18, fontWeight: 700, margin: '0 0 24px', letterSpacing: -0.3 }}>设置</p>
+      <div className={listClass}>
+        <p className="settings-title">设置</p>
         {[
-          { id: 'bgPreset', label: '首页背景', summary: bgPresets.find((b) => b.key === bgKey)?.label || '' },
+          { id: 'bgPreset', label: '首页背景', summary: getPresets(uiTheme).find((b) => b.key === bgKey)?.label || '' },
           { id: 'readingGoal', label: '阅读目标', summary: goalMinutes > 0 ? `${goalMinutes} 分钟/天` : '未设置' },
           { id: 'webdav', label: 'WebDAV 同步', summary: webdavConfig ? `已配置 (${webdavConfig.url})` : '' },
           { id: 'ai', label: 'AI 助手', summary: aiConfig ? `已配置 (${aiConfig.model})` : '' },
           { id: 'startup', label: '启动行为', summary: startupBehavior === 'resume' ? '继续阅读' : '显示书架' },
           { id: 'mediaKey', label: '媒体键翻页', summary: enableMediaKey ? '已启用' : '已禁用' },
+          { id: 'theme', label: '界面风格', summary: uiTheme === 'glass' ? '毛玻璃' : '扁平' },
         ].map((item) => (
-          <div key={item.id} onClick={() => pushDetail(item.id)}
-            style={settingItem}
-            onMouseEnter={e => e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99,102,241,0.18) 0%, rgba(168,85,247,0.14) 100%)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 100%)'}
-          >
+          <div key={item.id} className="setting-item" onClick={() => pushDetail(item.id)}>
             <div>
-              <div style={{ color: '#fff', fontSize: 14, fontWeight: 600 }}>{item.label}</div>
-              {item.summary && <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: 12, marginTop: 2 }}>{item.summary}</div>}
+              <div className="setting-label">{item.label}</div>
+              {item.summary && <div className="setting-value">{item.summary}</div>}
             </div>
-            <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: 16 }}>›</span>
+            <span className="setting-arrow">›</span>
           </div>
         ))}
       </div>
 
       {/* detail view */}
-      <div style={{
-        position: 'absolute', inset: 0, overflowY: 'auto', padding: '28px 36px 32px 24px',
-        display: (subPhase !== 'idle' || settingView !== null) ? '' : 'none',
-        transition: 'all 0.4s ease',
-        opacity: subPhase !== 'pop-in' && (subPhase !== 'idle' || settingView !== null) ? 1 : 0,
-        transform: (subPhase === 'idle' && settingView !== null) || subPhase === 'push-in' ? 'translateX(0)' : 'translateX(100%)',
-        pointerEvents: subPhase === 'idle' && settingView !== null ? 'auto' : 'none',
-      }}>
+      <div className={subViewClass}>
         {/* Back button - shared */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 24, cursor: 'pointer' }} onClick={popDetail}>
-          <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 18, padding: '4px 8px 4px 0', transition: 'color 0.12s' }}
-            onMouseEnter={e => e.currentTarget.style.color = '#fff'}
-            onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.5)'}
-          >‹</span>
-          <p style={{ color: '#fff', fontSize: 18, fontWeight: 700, margin: 0, letterSpacing: -0.3, pointerEvents: 'none' }}>
-            {settingView === 'bgPreset' ? '首页背景' : settingView === 'readingGoal' ? '阅读目标' : settingView === 'webdav' ? 'WebDAV 同步' : settingView === 'ai' ? 'AI 助手' : settingView === 'startup' ? '启动行为' : settingView === 'mediaKey' ? '媒体键翻页' : ''}
-          </p>
+        <div className="settings-back-btn" onClick={popDetail}>
+          <span className="settings-back-arrow">‹</span>
+          <p className="settings-sub-title">{subViewTitle}</p>
         </div>
 
         {settingView === 'bgPreset' && (
-          <div style={{
-            borderRadius: 14,
-            background: 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 100%)',
-            border: '1px solid rgba(168,85,247,0.12)',
-            padding: '24px 28px',
-          }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-              {bgPresets.map((p) => (
-                <button key={p.key} onClick={() => { saveSetting('bgPreset', p.key); onPresetChange(p.key, p.gradient) }}
-                  style={{
-                    cursor: 'pointer', border: bgKey === p.key ? '2px solid rgba(168,85,247,0.7)' : '2px solid transparent',
-                    borderRadius: 12, overflow: 'hidden', padding: 0,
-                    transition: 'border-color 0.15s',
-                    background: 'none',
-                  }}
+          <div className="settings-sub-content">
+            <div className="bg-preset-grid">
+              {getPresets(uiTheme).map((p) => (
+                <button
+                  key={p.key}
+                  className={`bg-preset-item ${bgKey === p.key ? 'active' : ''}`}
+                  onClick={() => { saveSetting(uiTheme === 'flat' ? 'bgPreset-flat' : 'bgPreset', p.key); onPresetChange(p.key, p.gradient) }}
                 >
-                  <div style={{
-                    height: 54, background: p.gradient,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    {bgKey === p.key && <span style={{ fontSize: 20, filter: 'invert(1) brightness(2)' }}>✓</span>}
+                  <div className="bg-preset-preview" style={{ background: p.gradient }}>
+                    {bgKey === p.key && <span className="bg-preset-check">✓</span>}
                   </div>
-                  <div style={{
-                    padding: '6px 0', fontSize: 11, color: 'rgba(255,255,255,0.45)',
-                    background: 'rgba(255,255,255,0.03)', textAlign: 'center',
-                  }}>{p.label}</div>
+                  <div className="bg-preset-name">{p.label}</div>
                 </button>
               ))}
             </div>
@@ -185,115 +173,119 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
         )}
 
         {settingView === 'readingGoal' && (
-          <div style={{
-            borderRadius: 14,
-            background: 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 100%)',
-            border: '1px solid rgba(168,85,247,0.12)',
-            padding: '24px 28px',
-          }}>
-            <div style={{ color: '#fff', fontSize: 14, fontWeight: 600, marginBottom: 16 }}>每日阅读目标</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+          <div className="settings-sub-content">
+            <div className="goal-label">每日阅读目标</div>
+            <div className="goal-input-row">
               <input type="number" min={0} max={480} step={5}
+                className="goal-input"
                 value={goalMinutes}
                 onChange={e => setGoalMinutes(Math.max(0, Math.min(480, parseInt(e.target.value) || 0)))}
-                style={{
-                  width: 80, padding: '8px 12px', borderRadius: 8,
-                  background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)',
-                  color: '#fff', fontSize: 16, fontWeight: 600, outline: 'none',
-                }}
               />
-              <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>分钟 / 天</span>
+              <span className="goal-unit">分钟 / 天</span>
             </div>
-            <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 12, marginBottom: 16 }}>
+            <div className="goal-hint">
               设为 0 关闭阅读目标
             </div>
-            <button onClick={() => {
+            <button className="save-btn" onClick={() => {
               saveSetting('readingGoal', JSON.stringify({ dailyMinutes: goalMinutes } as ReadingGoal))
               popDetail()
-            }}
-              style={{
-                padding: '10px 28px', borderRadius: 8, cursor: 'pointer',
-                background: 'linear-gradient(135deg, rgba(99,102,241,0.5) 0%, rgba(168,85,247,0.4) 100%)',
-                border: '1px solid rgba(168,85,247,0.3)', color: '#fff', fontSize: 14, fontWeight: 600,
-              }}
-            >保存</button>
+            }}>保存</button>
           </div>
         )}
 
         {settingView === 'startup' && (
-          <div style={{
-            borderRadius: 14,
-            background: 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 100%)',
-            border: '1px solid rgba(168,85,247,0.12)',
-            padding: '24px 28px',
-          }}>
-            <div style={{ color: '#fff', fontSize: 14, fontWeight: 600, marginBottom: 16 }}>启动后显示</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
+          <div className="settings-sub-content">
+            <div className="goal-label">启动后显示</div>
+            <div className="radio-group">
               {[
                 { value: 'library' as const, label: '书架', desc: '启动时显示书架页面' },
                 { value: 'resume' as const, label: '继续阅读', desc: '自动打开上次阅读的图书' },
               ].map(opt => (
-                <label key={opt.value} style={{
-                  display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer',
-                  padding: '12px 16px', borderRadius: 10,
-                  background: startupBehavior === opt.value ? 'rgba(99,102,241,0.2)' : 'transparent',
-                  border: `1px solid ${startupBehavior === opt.value ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.08)'}`,
-                  transition: 'all 0.15s',
-                }}>
+                <label
+                  key={opt.value}
+                  className={`radio-option ${startupBehavior === opt.value ? 'selected' : ''}`}
+                >
                   <input type="radio" name="startup" value={opt.value}
                     checked={startupBehavior === opt.value}
                     onChange={() => setStartupBehavior(opt.value)}
-                    style={{ accentColor: '#6366f1', width: 18, height: 18, cursor: 'pointer' }}
+                    className="radio-input"
                   />
                   <div>
-                    <div style={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>{opt.label}</div>
-                    <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, marginTop: 2 }}>{opt.desc}</div>
+                    <div className="radio-label">{opt.label}</div>
+                    <div className="radio-desc">{opt.desc}</div>
                   </div>
                 </label>
               ))}
             </div>
-            <button onClick={() => {
+            <button className="save-btn" onClick={() => {
               saveSetting('startupBehavior', startupBehavior)
               popDetail()
-            }}
-              style={{
-                padding: '10px 28px', borderRadius: 8, cursor: 'pointer',
-                background: 'linear-gradient(135deg, rgba(99,102,241,0.5) 0%, rgba(168,85,247,0.4) 100%)',
-                border: '1px solid rgba(168,85,247,0.3)', color: '#fff', fontSize: 14, fontWeight: 600,
-              }}
-            >保存</button>
+            }}>保存</button>
           </div>
         )}
 
         {settingView === 'mediaKey' && (
-          <div style={{
-            borderRadius: 14,
-            background: 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 100%)',
-            border: '1px solid rgba(168,85,247,0.12)',
-            padding: '24px 28px',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+          <div className="settings-sub-content">
+            <div className="toggle-row">
               <div>
-                <div style={{ color: '#fff', fontSize: 14, fontWeight: 600 }}>启用媒体键</div>
-                <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, marginTop: 4 }}>
+                <div className="toggle-info-title">启用媒体键</div>
+                <div className="toggle-info-desc">
                   支持 Mac 触控栏和蓝牙键盘的 ◀▸ 按钮翻页
                 </div>
               </div>
               <input type="checkbox" checked={enableMediaKey}
                 onChange={e => setEnableMediaKey(e.target.checked)}
-                style={{ width: 20, height: 20, cursor: 'pointer', accentColor: '#6366f1' }}
+                className="toggle-switch"
               />
             </div>
-            <button onClick={() => {
+            <button className="save-btn" onClick={() => {
               saveSetting('readerLayout', JSON.stringify({ ...defaultLayout, enableMediaKey }))
               popDetail()
-            }}
-              style={{
-                padding: '10px 28px', borderRadius: 8, cursor: 'pointer',
-                background: 'linear-gradient(135deg, rgba(99,102,241,0.5) 0%, rgba(168,85,247,0.4) 100%)',
-                border: '1px solid rgba(168,85,247,0.3)', color: '#fff', fontSize: 14, fontWeight: 600,
-              }}
-            >保存</button>
+            }}>保存</button>
+          </div>
+        )}
+
+        {settingView === 'theme' && (
+          <div className="settings-sub-content" style={{ padding: 24 }}>
+            <div style={{ marginBottom: 20 }}>
+              <div className="goal-label">选择界面风格</div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>
+                选择后立即生效，无需重启
+              </div>
+            </div>
+
+            <div
+              className={`radio-option ${uiTheme === 'glass' ? 'selected' : ''}`}
+              onClick={() => setUiTheme('glass')}
+              style={{ marginBottom: 10 }}
+            >
+              <input
+                type="radio"
+                className="radio-input"
+                checked={uiTheme === 'glass'}
+                onChange={() => setUiTheme('glass')}
+              />
+              <div>
+                <div className="radio-label">毛玻璃</div>
+                <div className="radio-desc">玻璃质感，卡片式布局</div>
+              </div>
+            </div>
+
+            <div
+              className={`radio-option ${uiTheme === 'flat' ? 'selected' : ''}`}
+              onClick={() => setUiTheme('flat')}
+            >
+              <input
+                type="radio"
+                className="radio-input"
+                checked={uiTheme === 'flat'}
+                onChange={() => setUiTheme('flat')}
+              />
+              <div>
+                <div className="radio-label">极简扁平</div>
+                <div className="radio-desc">简洁干净，扁平化设计</div>
+              </div>
+            </div>
           </div>
         )}
       </div>

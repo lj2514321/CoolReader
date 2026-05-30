@@ -1,0 +1,17 @@
+:root, [data-ui-theme="glass"] {
+  --radius-card: 14px;
+  --radius-btn: 10px;
+  --radius-panel: 16px;
+  --transition-theme: background 0.3s ease, border 0.3s ease, box-shadow 0.3s ease, color 0.3s ease, opacity 0.3s ease;
+  --nav-title-color: #ffffff;
+  --nav-subtitle-color: rgba(255, 255, 255, 0.35);
+}
+
+[data-ui-theme="flat"] {
+  --radius-card: 4px;
+  --radius-btn: 6px;
+  --radius-panel: 6px;
+  --transition-theme: background 0.3s ease, border 0.3s ease, box-shadow 0.3s ease, color 0.3s ease, opacity 0.3s ease;
+  --nav-title-color: #111827;
+  --nav-subtitle-color: rgba(0, 0, 0, 0.45);
+}

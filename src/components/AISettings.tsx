@@ -1,20 +1,7 @@
 import { useState, useCallback } from 'react'
 import type { AIConfig } from '../types'
 import { saveAIConfig } from '../utils/db'
-import type { CSSProperties } from 'react'
-
-const inputStyle: CSSProperties = {
-  width: '100%', boxSizing: 'border-box',
-  background: 'rgba(255,255,255,0.06)',
-  border: '1px solid rgba(255,255,255,0.1)',
-  borderRadius: 8, padding: '10px 14px',
-  color: '#fff', fontSize: 13, outline: 'none',
-  marginTop: 6,
-}
-const labelStyle: CSSProperties = {
-  color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: 600, letterSpacing: 0.3,
-  display: 'block', marginTop: 14,
-}
+import '../styles/components/settings-form.css'
 
 interface AISettingsProps {
   config: AIConfig | null
@@ -54,43 +41,27 @@ export function AISettings({ config, onConfigChange }: AISettingsProps) {
   }, [apiUrl, apiKey, model, onConfigChange])
 
   return (
-    <div style={{
-      borderRadius: 14,
-      background: 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 100%)',
-      border: '1px solid rgba(168,85,247,0.12)',
-      padding: '20px 24px',
-    }}>
-      <label style={labelStyle}>API 地址</label>
-      <input style={inputStyle} placeholder="https://api.openai.com/v1" value={apiUrl} onChange={e => setApiUrl(e.target.value)} />
+    <div className="form-container">
+      <label className="form-label">API 地址</label>
+      <input className="form-input" placeholder="https://api.openai.com/v1" value={apiUrl} onChange={e => setApiUrl(e.target.value)} />
 
-      <label style={labelStyle}>API Key</label>
-      <input style={inputStyle} type="password" placeholder="sk-..." value={apiKey} onChange={e => setApiKey(e.target.value)} />
+      <label className="form-label">API Key</label>
+      <input className="form-input" type="password" placeholder="sk-..." value={apiKey} onChange={e => setApiKey(e.target.value)} />
 
-      <label style={labelStyle}>模型</label>
-      <input style={inputStyle} placeholder="gpt-4o-mini" value={model} onChange={e => setModel(e.target.value)} />
+      <label className="form-label">模型</label>
+      <input className="form-input" placeholder="gpt-4o-mini" value={model} onChange={e => setModel(e.target.value)} />
 
-      <div style={{ display: 'flex', gap: 10, marginTop: 18, alignItems: 'center' }}>
+      <div className="form-actions">
         <button onClick={handleTest} disabled={testing || !apiUrl || !apiKey}
-          style={{
-            border: 'none', borderRadius: 10, padding: '10px 20px',
-            fontSize: 13, fontWeight: 600, cursor: 'pointer',
-            background: 'rgba(99,102,241,0.3)', color: '#fff',
-            opacity: testing || !apiUrl || !apiKey ? 0.5 : 1,
-            transition: 'all 0.15s',
-          }}
+          className="form-btn" style={{ background: 'rgba(99,102,241,0.3)' }}
         >{testing ? '测试中...' : '测试连接'}</button>
 
         <button onClick={handleSave}
-          style={{
-            border: 'none', borderRadius: 10, padding: '10px 20px',
-            fontSize: 13, fontWeight: 600, cursor: 'pointer',
-            background: 'rgba(168,85,247,0.3)', color: '#fff',
-            transition: 'all 0.15s',
-          }}
+          className="form-btn" style={{ background: 'rgba(168,85,247,0.3)' }}
         >{saved ? '已保存' : '保存配置'}</button>
 
         {testMsg && (
-          <span style={{ color: testMsg.ok ? 'rgba(74,222,128,0.9)' : 'rgba(248,113,113,0.9)', fontSize: 12, maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <span className={`form-helper form-status ${testMsg.ok ? 'success' : 'error'}`}>
             {testMsg.text}
           </span>
         )}

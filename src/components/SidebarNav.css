@@ -1,3 +1,69 @@
+/* ========================
+   [data-ui-theme="glass"]
+   ======================== */
+[data-ui-theme="glass"] .sidebar-nav-container {
+  margin: 24px 0 24px 24px;
+  padding: 28px 24px;
+  width: 160px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(168,85,247,0.1) 100%);
+  border: 1px solid rgba(168,85,247,0.15);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  z-index: 1;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+/* ========================
+   [data-ui-theme="flat"]
+   ======================== */
+[data-ui-theme="flat"] .sidebar-nav-container {
+  margin: 24px 0 24px 24px;
+  padding: 28px 24px;
+  width: 160px;
+  border-radius: 4px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  z-index: 1;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+/* ======================== [data-ui-theme="flat"] nav button overrides ======================== */
+[data-ui-theme="flat"] .nav-btn {
+  color: #111827;
+  background: #f3f4f6;
+  border-color: #e5e7eb;
+}
+
+[data-ui-theme="flat"] .nav-btn:hover {
+  background: #e5e7eb;
+  border-color: #d1d5db;
+  box-shadow: none;
+  transform: scale(1.04);
+}
+
+[data-ui-theme="flat"] .nav-btn.active {
+  background: #6366f1;
+  color: #ffffff;
+  border-color: #6366f1;
+}
+
+[data-ui-theme="flat"] .nav-btn.active:hover {
+  background: #4f46e5;
+  border-color: #4f46e5;
+  box-shadow: none;
+  transform: scale(1.02);
+}
+
+/* ========================
+   Shared nav button styles
+   ======================== */
 .nav-btn {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -66,18 +132,3 @@
   }
 }
 
-.nav-btn:focus-visible {
-  outline: 2px solid rgba(99, 102, 241, 0.6);
-  outline-offset: 2px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .nav-btn,
-  .nav-btn:hover,
-  .nav-btn.active,
-  .nav-btn.active:hover {
-    transform: scale(1) !important;
-    animation: none;
-    transition-duration: 0.01ms;
-  }
-}

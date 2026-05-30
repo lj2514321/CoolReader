@@ -7,7 +7,10 @@ import { useEpub } from './hooks/useEpub'
 import { useDragDrop } from './hooks/useDragDrop'
 import { useProgressTimer } from './hooks/useProgressTimer'
 import { useInitialLoad } from './hooks/useInitialLoad'
+import { useTheme, setThemeOnRoot } from './styles/useTheme'
+import './styles/theme.css'
 import { BookEntry, ThemeMode, Page, WebDAVConfig, AIConfig } from './types'
+import { defGrad, flatDefGrad } from './utils/styles'
 import { saveBook, saveCover, saveProgress, deleteBook as dbDeleteBook, updateLastOpenedAt } from './utils/db'
 
 declare global {
@@ -56,7 +59,14 @@ export default function App() {
   const [currentBook, setCurrentBook] = useState<string | null>(null)
   const [readingTime, setReadingTime] = useState(0)
   const { meta, toc, theme, progress, progressRef, cfiRef, indexRef, sectionHrefRef, extractMeta, openBook, initReadingTime, setTheme, setCustomTheme, setAnimationMode, setReducedMotion, goNext, goPrev, goToHref, goToCfi, seekTo, getReadingSeconds, saveReadingTime, resizeViewer, destroy, getChapterText, getFullBookText, layout, updateLayout, bookmarks, highlights, selectionInfo, currentCfi, toggleBookmark, removeBookmarkById, addHighlight, removeHighlight, clearSelection, searchText, navigateToSearchResult, getChapterLabel, customThemeRef } = useEpub()
-  const [bgGradient, setBgGradient] = useState('linear-gradient(135deg, #0a0a1a 0%, #1a1040 40%, #0d1137 100%)')
+  const { theme: uiTheme, setTheme: setUiTheme } = useTheme()
+  useEffect(() => { setThemeOnRoot(uiTheme) }, [uiTheme])
+  const [bgByTheme, setBgByTheme] = useState<Record<string, string>>({ glass: defGrad, flat: flatDefGrad })
+  const uiThemeRef = useRef(uiTheme)
+  useEffect(() => { uiThemeRef.current = uiTheme }, [uiTheme])
+  const handleBgChange = useCallback((g: string) => {
+    setBgByTheme(prev => ({ ...prev, [uiThemeRef.current]: g }))
+  }, [])
   const [webdavConfig, setWebdavConfig] = useState<WebDAVConfig | null>(null)
   const [aiConfig, setAiConfig] = useState<AIConfig | null>(null)
 
@@ -188,15 +198,18 @@ export default function App() {
   const opacity = phase === 'idle' ? 1 : phase === 'leaving' ? 0 : 1
   const scale = phase === 'idle' ? 1 : phase === 'leaving' ? 0.97 : 1
   const activeTocSrc = sectionHrefRef.current
+  const readerBg = ({ light: '#ece8f4', sepia: '#f4ecd8', dark: '#0a0a1a' } satisfies Record<ThemeMode, string>)[theme]
+  const appBg = isLibrary ? bgByTheme[uiTheme] : readerBg
 
   return (
     <div
+      data-ui-theme={uiTheme}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       style={{
         display: 'flex', flexDirection: 'column', height: '100vh',
-        background: isLibrary ? bgGradient : ({ light: '#ece8f4', sepia: '#f4ecd8', dark: '#0a0a1a' } satisfies Record<ThemeMode, string>)[theme],
+        background: appBg,
         transition: 'background 0.3s ease',
         position: 'relative',
       }}>
@@ -219,7 +232,7 @@ export default function App() {
           transition: 'opacity 0.25s ease, transform 0.25s ease',
           pointerEvents: isLibrary ? 'auto' : 'none',
         }}>
-          <Library books={books} readingTime={readingTime} onOpenBook={handleOpenBook} onImport={handleImport} onDelete={handleDeleteBook} onBgChange={setBgGradient} webdavConfig={webdavConfig} onWebDAVConfigChange={handleWebDAVConfigChange} aiConfig={aiConfig} onAIConfigChange={handleAIConfigChange} />
+          <Library uiTheme={uiTheme} books={books} readingTime={readingTime} onOpenBook={handleOpenBook} onImport={handleImport} onDelete={handleDeleteBook} onBgChange={handleBgChange} webdavConfig={webdavConfig} onWebDAVConfigChange={handleWebDAVConfigChange} aiConfig={aiConfig} onAIConfigChange={handleAIConfigChange} />
         </div>
         <div style={{
           position: 'absolute', inset: 0,

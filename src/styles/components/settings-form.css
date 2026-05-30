@@ -1,0 +1,218 @@
+/* src/styles/components/settings-form.css */
+@import url('../tokens.css');
+
+/* Form container - used for both the connection form and sync section */
+.form-container {
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 100%);
+  border: 1px solid rgba(168,85,247,0.12);
+  padding: 20px 24px;
+}
+
+/* Form field wrapper */
+.form-field {
+  /* spacing handled by form-label marginTop */
+}
+
+/* Form label */
+.form-label {
+  color: rgba(255,255,255,0.5);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3;
+  display: block;
+  margin-top: 14;
+}
+
+/* Form input */
+.form-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: #fff;
+  font-size: 13px;
+  outline: none;
+  margin-top: 6;
+  transition: var(--transition-theme);
+}
+
+.form-input:focus {
+  border-color: rgba(168,85,247,0.4);
+  background: rgba(255,255,255,0.08);
+}
+
+.form-input::placeholder {
+  color: rgba(255,255,255,0.3);
+}
+
+/* Form helper text / status messages */
+.form-helper {
+  font-size: 12px;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Form button base */
+.form-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: #fff;
+}
+
+.form-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.form-btn.primary {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+}
+
+.form-btn.primary:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+/* Form section header */
+.form-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12;
+}
+
+.form-section-title {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Form status message */
+.form-status {
+  font-size: 12px;
+}
+
+.form-status.success {
+  color: rgba(74,222,128,0.9);
+}
+
+.form-status.error {
+  color: rgba(248,113,113,0.9);
+}
+
+/* Form progress bar */
+.form-progress {
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+.form-progress-track {
+  height: 4px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.form-progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #667eea, #764ba2);
+  transition: width 0.3s ease;
+}
+
+/* Form actions row */
+.form-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+  align-items: center;
+}
+
+/* Result card */
+.form-result {
+  margin-top: 8px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: rgba(74,222,128,0.08);
+  border: 1px solid rgba(74,222,128,0.2);
+  font-size: 12px;
+  color: rgba(255,255,255,0.7);
+}
+
+.form-result.error {
+  background: rgba(248,113,113,0.08);
+  border-color: rgba(248,113,113,0.2);
+}
+
+.form-result-errors {
+  margin-top: 6px;
+  color: rgba(248,113,113,0.8);
+}
+
+/* ========================
+   [data-ui-theme="flat"]
+   ======================== */
+[data-ui-theme="flat"] .form-container {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+}
+
+[data-ui-theme="flat"] .form-label {
+  color: #6b7280;
+}
+
+[data-ui-theme="flat"] .form-input {
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  color: #111827;
+}
+
+[data-ui-theme="flat"] .form-input:focus {
+  border-color: #6366f1;
+  background: #f9fafb;
+}
+
+[data-ui-theme="flat"] .form-input::placeholder {
+  color: #9ca3af;
+}
+
+[data-ui-theme="flat"] .form-section-title {
+  color: #111827;
+}
+
+[data-ui-theme="flat"] .form-status.success {
+  color: #16a34a;
+}
+
+[data-ui-theme="flat"] .form-status.error {
+  color: #dc2626;
+}
+
+[data-ui-theme="flat"] .form-result {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #166534;
+}
+
+[data-ui-theme="flat"] .form-result.error {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+[data-ui-theme="flat"] .form-btn.primary {
+  background: #6366f1;
+}
+
+[data-ui-theme="flat"] .form-btn.primary:hover:not(:disabled) {
+  background: #4f46e5;
+}

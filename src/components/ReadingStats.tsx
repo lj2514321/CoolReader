@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { BookEntry } from '../types'
 import { loadReadingTimeRange, loadBookReadingTimeRange, loadSetting, BookReadingTimeRecord } from '../utils/db'
+import '../styles/components/reading-stats.css'
 
 const statCardBg = 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 100%)'
 
@@ -11,22 +12,14 @@ interface ReadingStatsProps {
 function GoalBar({ secs, goalMin }: { secs: number; goalMin: number }) {
   const pct = Math.min(100, Math.round((secs / 60 / goalMin) * 100))
   return (
-    <div style={{ marginTop: 8 }}>
-      <div style={{
-        height: 4, borderRadius: 2,
-        background: 'rgba(255,255,255,0.1)',
-        overflow: 'hidden',
-      }}>
-        <div style={{
-          width: `${pct}%`, height: '100%',
-          borderRadius: 2,
-          background: pct >= 100
-            ? 'linear-gradient(90deg, #22c55e, #16a34a)'
-            : 'linear-gradient(90deg, rgba(99,102,241,0.7), rgba(168,85,247,0.6))',
-          transition: 'width 0.3s ease',
-        }} />
+    <div className="stat-goal-bar">
+      <div className="stat-goal-fill">
+        <div
+          className={`stat-goal-progress ${pct >= 100 ? 'achieved' : 'active'}`}
+          style={{ width: `${pct}%` }}
+        />
       </div>
-      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginTop: 4 }}>
+      <div className="stat-goal-label">
         {pct >= 100 ? '🎉 已达标' : `${pct}%`}
       </div>
     </div>
@@ -140,33 +133,25 @@ export function ReadingStats({ books }: ReadingStatsProps) {
   }
 
   return (
-    <div style={{ padding: '28px 36px 32px 24px', height: '100%', overflowY: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-      <h2 style={{ margin: '0 0 24px', color: '#fff', fontSize: 22, fontWeight: 700, letterSpacing: -0.3 }}>
-        📊 阅读统计
-      </h2>
+    <div className="stats-container">
+      <h2 className="stats-title">📊 阅读统计</h2>
 
       {!loaded ? (
-        <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 14, padding: 40, textAlign: 'center' }}>加载中...</div>
+        <div className="stats-loading">加载中...</div>
       ) : (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 28 }}>
+          <div className="stats-grid">
             {[
               { label: '今日', value: todaySecs },
               { label: '本周', value: weekSecs },
               { label: '本月', value: monthSecs },
               { label: goalMin > 0 ? '今日目标' : '总计', value: goalMin > 0 ? todaySecs : totalSecs },
             ].map((item, i) => (
-              <div key={item.label} style={{
-                padding: '16px 18px',
-                borderRadius: 12,
-                background: statCardBg,
-                border: i === 3 && goalMin > 0 ? '1px solid rgba(99,102,241,0.3)' : '1px solid rgba(168,85,247,0.12)',
-                textAlign: 'center',
-              }}>
-                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontWeight: 500, marginBottom: 6 }}>
+              <div key={item.label} className={`stat-card${i === 3 && goalMin > 0 ? ' accent' : ''}`}>
+                <div className="stat-label">
                   {item.label}
                 </div>
-                <div style={{ fontSize: 22, fontWeight: 700, color: '#fff', letterSpacing: -0.3 }}>
+                <div className="stat-value">
                   {goalMin > 0 && i === 3 ? `${Math.floor(item.value / 60)}m / ${goalMin}m` : formatDuration(item.value)}
                 </div>
                 {goalMin > 0 && i === 3 && <GoalBar secs={item.value} goalMin={goalMin} />}
@@ -175,33 +160,24 @@ export function ReadingStats({ books }: ReadingStatsProps) {
           </div>
 
           {/* bar chart */}
-          <div style={{
-            padding: '20px 24px',
-            borderRadius: 12,
-            background: statCardBg,
-            border: '1px solid rgba(168,85,247,0.12)',
-            marginBottom: 20,
-          }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: 14 }}>
+          <div className="chart-container">
+            <div className="chart-title">
               近 14 天阅读趋势
             </div>
-            <div style={{ display: 'flex', height: 140, gap: 6 }}>
-              {chartData.map((d, i) => {
+            <div className="chart-bars">
+              {chartData.map((d) => {
                 const pct = (d.seconds / maxSecs) * 100
                 return (
-                  <div key={d.date} style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center', gap: 4, height: '100%' }}>
-                    <div style={{
-                      width: '100%',
-                      height: `${Math.max(pct, 1)}%`,
-                      borderRadius: '4px 4px 0 0',
-                      background: 'linear-gradient(180deg, rgba(99,102,241,0.6) 0%, rgba(168,85,247,0.4) 100%)',
-                      transition: 'height 0.3s ease',
-                      minHeight: d.seconds > 0 ? undefined : 2,
-                      position: 'relative',
-                    }}
+                  <div key={d.date} className="chart-bar-wrapper">
+                    <div
+                      className="chart-bar"
+                      style={{
+                        height: `${Math.max(pct, 1)}%`,
+                        minHeight: d.seconds > 0 ? undefined : 2,
+                      }}
                       title={`${d.date}: ${formatDuration(d.seconds)}`}
                     />
-                    <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.25)', textAlign: 'center' }}>
+                    <div className="chart-bar-label">
                       {d.date.slice(8)}
                     </div>
                   </div>
@@ -212,26 +188,17 @@ export function ReadingStats({ books }: ReadingStatsProps) {
 
           {/* per-book */}
           {bookTotals.length > 0 && (
-            <div style={{
-              padding: '20px 24px',
-              borderRadius: 12,
-              background: statCardBg,
-              border: '1px solid rgba(168,85,247,0.12)',
-            }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: 12 }}>
+            <div className="stats-book-list">
+              <div className="stats-book-list-title">
                 每本书阅读时间
               </div>
               {bookTotals.map((bt, i) => (
-                <div key={bt.filePath} style={{
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '8px 0',
-                  borderBottom: i < bookTotals.length - 1 ? '1px solid rgba(255,255,255,0.05)' : undefined,
-                }}>
-                  <span style={{ fontSize: 16, flexShrink: 0 }}>📖</span>
-                  <span style={{ flex: 1, fontSize: 13, color: 'rgba(255,255,255,0.7)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div key={bt.filePath} className={`stats-book-row${i < bookTotals.length - 1 ? ' stats-book-divider' : ''}`}>
+                  <span className="stats-book-icon">📖</span>
+                  <span className="stats-book-title">
                     {getBookTitle(bt.filePath)}
                   </span>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.5)', flexShrink: 0 }}>
+                  <span className="stats-book-duration">
                     {formatDuration(bt.seconds)}
                   </span>
                 </div>
