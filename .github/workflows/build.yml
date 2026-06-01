@@ -50,21 +50,14 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           pattern: coolreader-*
-          path: release/
+          path: release
           merge-multiple: true
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('continuous-{0}', github.run_number) }}
-          name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('Continuous Build #{0}', github.run_number) }}
-          prerelease: ${{ !startsWith(github.ref, 'refs/tags/') }}
-          files: |
-            release/*.exe
-            release/*.dmg
-            release/*.AppImage
-            release/*.zip
-            release/*.deb
-            release/*.rpm
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('continuous-{0}', github.run_number) }}
+          prerelease: ${{ github.ref_type != 'tag' }}
+          files: release/*
           fail_on_unmatched_files: false
           generate_release_notes: true
