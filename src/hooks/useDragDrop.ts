@@ -28,7 +28,7 @@ export function useDragDrop(page: Page, doImport: (path: string) => Promise<void
       setToast(`不支持的文件格式: ${file.name}，仅支持 EPUB 文件`)
       return
     }
-    const filePath = (file as any).path
+    const filePath = file.path
     if (!filePath) return
     doImport(filePath)
   }, [page, doImport])

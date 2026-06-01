@@ -12,35 +12,7 @@ import './styles/theme.css'
 import { BookEntry, ThemeMode, Page, WebDAVConfig, AIConfig } from './types'
 import { defGrad, flatDefGrad } from './utils/styles'
 import { saveBook, saveCover, saveProgress, deleteBook as dbDeleteBook, updateLastOpenedAt } from './utils/db'
-
-declare global {
-  interface Window {
-    electronAPI?: {
-      openFile: () => Promise<string | null>
-      readFile: (path: string) => Promise<any>
-      deleteFile: (path: string) => Promise<void>
-      onOpenFile: (cb: (path: string) => void) => void
-      minimize: () => void
-      maximize: () => void
-      close: () => void
-      toggleFullscreen: () => void
-      webdavTestConn: (config: any) => Promise<{ success: boolean; error?: string }>
-      webdavListFiles: (config: any) => Promise<any[]>
-      webdavUploadBook: (config: any, localPath: string, fileName: string) => Promise<void>
-      webdavDownloadBook: (config: any, fileName: string, destPath: string) => Promise<void>
-      webdavUploadProgress: (config: any, fileName: string, data: any) => Promise<void>
-      webdavDownloadProgress: (config: any, fileName: string) => Promise<any>
-      webdavUploadReadingTime: (config: any, data: any) => Promise<void>
-      webdavDownloadReadingTime: (config: any) => Promise<any>
-      webdavDeleteRemote: (config: any, remotePath: string) => Promise<void>
-      webdavSyncAll: (config: any, localBooks: any, localProgress: any, localReadingTime: any) => Promise<any>
-      onSyncProgress: (cb: (data: any) => void) => () => void
-      aiChat: (config: any, messages: any) => Promise<any>
-      aiStream: (config: any, messages: any) => Promise<any>
-      onAIToken: (cb: (token: string) => void) => () => void
-    }
-  }
-}
+/// <reference types="./types/electron" />
 
 const _styleId = '_app_drag'
 if (typeof document !== 'undefined' && !document.getElementById(_styleId)) {
@@ -88,7 +60,6 @@ export default function App() {
   const { isDragging, toast, handleDragOver, handleDragLeave, handleDrop } = useDragDrop(page, doImport)
 
   const handleOpenBook = useCallback((filePath: string) => {
-    console.log('[App] handleOpenBook called:', filePath)
     setCurrentBook(filePath)
     updateLastOpenedAt(filePath)
     setBooks((prev) => prev.map((b) =>
@@ -198,6 +169,7 @@ export default function App() {
   const opacity = phase === 'idle' ? 1 : phase === 'leaving' ? 0 : 1
   const scale = phase === 'idle' ? 1 : phase === 'leaving' ? 0.97 : 1
   const activeTocSrc = sectionHrefRef.current
+  // @ts-expect-error 'custom' theme is handled separately via customThemeRef, not in the base theme object
   const readerBg = ({ light: '#ece8f4', sepia: '#f4ecd8', dark: '#0a0a1a' } satisfies Record<ThemeMode, string>)[theme]
   const appBg = isLibrary ? bgByTheme[uiTheme] : readerBg
 

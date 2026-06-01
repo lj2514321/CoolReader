@@ -1,32 +1,89 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import ePub, { Book, Rendition } from 'epubjs'
+import type SpineItem from 'epubjs/types/section'
+import type View from 'epubjs/types/managers/view'
+import type { NavItem as EpubNavItem } from 'epubjs/types/navigation'
 import { BookMeta, NavItem, ThemeMode, themeStyles, ReaderLayout, defaultLayout, Bookmark, Highlight, CustomTheme, defaultCustomTheme, AnimationMode } from '../../types'
 import { loadProgress, loadReadingTime, loadSetting, loadBookmarks as dbLoadBookmarks, loadHighlights as dbLoadHighlights, saveBookReadingTime as persistBookReadingTime, loadBookReadingTime as dbLoadBookReadingTime, saveSetting } from '../../utils/db'
 import { enableSmoothScroll } from '../../utils/enableSmoothScroll'
 import { generateCustomThemeCSS } from '../../utils/customTheme'
+import { logger } from '../../utils/logger'
 
 export interface SharedRefs {
+  /** @owner useBookEngine @readers [useReaderControls, useAnnotations, useSearch] @writers [useBookEngine] */
   bookRef: React.MutableRefObject<Book | null>
+  /** @owner useBookEngine @readers [useReaderControls, useAnnotations, useSearch] @writers [useBookEngine] */
   renditionRef: React.MutableRefObject<Rendition | null>
+  /** @owner useBookEngine @readers [useBookEngine] @writers [useBookEngine] */
   syncRef: React.MutableRefObject<() => void>
+  /** @owner useBookEngine @readers [useBookEngine, useSearch] @writers [useBookEngine] */
   navigatingRef: React.MutableRefObject<boolean>
+  /** @owner useBookEngine @readers [useReaderControls, useSearch, useProgressTimer] @writers [useBookEngine] */
   progressRef: React.MutableRefObject<number>
+  /** @owner useBookEngine @readers [useReaderControls, useSearch, useProgressTimer] @writers [useBookEngine] */
   cfiRef: React.MutableRefObject<string>
+  /** @owner useBookEngine @readers [useReaderControls, useSearch, useProgressTimer] @writers [useBookEngine] */
   indexRef: React.MutableRefObject<number>
+  /** @owner useBookEngine @readers [useReaderControls] @writers [useBookEngine] */
   sectionHrefRef: React.MutableRefObject<string>
+  /** @owner useReaderControls @readers [useBookEngine] @writers [useReaderControls] */
   themeRef: React.MutableRefObject<ThemeMode>
+  /** @owner useReaderControls @readers [useBookEngine] @writers [useReaderControls] */
   layoutRef: React.MutableRefObject<ReaderLayout>
+  /** @owner useBookEngine @readers [useReaderControls] @writers [useBookEngine] */
   setLayoutStateRef: React.MutableRefObject<((layout: ReaderLayout) => void) | null>
+  /** @owner useBookEngine @readers [useBookEngine, useSearch] @writers [useBookEngine] */
   totalSectionsRef: React.MutableRefObject<number>
+  /** @owner useBookEngine @readers [useBookEngine] @writers [useBookEngine] */
   sessionStartRef: React.MutableRefObject<number>
+  /** @owner useBookEngine @readers [useBookEngine] @writers [useBookEngine] */
   todaySecondsRef: React.MutableRefObject<number>
+  /** @owner useBookEngine @readers [useBookEngine] @writers [useBookEngine] */
   bookTodayRef: React.MutableRefObject<number>
+  /** @owner useBookEngine @readers [useBookEngine] @writers [useBookEngine] */
   bookSessionStartRef: React.MutableRefObject<number>
+  /** @owner useBookEngine @readers [useAnnotations] @writers [useBookEngine] */
   bookPathRef: React.MutableRefObject<string>
+  /** @owner useBookEngine @readers [useReaderControls, useSearch] @writers [useBookEngine] */
   tocRef: React.MutableRefObject<NavItem[]>
+  /** @owner useBookEngine @readers [useSearch] @writers [useSearch] */
   searchIndexRef: React.MutableRefObject<{ href: string; text: string }[]>
+  /** @owner useBookEngine @readers [useBookEngine] @writers [useBookEngine] */
   hookRegistered: React.MutableRefObject<boolean>
+  /** @owner useBookEngine @readers [useBookEngine] @writers [useBookEngine] */
   customThemeRef: React.MutableRefObject<CustomTheme>
+}
+
+/**
+ * Consumer-safe view of SharedRefs — all MutableRefObjects become readonly
+ * @owner useBookEngine (all refs created here)
+ * @readers [useReaderControls, useSearch, useAnnotations, useProgressTimer]
+ */
+export type SharedRefsConsumer = {
+  readonly [K in keyof SharedRefs]: SharedRefs[K] extends React.MutableRefObject<infer T>
+    ? Readonly<{ current: T }>
+    : SharedRefs[K]
+}
+
+/** Navigation state refs — written by useBookEngine, read by [useReaderControls, useSearch, useProgressTimer] */
+export interface NavigationRefs {
+  progressRef: SharedRefs['progressRef']
+  cfiRef: SharedRefs['cfiRef']
+  indexRef: SharedRefs['indexRef']
+  sectionHrefRef: SharedRefs['sectionHrefRef']
+}
+
+/** Book/content state refs — written by useBookEngine, read by [useReaderControls, useAnnotations] */
+export interface BookStateRefs {
+  bookRef: SharedRefs['bookRef']
+  renditionRef: SharedRefs['renditionRef']
+  tocRef: SharedRefs['tocRef']
+}
+
+/** UI state refs — written by useReaderControls, read by useBookEngine */
+export interface UIStateRefs {
+  themeRef: SharedRefs['themeRef']
+  layoutRef: SharedRefs['layoutRef']
 }
 
 export function useBookEngine(shared: SharedRefs, opts: {
@@ -67,7 +124,7 @@ export function useBookEngine(shared: SharedRefs, opts: {
         coverMime = blob.type || 'image/png'
         coverData = await blob.arrayBuffer()
       }
-    } catch { console.warn('[extractMeta] cover fetch failed') }
+    } catch { logger.warn('[extractMeta] cover fetch failed') }
     book.destroy()
     return { title: title || 'Untitled', author: creator || 'Unknown', cover: undefined, coverData, coverMime }
   }, [readFile])
@@ -114,8 +171,8 @@ export function useBookEngine(shared: SharedRefs, opts: {
     })
 
     const nav = await book.loaded.navigation
-    function mapToc(items: any[]): NavItem[] {
-      return items.map((item: any) => ({
+    function mapToc(items: EpubNavItem[]): NavItem[] {
+      return items.map((item: EpubNavItem) => ({
         label: item.label,
         href: item.href,
         subitems: item.subitems ? mapToc(item.subitems) : undefined,
@@ -129,13 +186,13 @@ export function useBookEngine(shared: SharedRefs, opts: {
     let savedLayout: string | null = null
     try {
       savedLayout = await loadSetting('readerLayout')
-    } catch (e) { console.warn('[openBook] load layout failed', e) }
+    } catch (e) { logger.warn('[openBook] load layout failed', e) }
     if (savedLayout) {
       try {
         const parsed = JSON.parse(savedLayout) as ReaderLayout
         layoutRef.current = parsed
         setLayoutState(parsed)
-      } catch (e) { console.warn('[openBook] parse savedLayout failed', e) }
+      } catch (e) { logger.warn('[openBook] parse savedLayout failed', e) }
     }
 
     const rendition = book.renderTo('viewer', {
@@ -153,7 +210,7 @@ export function useBookEngine(shared: SharedRefs, opts: {
 
     if (!hookRegistered.current) {
       hookRegistered.current = true
-      rendition.hooks.content.register((view: any) => {
+      rendition.hooks.content.register((view: View) => {
         const doc = view.document
         if (!doc || typeof doc.getElementById !== 'function') return
         const l = layoutRef.current
@@ -179,7 +236,7 @@ export function useBookEngine(shared: SharedRefs, opts: {
         try {
           rendition.themes.select(themeRef.current)
         } catch (e) {
-          console.warn('[content hook] theme re-select failed', e)
+          logger.warn('[content hook] theme re-select failed', e)
         }
 
         const selScript = doc.createElement('script')
@@ -224,7 +281,7 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
       saved = r[0]
       savedTheme = r[1]
       savedCustomTheme = r[2]
-    } catch (e) { console.warn('[openBook] load saved failed', e) }
+    } catch (e) { logger.warn('[openBook] restore highlight failed', e) }
 
     if (savedTheme && savedTheme === 'custom') {
       themeRef.current = 'custom'
@@ -281,9 +338,9 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
           if (rendition && typeof rendition.annotations?.highlight === 'function') {
             rendition.annotations.highlight(hl.cfiRange, {}, () => {}, 'epub-highlight', { fill: hl.color, 'fill-opacity': '0.3' })
           }
-        } catch (e) { console.warn('[openBook] restore highlight failed', e) }
+        } catch (e) { logger.warn('[openBook] restore highlight failed', e) }
       })
-    } catch (e) { console.warn('[openBook] load bookmarks/highlights failed', e) }
+    } catch (e) { logger.warn('[openBook] load bookmarks/highlights failed', e) }
   }, [readFile, saveBookReadingTime, applyLayout, setCurrentCfi, setSelectionInfo, setBookmarks, setHighlights])
 
   useEffect(() => {
@@ -299,7 +356,7 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
           try {
             const cfiRange = rend.getCfiFromRange(range)
             setSelectionInfo({ text: e.data.text, cfiRange, bounds: e.data.bounds })
-          } catch (e) { console.warn('[selection] getCfiFromRange failed', e) }
+          } catch (e) { logger.warn('[selection] getCfiFromRange failed', e) }
         }, 50)
       }
     }
@@ -320,7 +377,7 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
         renditionRef.current?.themes.select(t)
       }
     } catch (e) {
-      console.error('[setTheme] failed:', e)
+      logger.error('[setTheme] failed:', e)
     }
   }, [])
 
@@ -331,7 +388,7 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
       renditionRef.current?.themes.registerCss('custom', generateCustomThemeCSS(ct))
       renditionRef.current?.themes.select('custom')
     } catch (e) {
-      console.error('[setCustomTheme] failed:', e)
+      logger.error('[setCustomTheme] failed:', e)
     }
   }, [])
 
@@ -352,7 +409,7 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
     try {
       renditionRef.current?.resize()
     } catch (e) {
-      console.warn('[resizeViewer] failed:', e)
+      logger.warn('[resizeViewer] failed:', e)
     }
   }, [])
 

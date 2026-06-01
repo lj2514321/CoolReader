@@ -35,7 +35,7 @@ function animateScroll(
   })
 }
 
-export function enableSmoothScroll(rendition: any) {
+export function enableSmoothScroll(rendition: import('epubjs').Rendition) {
   if (!rendition?.manager) return
 
   const manager = rendition.manager

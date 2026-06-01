@@ -1,6 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu } from 'electron'
 import path from 'path'
 import { promises as fs, existsSync } from 'fs'
+import { logger } from '../../src/utils/logger'
 import { callAI, streamAI } from './ai'
 import {
   testConnection,
@@ -62,19 +63,19 @@ function createWindow() {
   })
 
   if (process.env.ELECTRON_RENDERER_URL) {
-    console.log(`[main] loading dev: ${process.env.ELECTRON_RENDERER_URL}`)
+    logger.info(`[main] loading dev: ${process.env.ELECTRON_RENDERER_URL}`)
     mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL)
     mainWindow.webContents.openDevTools()
     mainWindow.webContents.on('console-message', (_e, level, msg) => {
-      console.log(`[renderer] ${msg}`)
+      logger.info(`[renderer] ${msg}`)
     })
   } else {
-    console.log('[main] loading fallback file')
+    logger.info('[main] loading fallback file')
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'))
   }
 
   mainWindow.webContents.on('did-fail-load', (_e, code, desc) => {
-    console.error(`[main] load failed: ${code} ${desc}`)
+    logger.error(`[main] load failed: ${code} ${desc}`)
   })
 }
 
@@ -99,9 +100,9 @@ ipcMain.handle(IPC.dialog.openFile, async () => {
 })
 
 ipcMain.handle(IPC.file.readFile, async (_e, filePath: string) => {
-  console.log('[main] readFile:', filePath)
+  logger.info('[main] readFile:', path.basename(filePath))
   const buf = await fs.readFile(filePath)
-  console.log('[main] readFile done, size:', buf.length)
+  logger.info('[main] readFile done, size:', buf.length)
   return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
 })
 

@@ -2,8 +2,11 @@ import { useState, useCallback } from 'react'
 import { Bookmark, Highlight } from '../../types'
 import { addBookmark as dbAddBookmark, removeBookmark as dbRemoveBookmark, isBookmarked as dbIsBookmarked, addHighlight as dbAddHighlight, removeHighlight as dbRemoveHighlight, loadBookmarks as dbLoadBookmarks, loadHighlights as dbLoadHighlights } from '../../utils/db'
 import type { SharedRefs } from './useBookEngine'
+import { logger } from '../../utils/logger'
 
-export function useAnnotations(shared: SharedRefs) {
+type UseAnnotationsRefs = SharedRefs | Pick<SharedRefs, 'bookRef' | 'renditionRef' | 'bookPathRef'>
+
+export function useAnnotations(shared: UseAnnotationsRefs) {
   const { bookRef, renditionRef, bookPathRef } = shared
 
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([])
@@ -40,7 +43,7 @@ export function useAnnotations(shared: SharedRefs) {
     setHighlights(prev => [...prev, { id, filePath: fp, cfiRange: info.cfiRange, text: info.text, note, color, createdAt: Date.now() }])
     try {
       renditionRef.current?.annotations?.highlight(info.cfiRange, {}, () => {}, 'epub-highlight', { fill: color, 'fill-opacity': '0.3' })
-    } catch (e) { console.warn('[addHighlight] annotation highlight failed', e) }
+    } catch (e) { logger.warn('[addHighlight] annotation highlight failed', e) }
     setSelectionInfo(null)
   }, [selectionInfo])
 
@@ -49,7 +52,7 @@ export function useAnnotations(shared: SharedRefs) {
     setHighlights(prev => prev.filter(h => h.id !== id))
     try {
       renditionRef.current?.annotations?.remove(cfiRange, 'highlight')
-    } catch (e) { console.warn('[removeHighlight] annotation remove failed', e) }
+    } catch (e) { logger.warn('[removeHighlight] annotation remove failed', e) }
   }, [])
 
   const clearSelection = useCallback(() => setSelectionInfo(null), [])

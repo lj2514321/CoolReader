@@ -1,6 +1,8 @@
 import { useState, useMemo, memo, useEffect } from 'react'
 import { BookEntry } from '../types'
-import { loadCover, loadSetting } from '../utils/db'
+import { loadSetting } from '../utils/db'
+import { useBookCover } from '../hooks/useBookCover'
+import { colors } from '../utils/styles'
 import '../styles/components/bookshelf.css'
 
 type SortBy = 'recent' | 'title' | 'author'
@@ -59,19 +61,7 @@ const BookCard = memo(function BookCard({ book, i, onOpenBook, onContextMenu }: 
   book: BookEntry; i: number; onOpenBook: (fp: string) => void; onContextMenu: (fp: string) => void
 }) {
   const [c1, c2] = colors[i % colors.length]
-  const [coverUrl, setCoverUrl] = useState<string | undefined>(undefined)
-
-  useEffect(() => {
-    let active = true
-    let url: string | undefined
-    loadCover(book.filePath).then(record => {
-      if (!active || !record) return
-      const blob = new Blob([record.data], { type: record.mime ?? book.meta.coverMime ?? 'image/png' })
-      url = URL.createObjectURL(blob)
-      setCoverUrl(url)
-    })
-    return () => { active = false; if (url) URL.revokeObjectURL(url) }
-  }, [book.filePath])
+  const coverUrl = useBookCover(book.filePath, book.meta.coverMime)
 
   const displayCover = coverUrl ?? book.meta.cover
   return (
@@ -114,19 +104,7 @@ const BookCard = memo(function BookCard({ book, i, onOpenBook, onContextMenu }: 
 })
 
 const ContinueReadingCard = memo(function ContinueReadingCard({ book, onOpenBook }: { book: BookEntry; onOpenBook: (fp: string) => void }) {
-  const [coverUrl, setCoverUrl] = useState<string | undefined>(undefined)
-
-  useEffect(() => {
-    let active = true
-    let url: string | undefined
-    loadCover(book.filePath).then(record => {
-      if (!active || !record) return
-      const blob = new Blob([record.data], { type: record.mime ?? book.meta.coverMime ?? 'image/png' })
-      url = URL.createObjectURL(blob)
-      setCoverUrl(url)
-    })
-    return () => { active = false; if (url) URL.revokeObjectURL(url) }
-  }, [book.filePath])
+  const coverUrl = useBookCover(book.filePath, book.meta.coverMime)
 
   const displayCover = coverUrl ?? book.meta.cover
   return (

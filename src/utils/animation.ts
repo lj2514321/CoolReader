@@ -52,7 +52,7 @@ function getAnimationDuration(mode: AnimationMode): number {
 }
 
 export function applyPageAnimation(
-  rendition: any,
+  rendition: import('epubjs').Rendition,
   direction: 'next' | 'prev',
   mode: AnimationMode,
   reducedMotion: boolean,

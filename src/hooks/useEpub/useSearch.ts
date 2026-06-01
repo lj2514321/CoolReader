@@ -1,8 +1,9 @@
 import { useCallback } from 'react'
 import { NavItem, SearchResult } from '../../types'
-import type { SharedRefs } from './useBookEngine'
+import { logger } from '../../utils/logger'
+import type { SharedRefs, NavigationRefs, BookStateRefs } from './useBookEngine'
 
-export function useSearch(shared: SharedRefs) {
+export function useSearch(shared: SharedRefs | (NavigationRefs & BookStateRefs)) {
   const { bookRef, renditionRef, syncRef, indexRef, tocRef, searchIndexRef } = shared
 
   const getChapterLabel = useCallback((chapterIndex: number): string => {
@@ -35,7 +36,7 @@ export function useSearch(shared: SharedRefs) {
         const html = await book.archive.getText(item.url)
         const text = html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
         index.push({ href: item.href, text })
-      } catch (e) { console.warn('[buildSearchIndex] getText failed for', item.href, e); index.push({ href: item.href, text: '' }) }
+      } catch (e) { logger.warn('[buildSearchIndex] getText failed for', item.href.split('/').pop() ?? item.href, e); index.push({ href: item.href, text: '' }) }
     }
     searchIndexRef.current = index
   }, [])
@@ -77,10 +78,10 @@ export function useSearch(shared: SharedRefs) {
       setTimeout(() => {
         const iframe = document.querySelector<HTMLIFrameElement>('#viewer iframe')
         if (iframe?.contentWindow) {
-          try { iframe.contentWindow.find(result.matchText) } catch (e) { console.warn('[navigateToSearchResult] find failed', e) }
+          try { iframe.contentWindow.find(result.matchText) } catch (e) { logger.warn('[navigateToSearchResult] find failed', e) }
         }
       }, 150)
-    } catch (e) { console.warn('[navigateToSearchResult] display failed', e) }
+    } catch (e) { logger.warn('[navigateToSearchResult] display failed', e) }
   }, [])
 
   return { buildSearchIndex, searchText, navigateToSearchResult, getChapterLabel }

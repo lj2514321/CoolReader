@@ -2,6 +2,15 @@ import { useEffect } from 'react'
 import { loadAllBooks, loadAllProgress, loadCover, saveCover, loadReadingTime, loadWebDAVConfig, loadAIConfig, loadSetting, loadLastOpenedBook } from '../utils/db'
 import type { BookEntry, BookMeta, WebDAVConfig, AIConfig } from '../types'
 
+// Extended type for DB records that may have legacy base64 cover stored directly on the record
+interface BookRecord {
+  filePath: string
+  title: string
+  author: string
+  cover?: string
+  lastOpenedAt?: number
+}
+
 export function useInitialLoad(params: {
   onBooksLoaded: (entries: BookEntry[]) => void
   initReadingTime: (secs: number) => void
@@ -17,7 +26,7 @@ export function useInitialLoad(params: {
       const progressMap = new Map(progressRecords.map(p => [p.filePath, p]))
       const entries: BookEntry[] = bookRecords.map((r) => ({
         filePath: r.filePath,
-        meta: { title: r.title, author: r.author, cover: (r as any).cover } as BookMeta,
+        meta: { title: r.title, author: r.author, cover: (r as BookRecord).cover } as BookMeta,
         lastOpenedAt: r.lastOpenedAt,
         progress: progressMap.get(r.filePath)?.progress,
         chapterLabel: progressMap.get(r.filePath)?.chapterLabel,
@@ -32,12 +41,12 @@ export function useInitialLoad(params: {
         })
       }
       // 迁移旧 base64 封面到 covers store
-      Promise.all(bookRecords
-        .filter((r: any) => r.cover && typeof r.cover === 'string')
-        .map(async (r: any) => {
+      const booksWithCover = bookRecords.filter((r: BookRecord) => r.cover && typeof r.cover === 'string')
+      Promise.all(booksWithCover
+        .map(async (r: BookRecord) => {
           const existing = await loadCover(r.filePath)
           if (existing) return
-          const parts = r.cover.split(',')
+          const parts = (r.cover as string).split(',')
           const mime = parts[0].split(':')[1]?.split(';')[0] || 'image/png'
           const binary = atob(parts[1])
           const buf = new Uint8Array(binary.length)

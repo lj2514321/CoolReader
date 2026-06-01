@@ -3,7 +3,8 @@ import { ThemeMode, ReaderLayout } from '../../types'
 import { saveSetting, saveReadingTime as persistReadingTimeToDB, saveBookReadingTime as persistBookReadingTime } from '../../utils/db'
 import type { SharedRefs } from './useBookEngine'
 import { enableSmoothScroll } from '../../utils/enableSmoothScroll'
-import { applyPageAnimation, clearAnimationCache } from '../../utils/animation'
+import { applyPageAnimation } from '../../utils/animation'
+import { logger } from '../../utils/logger'
 
 export function useReaderControls(shared: SharedRefs) {
   const { bookRef, renditionRef, syncRef, navigatingRef, indexRef, cfiRef, progressRef, themeRef, layoutRef, setLayoutStateRef, totalSectionsRef, sessionStartRef, todaySecondsRef, bookTodayRef, bookSessionStartRef, bookPathRef } = shared
@@ -15,7 +16,7 @@ export function useReaderControls(shared: SharedRefs) {
     try {
       renditionRef.current?.themes.select(t)
     } catch (e) {
-      console.error('[setTheme] failed:', e)
+      logger.error('[setTheme] failed:', e)
     }
   }, [])
 
@@ -51,14 +52,15 @@ export function useReaderControls(shared: SharedRefs) {
     if (patch.flow) {
       try {
         renditionRef.current?.flow(next.flow)
+        // @ts-expect-error 'scrolled' flow mode is supported at runtime but not in ReaderLayout flow type
         if (next.flow !== 'scrolled') {
           requestAnimationFrame(() => enableSmoothScroll(renditionRef.current))
         }
         requestAnimationFrame(() => {
-          try { renditionRef.current?.themes.select(themeRef.current) } catch (e) { console.warn('[updateLayout] re-select theme failed', e) }
+          try { renditionRef.current?.themes.select(themeRef.current) } catch (e) { logger.warn('[updateLayout] re-select theme failed', e) }
         })
       } catch (e) {
-        console.warn('[updateLayout] flow change failed:', e)
+        logger.warn('[updateLayout] flow change failed:', e)
       }
     }
     applyLayout()
@@ -69,6 +71,7 @@ export function useReaderControls(shared: SharedRefs) {
     await renditionRef.current?.next()
     const animMode = layoutRef.current.animationMode || 'slide'
     const reducedMotion = layoutRef.current.reducedMotion || false
+    // @ts-expect-error '3d' is supported at runtime but missing from AnimationMode type
     if (animMode === '3d') {
       navigatingRef.current = false
       requestAnimationFrame(syncRef.current)
@@ -85,6 +88,7 @@ export function useReaderControls(shared: SharedRefs) {
     await renditionRef.current?.prev()
     const animMode = layoutRef.current.animationMode || 'slide'
     const reducedMotion = layoutRef.current.reducedMotion || false
+    // @ts-expect-error '3d' is supported at runtime but missing from AnimationMode type
     if (animMode === '3d') {
       navigatingRef.current = false
       requestAnimationFrame(syncRef.current)
@@ -115,7 +119,9 @@ export function useReaderControls(shared: SharedRefs) {
       navigatingRef.current = false
       requestAnimationFrame(() => renditionRef.current?.resize())
       return
-    } catch { }
+    } catch {
+      // swallow — epub.js error
+    }
     const section = book.spine.get(href)
     if (section) {
       try {
@@ -129,15 +135,19 @@ export function useReaderControls(shared: SharedRefs) {
         navigatingRef.current = false
         requestAnimationFrame(() => renditionRef.current?.resize())
         return
-      } catch { }
+      } catch {
+        // swallow — epub.js error
+      }
     }
     try {
       const s = book.spine.get(href)
-      if (s && (rendition as any).manager) {
-        await (rendition as any).manager.display(s, href)
+      if (s && rendition.manager) {
+        await rendition.manager.display(s, href)
         requestAnimationFrame(syncRef.current)
       }
-    } catch { }
+    } catch {
+      // swallow — epub.js error
+    }
     navigatingRef.current = false
     requestAnimationFrame(() => renditionRef.current?.resize())
   }, [])
@@ -147,7 +157,9 @@ export function useReaderControls(shared: SharedRefs) {
     try {
       await renditionRef.current?.display(cfi)
       requestAnimationFrame(syncRef.current)
-    } catch { }
+    } catch {
+      // swallow — epub.js error
+    }
     navigatingRef.current = false
     requestAnimationFrame(() => renditionRef.current?.resize())
   }, [])
@@ -219,7 +231,7 @@ export function useReaderControls(shared: SharedRefs) {
           allText += text + '\n'
           if (allText.length > 8000) break
         } catch {
-          console.warn('[getFullBookText] failed to load:', item.href)
+          logger.warn('[getFullBookText] failed to load:', item.href.split('/').pop() ?? item.href)
         }
       }
       return allText.slice(0, 8000)

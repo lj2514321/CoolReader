@@ -44,3 +44,12 @@ Thumbs.db
 # Backup files
 *.bak
 *.orig
+
+# Agent-generated artifacts
+.omo/evidence/
+.omo/run-continuation/
+.omo/server.log
+.omo/server.err
+
+# Playwright MCP browser state
+.playwright-mcp/

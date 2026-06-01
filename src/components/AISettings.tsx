@@ -26,8 +26,8 @@ export function AISettings({ config, onConfigChange }: AISettingsProps) {
         [{ role: 'user', content: 'Hello, reply "OK" if you receive this.' }],
       )
       setTestMsg(result ? { ok: true, text: '连接成功: ' + result.slice(0, 60) } : { ok: false, text: '返回为空' })
-    } catch (err: any) {
-      setTestMsg({ ok: false, text: err?.message || String(err) })
+    } catch (err: unknown) {
+      setTestMsg({ ok: false, text: err instanceof Error ? err.message : String(err) })
     }
     setTesting(false)
   }, [apiUrl, apiKey, model])

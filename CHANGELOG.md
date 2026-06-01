@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.5.2] — 2026-06-01
+
+### 类型系统清理（any Type Cleanup）
+
+- **类型定义统一**：`src/types/electron.d.ts` 全部 15+ 个方法签名从 `any` 替换为共享类型（`WebDAVConfig`/`AIConfig`/`AIChatMessage`/`SyncResult`/`SyncProgressEvent`），消除 `[key: string]: any`；`electron/preload/index.ts` 参数类型同步映射，消除全部 15 个 `any`；全局扩展 `File.path?` 接口以支持 Electron 非标准属性
+- **epub.js 类型增强**：`src/types/epub.d.ts` 新增 `Rendition.manager`、`Manager` 完整接口（container/settings/isPaginated/layout/views/next/prev/display）、`View`/`Section`/`Book`/`Spine` 缺失属性补充，覆盖 5 个 epub.js 消费文件（`enableSmoothScroll.ts`、`animation.ts`、`useReaderControls.ts`、`epubInit.ts`、`useBookEngine.ts`）
+- **错误处理规范化**：全部 5 处 `catch (err: any)` 替换为 `catch (err: unknown)` + `err instanceof Error` 类型守卫，覆盖 `AIPanel.tsx`、`AISettings.tsx`、`SyncSettings.tsx`
+- **数据访问类型修复**：`useInitialLoad.ts` 中 `(r as any).cover` 改为 `BookRecord` 接口 `cover?: string`；`useDragDrop.ts` 中 `(file as any).path` 改为 `file.path`
+- **消除内联声明**：`src/App.tsx` 中 `declare global { interface Window { electronAPI } }` 内联块删除，类型来源统一至 `electron.d.ts`
+- **总成果**：`src/` + `electron/preload/` 范围内 **0 个显式 `any` 剩余**（目标：≤5），构建通过率不变
+
+## [1.5.1] — 2026-05-30
+
+### 内联样式解耦（Style Decouple）
+
+- **Reader.tsx**：933 行瘦身至 724 行（-22%），内联 `glass()`/`btn()` 函数替换为 `.reader-glass`/`.reader-btn` CSS 类；7 个主题颜色常量（`fg`/`panelText`/`panelMuted` 等）迁移至 `--reader-*` CSS 变量；Aa 面板/搜索/标记/选择工具栏/上下文菜单/AI 按钮全部使用 CSS 类
+- **Sidebar.tsx**：126 行内联样式完全解耦（0 残留 `style={}`），`sbTheme` Record 删除，`onMouseEnter`/`onMouseLeave` 改为 CSS `:hover`
+- **AIPanel.tsx**：281 行内联样式基本完全解耦（仅 1 处动态高度残留），`glassStyle` useMemo + `fg`/`muted` 常量 + `_pulseId` JS keyframes 全部删除
+- **新增 3 个 CSS 文件**：`src/styles/components/reader.css`（459 行）、`sidebar.css`（137 行）、`ai-panel.css`（236 行），总计 832 行样式从 TSX 迁移至独立 CSS
+- **三主题自动适配**：`data-theme="dark|light|sepia"` 属性驱动 CSS 变量切换，custom 模式映射为 light
+- **零功能变更**：纯样式重构，组件逻辑/epub.js 集成/排除组件（Library/BookShelf/SettingsPage 等）完全未触及
+
 ## [1.5.0] — 2026-05-30
 
 ### UI 主题系统（毛玻璃 → 双主题）

@@ -1,3 +1,5 @@
 /* Theme entry point - aggregates all theme-related CSS */
 @import './themes/theme-glass.css';
-@import './themes/theme-flat.css';
+@import './components/ai-panel.css';
+@import './components/reader.css';
+@import './components/sidebar.css';

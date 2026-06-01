@@ -41,9 +41,9 @@ export function SyncSettings({ config, onConfigChange }: SyncSettingsProps) {
     setTestMsg(null)
     try {
       const res = await window.electronAPI?.webdavTestConn({ url, username, password, path })
-      setTestMsg(res?.success ? { ok: true, text: '连接成功' } : { ok: false, text: res?.error || '连接失败' })
-    } catch (err: any) {
-      setTestMsg({ ok: false, text: err?.message || String(err) })
+      setTestMsg(res?.success ? { ok: true, text: '连接成功' } : { ok: false, text: res?.errors?.[0] || '连接失败' })
+    } catch (err: unknown) {
+      setTestMsg({ ok: false, text: err instanceof Error ? err.message : String(err) })
     }
     setTesting(false)
   }, [url, username, password, path])
@@ -73,7 +73,7 @@ export function SyncSettings({ config, onConfigChange }: SyncSettingsProps) {
       const localProgress = await loadAllProgress()
       const today = new Date().toISOString().slice(0, 10)
       const todaySeconds = await loadReadingTime(today)
-      const localReadingTime = [{ date: today, seconds: todaySeconds }]
+      const localReadingTime = todaySeconds
 
       const result = await window.electronAPI.webdavSyncAll(
         { url, username, password, path },
@@ -82,8 +82,8 @@ export function SyncSettings({ config, onConfigChange }: SyncSettingsProps) {
         localReadingTime,
       )
       setSyncResult(result)
-    } catch (err: any) {
-      setSyncResult({ success: false, uploaded: 0, downloaded: 0, conflicts: 0, errors: [err?.message || String(err)] })
+    } catch (err: unknown) {
+      setSyncResult({ success: false, uploaded: 0, downloaded: 0, conflicts: 0, errors: [err instanceof Error ? err.message : String(err)] })
     }
     setSyncing(false)
     cleanRef.current?.()
