@@ -3,10 +3,12 @@ import { getPresets } from '../utils/styles'
 import { saveSetting, loadSetting } from '../utils/db'
 import { SyncSettings } from './SyncSettings'
 import { AISettings } from './AISettings'
-import { defaultLayout } from '../types'
+import { defaultLayout, CustomBgConfig, CustomTheme, GradientStop, GradientType } from '../types'
 import type { WebDAVConfig, AIConfig, ReadingGoal } from '../types'
 import { useTheme, type UiTheme } from '../styles/useTheme'
 import '../styles/components/settings.css'
+
+type CustomBgTab = 'preset' | 'color' | 'gradient' | 'image'
 
 interface SettingsPageProps {
   bgKey: string
@@ -17,14 +19,16 @@ interface SettingsPageProps {
   onWebDAVConfigChange?: (config: WebDAVConfig | null) => void
   aiConfig?: AIConfig | null
   onAIConfigChange?: (config: AIConfig | null) => void
+  onCustomBgChange?: (config: CustomBgConfig) => void
 }
 
-export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = true, webdavConfig, onWebDAVConfigChange, aiConfig, onAIConfigChange }: SettingsPageProps) {
+export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = true, webdavConfig, onWebDAVConfigChange, aiConfig, onAIConfigChange, onCustomBgChange }: SettingsPageProps) {
   const [settingView, setSettingView] = useState<string | null>(null)
   const [subPhase, setSubPhase] = useState<'idle' | 'push-out' | 'push-in' | 'pop-out' | 'pop-in'>('idle')
   const subRef = useRef<ReturnType<typeof setTimeout>>()
   useEffect(() => () => clearTimeout(subRef.current), [])
   useEffect(() => { setSettingView(null); setSubPhase('idle') }, [resetKey])
+  useEffect(() => { setCustomTab('preset') }, [resetKey])
 
   const [goalMinutes, setGoalMinutes] = useState(30)
   const [goalLoaded, setGoalLoaded] = useState(false)
@@ -57,6 +61,15 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
       if (v === 'library' || v === 'resume') setStartupBehavior(v)
     })
   }, [])
+
+  // Bg preset tab state
+  const [customTab, setCustomTab] = useState<CustomBgTab>('preset')
+  const [customColor, setCustomColor] = useState('#6366f1')
+  const [customColorAlpha, setCustomColorAlpha] = useState(90)
+  const [gradientType, setGradientType] = useState<GradientType>('linear')
+  const [gradientAngle, setGradientAngle] = useState(135)
+  const [gradientStop1, setGradientStop1] = useState<GradientStop>({ color: 'rgba(99,102,241,0.85)', position: 0 })
+  const [gradientStop2, setGradientStop2] = useState<GradientStop>({ color: 'rgba(168,85,247,0.9)', position: 100 })
 
   const { theme: uiTheme, setTheme: setUiTheme } = useTheme()
 
@@ -147,20 +160,165 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
 
         {settingView === 'bgPreset' && (
           <div className="settings-sub-content">
-            <div className="bg-preset-grid">
-              {getPresets(uiTheme).map((p) => (
+            {/* Tab bar */}
+            <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
+              {(['preset', 'color', 'gradient', 'image'] as const).map(tab => (
                 <button
-                  key={p.key}
-                  className={`bg-preset-item ${bgKey === p.key ? 'active' : ''}`}
-                  onClick={() => { saveSetting(uiTheme === 'flat' ? 'bgPreset-flat' : 'bgPreset', p.key); onPresetChange(p.key, p.gradient) }}
+                  key={tab}
+                  onClick={() => setCustomTab(tab)}
+                  style={{
+                    flex: 1, padding: '8px 0', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                    background: customTab === tab ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.08)',
+                    border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)',
+                  }}
                 >
-                  <div className="bg-preset-preview" style={{ background: p.gradient }}>
-                    {bgKey === p.key && <span className="bg-preset-check">✓</span>}
-                  </div>
-                  <div className="bg-preset-name">{p.label}</div>
+                  {tab === 'preset' ? '预设' : tab === 'color' ? '纯色' : tab === 'gradient' ? '渐变' : '图片'}
                 </button>
               ))}
             </div>
+
+            {/* Preset tab */}
+            {customTab === 'preset' && (
+              <div className="bg-preset-grid">
+                {getPresets(uiTheme).map((p) => (
+                  <button
+                    key={p.key}
+                    className={`bg-preset-item ${bgKey === p.key ? 'active' : ''}`}
+                    onClick={() => { saveSetting(uiTheme === 'flat' ? 'bgPreset-flat' : 'bgPreset', p.key); onPresetChange(p.key, p.gradient); onCustomBgChange?.({ type: 'preset', presetKey: p.key }) }}
+                  >
+                    <div className="bg-preset-preview" style={{ background: p.gradient }}>
+                      {bgKey === p.key && <span className="bg-preset-check">✓</span>}
+                    </div>
+                    <div className="bg-preset-name">{p.label}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Color tab */}
+            {customTab === 'color' && (
+              <div>
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>颜色</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <input
+                      type="color"
+                      value={customColor}
+                      onChange={e => {
+                        setCustomColor(e.target.value)
+                        onCustomBgChange?.({ type: 'color', color: hexToRgba(e.target.value, customColorAlpha / 100) })
+                      }}
+                      style={{ width: 44, height: 36, border: 'none', borderRadius: 8, cursor: 'pointer', background: 'none' }}
+                    />
+                    <div
+                      style={{
+                        flex: 1, height: 36, borderRadius: 8,
+                        background: hexToRgba(customColor, customColorAlpha / 100),
+                        border: '1px solid rgba(255,255,255,0.15)',
+                      }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>透明度 {customColorAlpha}%</div>
+                  <input
+                    type="range"
+                    min={70} max={100} step={1}
+                    value={customColorAlpha}
+                    onChange={e => {
+                      const alpha = parseInt(e.target.value)
+                      setCustomColorAlpha(alpha)
+                      onCustomBgChange?.({ type: 'color', color: hexToRgba(customColor, alpha / 100) })
+                    }}
+                    style={{ width: '100%', accentColor: '#6366f1' }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Gradient tab */}
+            {customTab === 'gradient' && (
+              <div>
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>类型</div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {(['linear', 'radial'] as const).map(t => (
+                      <button
+                        key={t}
+                        onClick={() => setGradientType(t)}
+                        style={{
+                          flex: 1, padding: '6px 0', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                          background: gradientType === t ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.08)',
+                          border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)',
+                        }}
+                      >
+                        {t === 'linear' ? '线性' : '径向'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {gradientType === 'linear' && (
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>角度 {gradientAngle}°</div>
+                    <input
+                      type="range" min={0} max={360} step={1}
+                      value={gradientAngle}
+                      onChange={e => {
+                        const angle = parseInt(e.target.value)
+                        setGradientAngle(angle)
+                        onCustomBgChange?.({ type: 'gradient', gradient: buildGradientConfig(gradientType, angle, gradientStop1, gradientStop2) })
+                      }}
+                      style={{ width: '100%', accentColor: '#6366f1' }}
+                    />
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>起始色</div>
+                    <input
+                      type="color"
+                      value={gradientStop1.color.startsWith('rgba') ? '#000000' : gradientStop1.color}
+                      onChange={e => {
+                        const stop1: GradientStop = { ...gradientStop1, color: rgbaFromHex(e.target.value, 0.85) }
+                        setGradientStop1(stop1)
+                        onCustomBgChange?.({ type: 'gradient', gradient: buildGradientConfig(gradientType, gradientAngle, stop1, gradientStop2) })
+                      }}
+                      style={{ width: '100%', height: 36, border: 'none', borderRadius: 8, cursor: 'pointer', background: 'none' }}
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>结束色</div>
+                    <input
+                      type="color"
+                      value={gradientStop2.color.startsWith('rgba') ? '#000000' : gradientStop2.color}
+                      onChange={e => {
+                        const stop2: GradientStop = { ...gradientStop2, color: rgbaFromHex(e.target.value, 0.9) }
+                        setGradientStop2(stop2)
+                        onCustomBgChange?.({ type: 'gradient', gradient: buildGradientConfig(gradientType, gradientAngle, gradientStop1, stop2) })
+                      }}
+                      style={{ width: '100%', height: 36, border: 'none', borderRadius: 8, cursor: 'pointer', background: 'none' }}
+                    />
+                  </div>
+                </div>
+                <div style={{ marginBottom: 8 }}>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>预览</div>
+                  <div
+                    style={{
+                      height: 48, borderRadius: 8,
+                      background: buildGradientString(gradientType, gradientAngle, gradientStop1, gradientStop2),
+                      border: '1px solid rgba(255,255,255,0.15)',
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Image tab */}
+            {customTab === 'image' && (
+              <div style={{ textAlign: 'center', padding: '40px 0', color: 'rgba(255,255,255,0.4)' }}>
+                上传功能开发中
+              </div>
+            )}
           </div>
         )}
 
@@ -291,4 +449,32 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
       </div>
     </>
   )
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  return `rgba(${r},${g},${b},${alpha})`
+}
+
+function rgbaFromHex(hex: string, alpha: number): string {
+  return hexToRgba(hex, alpha)
+}
+
+function buildGradientConfig(type: GradientType, angle: number, stop1: GradientStop, stop2: GradientStop): CustomTheme {
+  return {
+    type: 'gradient',
+    gradientType: type,
+    gradientAngle: angle,
+    gradientStops: [stop1, stop2],
+  }
+}
+
+function buildGradientString(type: GradientType, angle: number, stop1: GradientStop, stop2: GradientStop): string {
+  if (type === 'linear') {
+    return `linear-gradient(${angle}deg, ${stop1.color} ${stop1.position}%, ${stop2.color} ${stop2.position}%)`
+  } else {
+    return `radial-gradient(circle, ${stop1.color} ${stop1.position}%, ${stop2.color} ${stop2.position}%)`
+  }
 }

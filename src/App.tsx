@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { Library } from './components/Library'
 import { Reader } from './components/Reader'
 import { Sidebar } from './components/Sidebar'
@@ -9,9 +9,9 @@ import { useProgressTimer } from './hooks/useProgressTimer'
 import { useInitialLoad } from './hooks/useInitialLoad'
 import { useTheme, setThemeOnRoot } from './styles/useTheme'
 import './styles/theme.css'
-import { BookEntry, ThemeMode, Page, WebDAVConfig, AIConfig } from './types'
+import { BookEntry, ThemeMode, Page, WebDAVConfig, AIConfig, CustomBgConfig } from './types'
 import { defGrad, flatDefGrad } from './utils/styles'
-import { saveBook, saveCover, saveProgress, deleteBook as dbDeleteBook, updateLastOpenedAt } from './utils/db'
+import { saveBook, saveCover, saveProgress, deleteBook as dbDeleteBook, updateLastOpenedAt, loadSetting, saveSetting } from './utils/db'
 /// <reference types="./types/electron" />
 
 const _styleId = '_app_drag'
@@ -36,8 +36,33 @@ export default function App() {
   const [bgByTheme, setBgByTheme] = useState<Record<string, string>>({ glass: defGrad, flat: flatDefGrad })
   const uiThemeRef = useRef(uiTheme)
   useEffect(() => { uiThemeRef.current = uiTheme }, [uiTheme])
+  const [customBgConfig, setCustomBgConfig] = useState<CustomBgConfig | null>(null)
+  const [customBgLoaded, setCustomBgLoaded] = useState(false)
+  useEffect(() => {
+    loadSetting('customBg').then(v => {
+      if (v) {
+        try {
+          const parsed = JSON.parse(v)
+          setCustomBgConfig(parsed)
+        } catch { /* corrupted — ignore */ }
+      }
+      setCustomBgLoaded(true)
+    }).catch(() => setCustomBgLoaded(true))
+  }, [])
   const handleBgChange = useCallback((g: string) => {
     setBgByTheme(prev => ({ ...prev, [uiThemeRef.current]: g }))
+  }, [])
+  const handleCustomBgChange = useCallback((config: CustomBgConfig) => {
+    setCustomBgConfig(config)
+    try {
+      saveSetting('customBg', JSON.stringify(config))
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+        setError('存储空间不足，无法保存自定义背景')
+      } else {
+        setError('保存失败')
+      }
+    }
   }, [])
   const [webdavConfig, setWebdavConfig] = useState<WebDAVConfig | null>(null)
   const [aiConfig, setAiConfig] = useState<AIConfig | null>(null)
@@ -171,7 +196,38 @@ export default function App() {
   const activeTocSrc = sectionHrefRef.current
   // @ts-expect-error 'custom' theme is handled separately via customThemeRef, not in the base theme object
   const readerBg = ({ light: '#ece8f4', sepia: '#f4ecd8', dark: '#0a0a1a' } satisfies Record<ThemeMode, string>)[theme]
-  const appBg = isLibrary ? bgByTheme[uiTheme] : readerBg
+  const appBg = useMemo(() => {
+    if (customBgLoaded && customBgConfig && customBgConfig.type !== 'preset') {
+      if (customBgConfig.type === 'color') {
+        return customBgConfig.color || ''
+      }
+      if (customBgConfig.type === 'image' && customBgConfig.imageData) {
+        return `url(${customBgConfig.imageData}) center/cover no-repeat`
+      }
+      if (customBgConfig.type === 'gradient' && customBgConfig.gradient) {
+        const g = customBgConfig.gradient
+        if (g.type === 'solid' && g.color) return g.color
+        if (g.type === 'gradient' && g.gradientStops?.length) {
+          const stops = g.gradientStops.map(s => `${s.color} ${s.position}%`).join(', ')
+          if (g.gradientType === 'radial') {
+            return `radial-gradient(ellipse at center, ${stops})`
+          }
+          return `linear-gradient(${g.gradientAngle ?? 135}deg, ${stops})`
+        }
+      }
+    }
+    return isLibrary ? bgByTheme[uiTheme] : readerBg
+  }, [isLibrary, uiTheme, bgByTheme, customBgConfig, customBgLoaded, readerBg])
+  const customBgStyle = customBgConfig?.type === 'image' && customBgConfig.imageData
+    ? {
+        backgroundImage: `url(${customBgConfig.imageData})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        transition: 'opacity 0.3s ease',
+        opacity: 1,
+      }
+    : {}
 
   return (
     <div
@@ -182,8 +238,9 @@ export default function App() {
       style={{
         display: 'flex', flexDirection: 'column', height: '100vh',
         background: appBg,
-        transition: 'background 0.3s ease',
+        transition: 'background 0.3s ease, opacity 0.3s ease',
         position: 'relative',
+        ...customBgStyle,
       }}>
       <TitleBar />
       {error && (
@@ -204,7 +261,7 @@ export default function App() {
           transition: 'opacity 0.25s ease, transform 0.25s ease',
           pointerEvents: isLibrary ? 'auto' : 'none',
         }}>
-          <Library uiTheme={uiTheme} books={books} readingTime={readingTime} onOpenBook={handleOpenBook} onImport={handleImport} onDelete={handleDeleteBook} onBgChange={handleBgChange} webdavConfig={webdavConfig} onWebDAVConfigChange={handleWebDAVConfigChange} aiConfig={aiConfig} onAIConfigChange={handleAIConfigChange} />
+          <Library uiTheme={uiTheme} books={books} readingTime={readingTime} onOpenBook={handleOpenBook} onImport={handleImport} onDelete={handleDeleteBook} onBgChange={handleBgChange} onCustomBgChange={handleCustomBgChange} webdavConfig={webdavConfig} onWebDAVConfigChange={handleWebDAVConfigChange} aiConfig={aiConfig} onAIConfigChange={handleAIConfigChange} />
         </div>
         <div style={{
           position: 'absolute', inset: 0,

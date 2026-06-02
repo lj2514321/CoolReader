@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { BookEntry, WebDAVConfig, AIConfig } from '../types'
+import { BookEntry, WebDAVConfig, AIConfig, CustomBgConfig } from '../types'
 import { loadSetting } from '../utils/db'
 import { getPresets, defGrad, flatDefGrad } from '../utils/styles'
 import { SidebarNav, LibPage } from './SidebarNav'
@@ -16,13 +16,14 @@ interface LibraryProps {
   onImport: () => void
   onDelete: (filePath: string, deleteFile: boolean) => void
   onBgChange?: (g: string) => void
+  onCustomBgChange?: (config: CustomBgConfig) => void
   webdavConfig?: WebDAVConfig | null
   onWebDAVConfigChange?: (config: WebDAVConfig | null) => void
   aiConfig?: AIConfig | null
   onAIConfigChange?: (config: AIConfig | null) => void
 }
 
-export function Library({ uiTheme = 'glass', books, readingTime, onOpenBook, onImport, onDelete, onBgChange, webdavConfig, onWebDAVConfigChange, aiConfig, onAIConfigChange }: LibraryProps) {
+export function Library({ uiTheme = 'glass', books, readingTime, onOpenBook, onImport, onDelete, onBgChange, onCustomBgChange, webdavConfig, onWebDAVConfigChange, aiConfig, onAIConfigChange }: LibraryProps) {
   const [libPage, setLibPage] = useState<LibPage>('books')
   const [transition, setTransition] = useState<'idle' | 'out' | 'in'>('idle')
   const [direction, setDirection] = useState<'up' | 'down' | 'left' | 'right'>('up')
@@ -122,7 +123,7 @@ export function Library({ uiTheme = 'glass', books, readingTime, onOpenBook, onI
           pointerEvents: transition !== 'idle' || libPage !== 'settings' ? 'none' : 'auto',
           ...settingsAnim,
         }}>
-          <SettingsPage bgKey={bgKey} onPresetChange={handlePresetChange} resetKey={settingsResetKey} visible={libPage === 'settings'} webdavConfig={webdavConfig ?? null} onWebDAVConfigChange={onWebDAVConfigChange} aiConfig={aiConfig ?? null} onAIConfigChange={onAIConfigChange} />
+          <SettingsPage bgKey={bgKey} onPresetChange={handlePresetChange} resetKey={settingsResetKey} visible={libPage === 'settings'} webdavConfig={webdavConfig ?? null} onWebDAVConfigChange={onWebDAVConfigChange} aiConfig={aiConfig ?? null} onAIConfigChange={onAIConfigChange} onCustomBgChange={onCustomBgChange} />
         </div>
       </div>
     </div>

@@ -8,6 +8,9 @@ export const IPC = {
   dialog: {
     openFile: 'dialog:openFile',
   },
+  wallpaper: {
+    select: 'wallpaper:select',
+  },
   file: {
     readFile: 'readFile',
     deleteFile: 'deleteFile',

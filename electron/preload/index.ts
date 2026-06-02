@@ -37,4 +37,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on(IPC.ai.token, handler)
     return () => ipcRenderer.removeListener(IPC.ai.token, handler)
   },
+
+  selectWallpaper: () => ipcRenderer.invoke(IPC.wallpaper.select),
 })

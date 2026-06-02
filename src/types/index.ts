@@ -90,6 +90,19 @@ export interface CustomPreset {
   theme: CustomTheme
 }
 
+export type BgType = 'preset' | 'color' | 'gradient' | 'image'
+
+export interface CustomBgConfig {
+  type: BgType
+  presetKey?: string
+  color?: string
+  gradient?: CustomTheme
+  imageData?: string
+  imageFit?: 'cover'
+}
+
+export const defaultCustomBg: CustomBgConfig = { type: 'preset', presetKey: 'deepPurple' }
+
 export const presetGradients: { label: string; stops: GradientStop[]; angle: number; type: GradientType }[] = [
   { label: '碧海', stops: [{ color: 'rgba(59,130,246,0.85)', position: 0 }, { color: 'rgba(16,42,67,0.95)', position: 100 }], angle: 135, type: 'linear' },
   { label: '极光', stops: [{ color: 'rgba(34,197,94,0.8)', position: 0 }, { color: 'rgba(6,78,59,0.9)', position: 100 }], angle: 135, type: 'linear' },

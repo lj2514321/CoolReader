@@ -168,6 +168,21 @@ ipcMain.handle(IPC.ai.stream, async (event, config, messages) => {
   return streamAI(config, messages, onToken)
 })
 
+ipcMain.handle(IPC.wallpaper.select, async () => {
+  const result = await dialog.showOpenDialog(mainWindow!, {
+    filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp'] }],
+    properties: ['openFile'],
+  })
+  if (result.canceled || result.filePaths.length === 0) return { error: null, data: null }
+  const filePath = result.filePaths[0]
+  const buf = fs.readFileSync(filePath)
+  const size = buf.length
+  if (size > 2 * 1024 * 1024) return { error: '文件超过 2MB 限制', data: null }
+  const ext = filePath.split('.').pop()?.toLowerCase() || 'png'
+  const base64 = buf.toString('base64')
+  return { error: null, data: `data:image/${ext};base64,${base64}` }
+})
+
 app.whenReady().then(() => {
   Menu.setApplicationMenu(null)
   createWindow()

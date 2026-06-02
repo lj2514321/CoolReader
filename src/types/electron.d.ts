@@ -30,6 +30,9 @@ interface ElectronAPI {
   aiStream: (config: AIConfig, messages: AIChatMessage[]) => Promise<string>
   onAIToken: (cb: (token: string) => void) => () => void
 
+  // Wallpaper
+  selectWallpaper: () => Promise<{ error: string | null; data: string | null }>
+
   // Settings
   saveSetting: (key: string, value: string) => Promise<void>
   loadSetting: (key: string) => Promise<string | null>
