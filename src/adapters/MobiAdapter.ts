@@ -8,23 +8,9 @@ import type {
   SelectionInfo,
 } from './BookAdapter'
 import type { ThemeMode, CustomTheme } from '../types'
-import { themeStyles, generateCustomThemeCSS as _genCustomCss } from '../types'
+import { themeStyles } from '../types'
+import { generateCustomThemeCSS } from '../utils/customTheme'
 import { logger } from '../utils/logger'
-
-// Avoid bundling the server-side custom theme util for renderer — use minimal inline CSS
-function generateCustomThemeCSS(theme: CustomTheme): string {
-  if (theme.type === 'solid' && theme.color) {
-    return `body, body * { background: ${theme.color} !important; color: ${theme.textColorLight || '#000'} !important; }`
-  }
-  if (theme.type === 'gradient' && theme.gradientStops?.length) {
-    const stops = theme.gradientStops.map(s => `${s.color} ${s.position}%`).join(', ')
-    if (theme.gradientType === 'radial') {
-      return `body, body * { background: radial-gradient(ellipse at center, ${stops}) !important; color: ${theme.textColorLight || '#000'} !important; }`
-    }
-    return `body, body * { background: linear-gradient(${theme.gradientAngle ?? 135}deg, ${stops}) !important; color: ${theme.textColorLight || '#000'} !important; }`
-  }
-  return ''
-}
 
 /**
  * MOBI format adapter. Uses @lingo-reader/mobi-parser for parsing,

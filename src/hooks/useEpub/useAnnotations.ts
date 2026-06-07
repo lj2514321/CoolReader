@@ -24,8 +24,8 @@ export function useAnnotations(shared: UseAnnotationsRefs) {
       setBookmarks(prev => prev.filter(b => b.id !== existing))
     } else {
       const toc = bookRef.current?.packaging?.metadata?.title || ''
-      const id = await dbAddBookmark({ filePath: fp, cfi: c, label: toc || 'Bookmark', createdAt: Date.now() })
-      setBookmarks(prev => [...prev, { id, filePath: fp, cfi: c, label: toc || 'Bookmark', createdAt: Date.now() }])
+      const id = await dbAddBookmark({ filePath: fp, cfi: c, location: c, label: toc || 'Bookmark', createdAt: Date.now() })
+      setBookmarks(prev => [...prev, { id, filePath: fp, cfi: c, location: c, label: toc || 'Bookmark', createdAt: Date.now() }])
     }
   }, [currentCfi])
 
@@ -39,8 +39,8 @@ export function useAnnotations(shared: UseAnnotationsRefs) {
     if (!info) return
     const fp = bookPathRef.current
     if (!fp) return
-    const id = await dbAddHighlight({ filePath: fp, cfiRange: info.cfiRange, text: info.text, note, color, createdAt: Date.now() })
-    setHighlights(prev => [...prev, { id, filePath: fp, cfiRange: info.cfiRange, text: info.text, note, color, createdAt: Date.now() }])
+    const id = await dbAddHighlight({ filePath: fp, cfiRange: info.cfiRange, location: info.cfiRange, text: info.text, note, color, createdAt: Date.now() })
+    setHighlights(prev => [...prev, { id, filePath: fp, cfiRange: info.cfiRange, location: info.cfiRange, text: info.text, note, color, createdAt: Date.now() }])
     try {
       renditionRef.current?.annotations?.highlight(info.cfiRange, {}, () => {}, 'epub-highlight', { fill: color, 'fill-opacity': '0.3' })
     } catch (e) { logger.warn('[addHighlight] annotation highlight failed', e) }
