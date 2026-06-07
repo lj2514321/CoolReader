@@ -1,5 +1,5 @@
 const DB_NAME = 'epub-reader'
-const DB_VERSION = 8
+const DB_VERSION = 9
 
 import { logger } from './logger'
 
@@ -9,8 +9,9 @@ function openDB(): Promise<IDBDatabase> {
   if (dbSingleton) return dbSingleton
   dbSingleton = new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION)
-    req.onupgradeneeded = () => {
+    req.onupgradeneeded = (event) => {
       const db = req.result
+      const oldVersion = event.oldVersion
       if (!db.objectStoreNames.contains('books')) {
         db.createObjectStore('books', { keyPath: 'filePath' })
       }
@@ -41,6 +42,43 @@ function openDB(): Promise<IDBDatabase> {
       }
       if (db.objectStoreNames.contains('bookReadingTime') && !req.transaction!.objectStore('bookReadingTime').indexNames.contains('date')) {
         req.transaction!.objectStore('bookReadingTime').createIndex('date', 'date', { unique: false })
+      }
+
+      // v8 -> v9: add format field to books, location field to progress (backward compat for multi-format ebook support)
+      if (oldVersion < 9) {
+        const tx = req.transaction!
+        if (tx) {
+          // Books: default format to 'epub' for existing entries
+          if (db.objectStoreNames.contains('books')) {
+            const bookStore = tx.objectStore('books')
+            bookStore.openCursor().onsuccess = (e) => {
+              const cursor = (e.target as IDBRequest).result
+              if (cursor) {
+                const book = cursor.value as BookRecord & { format?: string }
+                if (!book.format) {
+                  book.format = 'epub'
+                  cursor.update(book)
+                }
+                cursor.continue()
+              }
+            }
+          }
+          // Progress: copy cfi to location for existing entries
+          if (db.objectStoreNames.contains('progress')) {
+            const progressStore = tx.objectStore('progress')
+            progressStore.openCursor().onsuccess = (e) => {
+              const cursor = (e.target as IDBRequest).result
+              if (cursor) {
+                const p = cursor.value as ProgressRecord & { cfi?: string; location?: string }
+                if (p.cfi && !p.location) {
+                  p.location = p.cfi
+                  cursor.update(p)
+                }
+                cursor.continue()
+              }
+            }
+          }
+        }
       }
     }
     req.onsuccess = () => resolve(req.result)
