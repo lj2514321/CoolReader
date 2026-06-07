@@ -3,13 +3,16 @@ import ePub, { Book, Rendition } from 'epubjs'
 import type SpineItem from 'epubjs/types/section'
 import type View from 'epubjs/types/managers/view'
 import type { NavItem as EpubNavItem } from 'epubjs/types/navigation'
-import { BookMeta, NavItem, ThemeMode, themeStyles, ReaderLayout, defaultLayout, Bookmark, Highlight, CustomTheme, defaultCustomTheme, AnimationMode } from '../../types'
+import { BookMeta, NavItem, ThemeMode, themeStyles, ReaderLayout, defaultLayout, Bookmark, Highlight, CustomTheme, defaultCustomTheme, AnimationMode, BookFormat } from '../../types'
 import { loadProgress, loadReadingTime, loadSetting, loadBookmarks as dbLoadBookmarks, loadHighlights as dbLoadHighlights, saveBookReadingTime as persistBookReadingTime, loadBookReadingTime as dbLoadBookReadingTime, saveSetting } from '../../utils/db'
 import { enableSmoothScroll } from '../../utils/enableSmoothScroll'
 import { generateCustomThemeCSS } from '../../utils/customTheme'
 import { logger } from '../../utils/logger'
 import { BookAdapter } from '../../adapters/BookAdapter'
 import { EpubAdapter } from '../../adapters/EpubAdapter'
+import { TxtAdapter } from '../../adapters/TxtAdapter'
+import { MobiAdapter } from '../../adapters/MobiAdapter'
+import { getFormatFromPath } from '../../utils/formatDetection'
 
 export interface SharedRefs {
   /** @owner useBookEngine @readers [useReaderControls, useAnnotations, useSearch] @writers [useBookEngine] */
@@ -155,6 +158,57 @@ export function useBookEngine(shared: SharedRefs, opts: {
     sectionHrefRef.current = ''
     setCurrentCfi('')
     setSelectionInfo(null)
+
+    // T11: dispatch by format — TXT/MOBI use the new adapter flow, EPUB continues inline
+    const format: BookFormat = (() => {
+      try { return getFormatFromPath(filePath) } catch { return 'epub' }
+    })()
+    bookPathRef.current = filePath
+
+    if (format === 'txt' || format === 'mobi') {
+      const viewer = document.getElementById('viewer')
+      if (!viewer) {
+        logger.error('[openBook] viewer element not found')
+        return
+      }
+      viewer.innerHTML = ''
+      const newAdapter: BookAdapter = format === 'txt'
+        ? new TxtAdapter({ layout: layoutRef.current, theme: themeRef.current, customTheme: customThemeRef.current })
+        : new MobiAdapter({ layout: layoutRef.current, theme: themeRef.current, customTheme: customThemeRef.current })
+      try {
+        await newAdapter.open(filePath, viewer)
+      } catch (e) {
+        const msg = String(e)
+        logger.error('[openBook] txt/mobi open failed', e)
+        // Surface the error message to the viewer so the user sees it
+        viewer.innerHTML = `<div style="padding:40px;color:#fff;background:rgba(220,38,38,0.85);">打开文件失败: ${msg}</div>`
+        return
+      }
+      adapterRef.current = newAdapter
+      // Populate minimal state for TXT/MOBI
+      const meta = (() => {
+        const fname = filePath.split(/[\\/]/).pop() || ''
+        const base = fname.replace(/\.(txt|mobi|azw3|prc)$/i, '')
+        return { title: base, author: 'Unknown' }
+      })()
+      setMeta(meta)
+      const toc = newAdapter.getToc()
+      setToc(toc.map(t => ({ label: t.label, href: t.location })))
+      tocRef.current = toc.map(t => ({ label: t.label, href: t.location }))
+      // Try to load saved progress
+      try {
+        const saved = await loadProgress(filePath)
+        if (saved) {
+          await newAdapter.goToLocation(saved.location || saved.cfi)
+          const loc = newAdapter.getCurrentLocation()
+          progressRef.current = loc.progress
+          setProgress(loc.progress)
+        }
+      } catch (e) {
+        logger.warn('[openBook] load txt/mobi progress failed', e)
+      }
+      return
+    }
 
     const data = await readFile(filePath)
     const book = ePub(data)
