@@ -2,11 +2,12 @@ import { createClient, type WebDAVClient } from 'webdav'
 import { promises as fs } from 'fs'
 import path from 'path'
 import os from 'os'
-import type { WebDAVConfig } from '../../src/types'
+import type { WebDAVConfig, BookFormat } from '../../src/types'
 
 interface RemoteBook {
   fileName: string
   lastMod: string
+  format: BookFormat
 }
 
 interface BookProgress {
@@ -14,7 +15,10 @@ interface BookProgress {
   author: string
   progress: number
   cfi: string
+  /** Universal position string. For epub: CFI. For txt/mobi: 'chapterIdx:charOffset' */
+  location: string
   index: number
+  format?: BookFormat
   updatedAt: number
 }
 
@@ -22,16 +26,39 @@ interface ReadingTimeData {
   [date: string]: number
 }
 
-function createWebDAVClient(config: WebDAVConfig): WebDAVClient {
-  return createClient(config.url, {
-    username: config.username,
-    password: config.password,
-  })
+const SUPPORTED_EXTS = ['epub', 'txt', 'mobi', 'azw3', 'prc'] as const
+
+function detectFormatFromName(fileName: string): BookFormat | null {
+  const ext = fileName.toLowerCase().split('.').pop() || ''
+  if (ext === 'epub') return 'epub'
+  if (ext === 'txt') return 'txt'
+  if (ext === 'mobi' || ext === 'azw3' || ext === 'prc') return 'mobi'
+  return null
+}
+
+/** Strip extension and return basename. T12: format-agnostic. */
+function baseName(fileName: string): string {
+  return path.basename(fileName, path.extname(fileName))
+}
+
+function createWebDAVClient(config: WebDAVClient | WebDAVConfig): WebDAVClient {
+  if ('username' in config) {
+    return createClient((config as WebDAVConfig).url, {
+      username: (config as WebDAVConfig).username,
+      password: (config as WebDAVConfig).password,
+    })
+  }
+  return config as WebDAVClient
 }
 
 function booksDir(c: WebDAVConfig) { return `${c.path}/books`.replace(/\/+/g, '/') }
 function progressDir(c: WebDAVConfig) { return `${c.path}/progress`.replace(/\/+/g, '/') }
 function readingTimePath(c: WebDAVConfig) { return `${c.path}/readingTime.json`.replace(/\/+/g, '/') }
+
+/** T12: progress files live under format/<format>/<basename>.json to avoid cross-format collisions. */
+function progressPath(c: WebDAVConfig, format: BookFormat, base: string): string {
+  return `${progressDir(c)}/${format}/${base}.json`.replace(/\/+/g, '/')
+}
 
 async function ensureDir(client: WebDAVClient, dir: string) {
   try {
@@ -57,10 +84,15 @@ export async function listRemoteBooks(config: WebDAVConfig): Promise<RemoteBook[
   try {
     const items = await client.getDirectoryContents(dir) as any[]
     return items
-      .filter((i: any) => i.type === 'file' && i.filename.endsWith('.epub'))
+      .filter((i: any) => {
+        if (i.type !== 'file') return false
+        const ext = (i.filename || '').toLowerCase().split('.').pop() || ''
+        return (SUPPORTED_EXTS as readonly string[]).includes(ext)
+      })
       .map((i: any) => ({
         fileName: path.basename(i.filename),
         lastMod: i.lastmod || '',
+        format: detectFormatFromName(i.filename) || 'epub',
       }))
   } catch {
     return []
@@ -84,18 +116,24 @@ export async function downloadBook(config: WebDAVConfig, fileName: string, destP
 
 export async function uploadProgress(config: WebDAVConfig, fileName: string, data: BookProgress): Promise<void> {
   const client = createWebDAVClient(config)
-  await ensureDir(client, progressDir(config))
-  const remotePath = `${progressDir(config)}/${fileName}`
+  const format = data.format || detectFormatFromName(fileName) || 'epub'
+  const remotePath = progressPath(config, format, baseName(fileName))
+  await ensureDir(client, `${progressDir(config)}/${format}`)
   await client.putFileContents(remotePath, JSON.stringify(data), { overwrite: true })
 }
 
 export async function downloadProgress(config: WebDAVConfig, fileName: string): Promise<BookProgress | null> {
   const client = createWebDAVClient(config)
-  const remotePath = `${progressDir(config)}/${fileName}`
+  const format = detectFormatFromName(fileName) || 'epub'
+  const remotePath = progressPath(config, format, baseName(fileName))
   try {
     const buf = await client.getFileContents(remotePath) as ArrayBuffer
     const text = new TextDecoder().decode(buf)
-    return JSON.parse(text)
+    const parsed = JSON.parse(text) as BookProgress
+    // Backward compat: existing remote files may lack format/location
+    if (!parsed.format) parsed.format = format
+    if (!parsed.location) parsed.location = parsed.cfi || ''
+    return parsed
   } catch {
     return null
   }
@@ -125,8 +163,8 @@ export async function deleteRemoteFile(config: WebDAVConfig, remotePath: string)
 
 export async function syncAll(
   config: WebDAVConfig,
-  localBooks: { filePath: string; title: string; author: string; cover?: string }[],
-  localProgress: { filePath: string; progress: number; cfi: string; index: number; updatedAt: number }[],
+  localBooks: { filePath: string; title: string; author: string; cover?: string; format?: BookFormat }[],
+  localProgress: { filePath: string; progress: number; cfi: string; location?: string; index: number; format?: BookFormat; updatedAt: number }[],
   localReadingTime: { date: string; seconds: number }[],
   onProgress: (event: { phase: string; message: string; current?: number; total?: number }) => void,
 ): Promise<{ success: boolean; uploaded: number; downloaded: number; conflicts: number; errors: string[] }> {
@@ -171,14 +209,21 @@ export async function syncAll(
       }
     }
 
-    // 4. Sync progress (two-way, take newer by updatedAt)
+    // 4. Sync progress (two-way, take newer by updatedAt). T12: format-aware keys
     onProgress({ phase: 'progress', message: '同步阅读进度...' })
-    const localProgressMap = new Map(localProgress.map(p => [path.basename(p.filePath).replace('.epub', '.json'), p]))
+    // Build local progress map keyed by "<format>/<baseName>"
+    const localProgressMap = new Map<string, typeof localProgress[number]>()
+    for (const p of localProgress) {
+      const fmt = p.format || detectFormatFromName(p.filePath) || 'epub'
+      const key = `${fmt}/${baseName(p.filePath)}`
+      localProgressMap.set(key, p)
+    }
     for (const rb of remoteBooks) {
-      const progFileName = rb.fileName.replace('.epub', '.json')
+      const fmt = rb.format
+      const key = `${fmt}/${baseName(rb.fileName)}`
       try {
-        const remoteProg = await downloadProgress(config, progFileName)
-        const localProg = localProgressMap.get(progFileName)
+        const remoteProg = await downloadProgress(config, rb.fileName)
+        const localProg = localProgressMap.get(key)
 
         if (remoteProg && localProg) {
           if (remoteProg.updatedAt > localProg.updatedAt) {
@@ -186,13 +231,15 @@ export async function syncAll(
             result.conflicts++
           } else if (localProg.updatedAt > remoteProg.updatedAt) {
             // local is newer — upload
-            const book = localBooks.find(b => path.basename(b.filePath).replace('.epub', '') === rb.fileName.replace('.epub', ''))
-            await uploadProgress(config, progFileName, {
+            const book = localBooks.find(b => baseName(b.filePath) === baseName(rb.fileName) && (b.format || detectFormatFromName(b.filePath)) === fmt)
+            await uploadProgress(config, rb.fileName, {
               title: book?.title || '',
               author: book?.author || '',
               progress: localProg.progress,
               cfi: localProg.cfi,
+              location: localProg.location || localProg.cfi,
               index: localProg.index,
+              format: fmt,
               updatedAt: localProg.updatedAt,
             })
           }
@@ -200,17 +247,19 @@ export async function syncAll(
           // Remote progress exists but no local — downloaded books will need this applied
           result.conflicts++
         } else if (!remoteProg && localProg) {
-          await uploadProgress(config, progFileName, {
+          await uploadProgress(config, rb.fileName, {
             title: localBooks.find(b => b.filePath === localProg.filePath)?.title || '',
             author: localBooks.find(b => b.filePath === localProg.filePath)?.author || '',
             progress: localProg.progress,
             cfi: localProg.cfi,
+            location: localProg.location || localProg.cfi,
             index: localProg.index,
+            format: fmt,
             updatedAt: localProg.updatedAt,
           })
         }
       } catch (err: any) {
-        result.errors.push(`进度同步失败 ${progFileName}: ${err.message}`)
+        result.errors.push(`进度同步失败 ${rb.fileName}: ${err.message}`)
       }
     }
 
