@@ -8,6 +8,8 @@ import { loadProgress, loadReadingTime, loadSetting, loadBookmarks as dbLoadBook
 import { enableSmoothScroll } from '../../utils/enableSmoothScroll'
 import { generateCustomThemeCSS } from '../../utils/customTheme'
 import { logger } from '../../utils/logger'
+import { BookAdapter } from '../../adapters/BookAdapter'
+import { EpubAdapter } from '../../adapters/EpubAdapter'
 
 export interface SharedRefs {
   /** @owner useBookEngine @readers [useReaderControls, useAnnotations, useSearch] @writers [useBookEngine] */
@@ -52,6 +54,10 @@ export interface SharedRefs {
   hookRegistered: React.MutableRefObject<boolean>
   /** @owner useBookEngine @readers [useBookEngine] @writers [useBookEngine] */
   customThemeRef: React.MutableRefObject<CustomTheme>
+  /** @owner useBookEngine @readers [useBookEngine] @writers [useBookEngine] @added multi-format-ebook T4
+   *  Active BookAdapter for the currently open book. New consumers should prefer this over bookRef/renditionRef.
+   *  For epub books: EpubAdapter wrapping epub.js. For txt: TxtAdapter. For mobi: MobiAdapter. */
+  adapterRef: React.MutableRefObject<BookAdapter | null>
 }
 
 /**
@@ -95,7 +101,7 @@ export function useBookEngine(shared: SharedRefs, opts: {
   setSelectionInfo: React.Dispatch<React.SetStateAction<{ text: string; cfiRange: string; bounds: { top: number; left: number; width: number; height: number } } | null>>
 }) {
   const { applyLayout, saveBookReadingTime, setCurrentCfi, setBookmarks, setHighlights, setSelectionInfo } = opts
-  const { bookRef, renditionRef, syncRef, navigatingRef, progressRef, cfiRef, indexRef, sectionHrefRef, themeRef, layoutRef, setLayoutStateRef, totalSectionsRef, sessionStartRef, todaySecondsRef, bookTodayRef, bookSessionStartRef, bookPathRef, tocRef, hookRegistered, searchIndexRef, customThemeRef } = shared
+  const { bookRef, renditionRef, syncRef, navigatingRef, progressRef, cfiRef, indexRef, sectionHrefRef, themeRef, layoutRef, setLayoutStateRef, totalSectionsRef, sessionStartRef, todaySecondsRef, bookTodayRef, bookSessionStartRef, bookPathRef, tocRef, hookRegistered, searchIndexRef, customThemeRef, adapterRef } = shared
 
   const [meta, setMeta] = useState<BookMeta | null>(null)
   const [toc, setToc] = useState<NavItem[]>([])
@@ -136,6 +142,9 @@ export function useBookEngine(shared: SharedRefs, opts: {
       renditionRef.current?.destroy()
       bookRef.current.destroy()
     }
+    // Also destroy any existing adapter (T4: BookAdapter abstraction)
+    adapterRef.current?.destroy()
+    adapterRef.current = null
 
     setMeta(null)
     setToc([])
@@ -304,6 +313,16 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
     }
     rendition.themes.select(t)
 
+    // T4: populate BookAdapter for the new abstraction. Use the existing book/rendition/toc
+    // to avoid duplicating epub.js setup. Later (Txt/Mobi) will use the open() flow directly.
+    const epubAdapter = new EpubAdapter({
+      layout: layoutRef.current,
+      customTheme: customThemeRef.current,
+      theme: t,
+    })
+    epubAdapter.setBook(book, rendition, mapped, filePath, layoutRef.current, t, customThemeRef.current)
+    adapterRef.current = epubAdapter
+
     rendition.on('relocated', onRelocated)
 
     if (saved) {
@@ -414,6 +433,9 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
   }, [])
 
   const destroy = useCallback(() => {
+    // T4: also destroy the BookAdapter (calls underlying epub.js destroy for EpubAdapter)
+    adapterRef.current?.destroy()
+    adapterRef.current = null
     renditionRef.current?.destroy()
     bookRef.current?.destroy()
   }, [])

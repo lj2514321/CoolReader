@@ -5,6 +5,7 @@ import { useBookEngine, SharedRefs } from './useBookEngine'
 import { useReaderControls } from './useReaderControls'
 import { useAnnotations } from './useAnnotations'
 import { useSearch } from './useSearch'
+import { BookAdapter } from '../../adapters/BookAdapter'
 
 export function useEpub() {
   const shared: SharedRefs = {
@@ -29,6 +30,7 @@ export function useEpub() {
     searchIndexRef: useRef<{ href: string; text: string }[]>([]),
     hookRegistered: useRef(false),
     customThemeRef: useRef<CustomTheme>(defaultCustomTheme),
+    adapterRef: useRef<BookAdapter | null>(null),
   }
 
   const annotations = useAnnotations(shared)

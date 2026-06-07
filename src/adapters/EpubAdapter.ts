@@ -383,4 +383,19 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
   getFilePath(): string {
     return this.filePath
   }
+
+  /**
+   * T4 pragmatic helper: populate the adapter from an already-initialized book/rendition.
+   * Used by useBookEngine when migrating from inline epub.js setup to adapter pattern.
+   * For TxtAdapter/MobiAdapter, the open() flow is used directly.
+   */
+  setBook(book: Book, rendition: Rendition, toc: TocItem[], filePath: string, layout: EpubAdapterOptions['layout'], theme: ThemeMode, customTheme: CustomTheme): void {
+    this.book = book
+    this.rendition = rendition
+    this.toc = toc
+    this.filePath = filePath
+    this.layout = layout
+    this.theme = theme
+    this.customTheme = customTheme
+  }
 }
