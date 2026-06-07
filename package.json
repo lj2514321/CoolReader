@@ -39,6 +39,7 @@
     }
   },
   "dependencies": {
+    "@lingo-reader/mobi-parser": "^0.4.6",
     "chardet": "^2.1.1",
     "epubjs": "^0.3.93",
     "iconv-lite": "^0.7.2",
