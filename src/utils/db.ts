@@ -65,6 +65,7 @@ export interface BookRecord {
   title: string
   author: string
   lastOpenedAt?: number
+  format?: import('../types').BookFormat
 }
 
 export async function saveBook(book: BookRecord): Promise<void> {
@@ -151,25 +152,31 @@ export interface ProgressRecord {
   filePath: string
   progress: number
   cfi: string
+  /** Universal position string. For epub: CFI. For txt/mobi: 'chapterIdx:charOffset' */
+  location: string
   index: number
   chapterLabel?: string
   updatedAt: number
 }
 
-export async function saveProgress(filePath: string, progress: number, cfi: string, index: number, chapterLabel?: string): Promise<void> {
+export async function saveProgress(filePath: string, progress: number, cfi: string, index: number, chapterLabel?: string, location?: string): Promise<void> {
   if (!cfi) logger.warn('[saveProgress] cfi is empty, index:', index)
   const db = await openDB()
   await requestPromise(store(db, 'progress', 'readwrite').put({
-    filePath, progress, cfi, index, chapterLabel,
+    filePath, progress, cfi, location: location ?? cfi, index, chapterLabel,
     updatedAt: Date.now(),
   }))
 }
 
-export async function loadProgress(filePath: string): Promise<{ progress: number; cfi: string; index: number } | null> {
+export async function loadProgress(filePath: string): Promise<{ progress: number; cfi: string; location?: string; index: number } | null> {
   const db = await openDB()
   return new Promise((resolve) => {
     const req = store(db, 'progress').get(filePath)
-    req.onsuccess = () => resolve(req.result ?? null)
+    req.onsuccess = () => {
+      const r = req.result
+      if (!r) return resolve(null)
+      resolve(r)
+    }
     req.onerror = () => resolve(null)
   })
 }

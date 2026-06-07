@@ -17,6 +17,7 @@ export interface BookEntry {
   lastOpenedAt?: number
   progress?: number
   chapterLabel?: string
+  format?: BookFormat
 }
 
 export interface WebDAVConfig {
@@ -51,6 +52,8 @@ export interface AIChatMessage {
   role: 'system' | 'user' | 'assistant'
   content: string
 }
+
+export type BookFormat = 'epub' | 'txt' | 'mobi'
 
 export type AnimationMode = 'fade' | 'slide' | 'blur-focus' | 'slide-fade'
 
@@ -143,6 +146,8 @@ export interface Bookmark {
   id?: number
   filePath: string
   cfi: string
+  /** Universal position string. For epub: CFI. For txt/mobi: 'chapterIdx:charOffset' */
+  location: string
   label: string
   createdAt: number
 }
@@ -150,7 +155,10 @@ export interface Bookmark {
 export interface Highlight {
   id?: number
   filePath: string
+  /** @deprecated kept for backward compat with existing epub highlights */
   cfiRange: string
+  /** Universal position string. For epub: CFI range. For txt/mobi: 'chapterIdx:startOffset-endOffset' */
+  location: string
   text: string
   note?: string
   color: string
