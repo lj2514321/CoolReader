@@ -57,6 +57,12 @@ interface BookShelfProps {
   onDelete: (filePath: string, deleteFile: boolean) => void
 }
 
+const FORMAT_LABELS: Record<string, string> = {
+  epub: 'EPUB',
+  txt: 'TXT',
+  mobi: 'MOBI',
+}
+
 const BookCard = memo(function BookCard({ book, i, onOpenBook, onContextMenu }: {
   book: BookEntry; i: number; onOpenBook: (fp: string) => void; onContextMenu: (fp: string) => void
 }) {
@@ -64,6 +70,8 @@ const BookCard = memo(function BookCard({ book, i, onOpenBook, onContextMenu }: 
   const coverUrl = useBookCover(book.filePath, book.meta.coverMime)
 
   const displayCover = coverUrl ?? book.meta.cover
+  const format = book.format || 'epub' // default to epub for backward compat
+  const formatLabel = FORMAT_LABELS[format] || format.toUpperCase()
   return (
     <div
       className="book-card"
@@ -73,6 +81,10 @@ const BookCard = memo(function BookCard({ book, i, onOpenBook, onContextMenu }: 
       <div className={`book-cover-container ${!displayCover ? 'book-cover-gradient' : ''}`}
         style={!displayCover ? { background: `linear-gradient(135deg, ${c1}, ${c2})` } : undefined}
       >
+        {/* T13: format badge */}
+        <div className="book-format-badge" title={`格式: ${formatLabel}`}>
+          {formatLabel}
+        </div>
         {displayCover ? (
           <img src={displayCover} alt={book.meta.title} className="book-cover-img" />
         ) : (
