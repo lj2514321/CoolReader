@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import type { Page } from '../types'
+import { isSupportedFile } from '../utils/formatDetection'
 
 export function useDragDrop(page: Page, doImport: (path: string) => Promise<void> | void) {
   const [isDragging, setIsDragging] = useState(false)
@@ -24,8 +25,9 @@ export function useDragDrop(page: Page, doImport: (path: string) => Promise<void
     if (page !== 'library') return
     const file = e.dataTransfer.files[0]
     if (!file) return
-    if (!file.name.endsWith('.epub')) {
-      setToast(`不支持的文件格式: ${file.name}，仅支持 EPUB 文件`)
+    // T7: accept epub/txt/mobi/azw3/prc
+    if (!isSupportedFile(file.name)) {
+      setToast(`不支持的文件格式: ${file.name}，仅支持 EPUB/TXT/MOBI 文件`)
       return
     }
     const filePath = file.path

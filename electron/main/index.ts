@@ -92,7 +92,8 @@ ipcMain.on(IPC.window.toggleFullscreen, () => {
 
 ipcMain.handle(IPC.dialog.openFile, async () => {
   const result = await dialog.showOpenDialog(mainWindow!, {
-    filters: [{ name: 'EPUB', extensions: ['epub'] }],
+    // T7: accept txt/mobi/azw3/prc alongside epub
+    filters: [{ name: '电子书', extensions: ['epub', 'txt', 'mobi', 'azw3', 'prc'] }],
     properties: ['openFile'],
   })
   if (result.canceled || result.filePaths.length === 0) return null
@@ -101,6 +102,13 @@ ipcMain.handle(IPC.dialog.openFile, async () => {
 
 ipcMain.handle(IPC.file.readFile, async (_e, filePath: string) => {
   logger.info('[main] readFile:', path.basename(filePath))
+  // T6: 50MB file size precheck
+  const stat = await fs.stat(filePath)
+  const MAX_FILE_SIZE = 50 * 1024 * 1024
+  if (stat.size > MAX_FILE_SIZE) {
+    const sizeMB = (stat.size / 1024 / 1024).toFixed(1)
+    throw new Error(`文件超过 50MB 限制（当前 ${sizeMB}MB），请使用更小的文件`)
+  }
   const buf = await fs.readFile(filePath)
   logger.info('[main] readFile done, size:', buf.length)
   return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)

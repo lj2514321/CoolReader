@@ -343,7 +343,7 @@ export default function App() {
           flexDirection: 'column', gap: 16,
         }}>
           <div style={{ fontSize: 56, opacity: 0.7 }}>📖</div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: '#fff', opacity: 0.8 }}>释放以导入 EPUB 文件</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: '#fff', opacity: 0.8 }}>释放以导入电子书文件</div>
         </div>
       )}
     </div>
