@@ -120,9 +120,21 @@ export function useBookEngine(shared: SharedRefs, opts: {
 
   const extractMeta = useCallback(async (filePath: string): Promise<BookMeta & { coverData?: ArrayBuffer }> => {
     const data = await readFile(filePath)
-    const book = ePub(data)
+    // Convert Uint8Array to ArrayBuffer if needed
+    const bookData: ArrayBuffer = data instanceof ArrayBuffer
+      ? data
+      : (data as Uint8Array).buffer.slice(
+          (data as Uint8Array).byteOffset,
+          (data as Uint8Array).byteOffset + (data as Uint8Array).byteLength
+        ) as ArrayBuffer
+    const book = ePub(bookData)
     await book.ready
-    const { title, creator } = book.packaging.metadata
+    const pkg = book.packaging
+    const meta = pkg?.metadata
+    const { title, creator } = {
+      title: meta?.title || 'Untitled',
+      creator: meta?.creator || 'Unknown'
+    }
     let coverData: ArrayBuffer | undefined
     let coverMime: string | undefined
     try {
