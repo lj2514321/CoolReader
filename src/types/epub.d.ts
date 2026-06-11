@@ -55,6 +55,11 @@ declare module 'epubjs' {
     length: number
   }
 
+  // Declaration merge: extend Spine.items element type for href access
+  interface Spine {
+    items: Array<{ href?: string; index?: number }>
+  }
+
   interface Book {
     spine: Spine
     archive: {
@@ -63,8 +68,31 @@ declare module 'epubjs' {
     packaging?: {
       metadata?: {
         title?: string
+        creator?: string
       }
     }
+    // v1.5.3 extensions for EpubAdapter / useBookEngine
+    readonly ready: Promise<void>
+    readonly loaded: {
+      navigation: Promise<{
+        toc: Array<{
+          id: string
+          href: string
+          label: string
+          subitems?: NavItem[]
+          parent?: string
+        }>
+      }>
+    }
+    renderTo(target: HTMLElement | string, options?: {
+      width?: string | number
+      height?: string | number
+      spread?: string
+      allowScriptedContent?: boolean
+      flow?: string
+    }): Rendition
+    coverUrl(): Promise<string | null>
+    search(query: string): Promise<Array<{ cfi?: string; excerpt?: string }>>
     destroy(): void
   }
 
@@ -84,15 +112,40 @@ declare module 'epubjs' {
     themes: {
       select(theme: string): void
       registerCss(css: string): void
+      registerCss(name: string, css?: string): void
     }
     annotations?: Annotations
     destroy(): void
     manager?: Manager
     getCfiFromRange(range: Range): string
+    // v1.5.3 extensions
+    readonly currentLocation: () => {
+      start?: {
+        cfi: string
+        index: number
+        href?: string
+      }
+    } | undefined
+    readonly hooks: {
+      content: {
+        register(cb: (view: View) => void): void
+      }
+    }
+  }
+
+  // Declaration merge: extend Rendition with spine href access
+  interface Rendition {
+    themes: {
+      select(theme: string): void
+      registerCss(css: string): void
+      registerCss(name: string, css?: string): void
+    }
   }
 
   export default function ePub(input: string | ArrayBuffer): Book
   export { Book, Rendition }
+  // Re-export View from submodule so EpubAdapter import works
+  export type { View } from 'epubjs/types/managers/view'
 }
 
 declare module 'epubjs/types/navigation' {
@@ -103,4 +156,6 @@ declare module 'epubjs/types/navigation' {
     subitems?: NavItem[]
     parent?: string
   }
+  // Alias for backward compat with code using EpubNavItem
+  export type EpubNavItem = NavItem
 }
