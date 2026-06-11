@@ -32,7 +32,6 @@ function TocList({ items, onNavigate, activeHref, depth = 0, btnRefs }: {
               onClick={() => onNavigate(item.href)}
               className={`sidebar-toc-btn${isActive ? ' sidebar-toc-btn-active' : ''} sidebar-toc-btn-depth-${depth}`}
             >{item.label}</button>
-            {/* @ts-expect-error subitems is optional, guard with ?? [] for length check */}
             {(item.subitems ?? []).length > 0 && (
               <TocList items={item.subitems ?? []} onNavigate={onNavigate} activeHref={activeHref} depth={depth + 1} btnRefs={btnRefs} />
             )}
