@@ -1,4 +1,5 @@
-import '../styles/components/titlebar.css';
+import '../styles/components/titlebar.css'
+import { X } from 'lucide-react'
 
 export function TitleBar() {
   return (
@@ -17,7 +18,7 @@ export function TitleBar() {
         <button
           onClick={() => window.electronAPI?.close()}
           className="titlebar-btn close"
-        >✕</button>
+        ><X size={16} /></button>
       </div>
     </div>
   )

@@ -13,6 +13,7 @@ import { EpubAdapter } from '../../adapters/EpubAdapter'
 import { TxtAdapter } from '../../adapters/TxtAdapter'
 import { MobiAdapter } from '../../adapters/MobiAdapter'
 import { getFormatFromPath } from '../../utils/formatDetection'
+import { initMobiFile } from '@lingo-reader/mobi-parser'
 
 export interface SharedRefs {
   /** @owner useBookEngine @readers [useReaderControls, useAnnotations, useSearch] @writers [useBookEngine] */
@@ -111,6 +112,7 @@ export function useBookEngine(shared: SharedRefs, opts: {
   const [theme, setThemeState] = useState<ThemeMode>('light')
   const [progress, setProgress] = useState(0)
   const [layout, setLayoutState] = useState<ReaderLayout>(defaultLayout)
+  const adapterSyncTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   setLayoutStateRef.current = setLayoutState
 
@@ -119,8 +121,52 @@ export function useBookEngine(shared: SharedRefs, opts: {
   }, [])
 
   const extractMeta = useCallback(async (filePath: string): Promise<BookMeta & { coverData?: ArrayBuffer }> => {
+    const format: BookFormat = (() => {
+      try { return getFormatFromPath(filePath) } catch { return 'epub' }
+    })()
+
+    // TXT: use filename as title, no cover
+    if (format === 'txt') {
+      const fname = filePath.split(/[\\/]/).pop() || ''
+      const base = fname.replace(/\.txt$/i, '')
+      return { title: base || 'Untitled', author: 'Unknown' }
+    }
+
+    // MOBI/AZW3/PRC: use mobi-parser to extract metadata
+    if (format === 'mobi') {
+      const data = await readFile(filePath)
+      const buffer: ArrayBuffer = data instanceof ArrayBuffer
+        ? data
+        : (data as Uint8Array).buffer.slice(
+            (data as Uint8Array).byteOffset,
+            (data as Uint8Array).byteOffset + (data as Uint8Array).byteLength
+          ) as ArrayBuffer
+      try {
+        const mobi = await initMobiFile(new Uint8Array(buffer))
+        const title = (mobi as any).metadata?.title || ''
+        const author = (mobi as any).metadata?.author || ''
+        let coverData: ArrayBuffer | undefined
+        let coverMime: string | undefined
+        try {
+          const cover = mobi.getCoverImage?.()
+          if (cover && typeof cover !== 'string') {
+            const view = cover as Uint8Array
+            coverData = view.buffer.slice(view.byteOffset, view.byteOffset + view.byteLength) as ArrayBuffer
+            coverMime = 'image/png'
+          }
+        } catch { /* no cover */ }
+        mobi.destroy()
+        return { title: title || 'Untitled', author: author || 'Unknown', coverData, coverMime }
+      } catch {
+        // Fallback to filename
+        const fname = filePath.split(/[\\/]/).pop() || ''
+        const base = fname.replace(/\.(mobi|azw3|prc)$/i, '')
+        return { title: base || 'Untitled', author: 'Unknown' }
+      }
+    }
+
+    // EPUB: use epub.js
     const data = await readFile(filePath)
-    // Convert Uint8Array to ArrayBuffer if needed
     const bookData: ArrayBuffer = data instanceof ArrayBuffer
       ? data
       : (data as Uint8Array).buffer.slice(
@@ -157,9 +203,19 @@ export function useBookEngine(shared: SharedRefs, opts: {
       renditionRef.current?.destroy()
       bookRef.current.destroy()
     }
+    // Clean up selection listener from previous adapter
+    const prevAdapter = adapterRef.current
+    if (prevAdapter && (prevAdapter as any)._selectionHandler) {
+      const target = (prevAdapter as any)._selectionTarget as HTMLElement | null
+      if (target) target.removeEventListener('mouseup', (prevAdapter as any)._selectionHandler)
+    }
     // Also destroy any existing adapter (T4: BookAdapter abstraction)
     adapterRef.current?.destroy()
     adapterRef.current = null
+
+    // Reset hook flag so the content hook (font-size/family/weight/line-height CSS +
+    // selection script) is re-registered for each new epub rendition
+    hookRegistered.current = false
 
     setMeta(null)
     setToc([])
@@ -197,16 +253,82 @@ export function useBookEngine(shared: SharedRefs, opts: {
         return
       }
       adapterRef.current = newAdapter
-      // Populate minimal state for TXT/MOBI
-      const meta = (() => {
+
+      // syncRef for txt/mobi: call adapter.getCurrentLocation() to update progress/cfi/index refs
+      syncRef.current = () => {
+        const loc = newAdapter.getCurrentLocation()
+        progressRef.current = loc.progress
+        cfiRef.current = loc.location
+        indexRef.current = loc.chapterIdx
+        setProgress(loc.progress)
+        setCurrentCfi(loc.location)
+      }
+
+      // Periodic sync: pick up scroll-driven position changes between next/prev calls
+      if (adapterSyncTimerRef.current) clearInterval(adapterSyncTimerRef.current)
+      adapterSyncTimerRef.current = setInterval(() => {
+        if (adapterRef.current === newAdapter) {
+          syncRef.current()
+        }
+      }, 1000)
+
+      // Initialize reading time tracking (same as epub branch)
+      const today = new Date().toISOString().slice(0, 10)
+      todaySecondsRef.current = await loadReadingTime(today)
+      sessionStartRef.current = Date.now()
+      bookTodayRef.current = await dbLoadBookReadingTime(filePath, today)
+      bookSessionStartRef.current = Date.now()
+
+      // Populate state for TXT/MOBI using extractMeta (filename fallback if it fails)
+      let meta: { title: string; author: string; cover?: string; coverData?: ArrayBuffer; coverMime?: string } = { title: filePath.split(/[\\/]/).pop() || '', author: 'Unknown' }
+      try {
+        meta = await extractMeta(filePath)
+      } catch (e) {
+        logger.warn('[openBook] extractMeta failed, using filename fallback', e)
         const fname = filePath.split(/[\\/]/).pop() || ''
         const base = fname.replace(/\.(txt|mobi|azw3|prc)$/i, '')
-        return { title: base, author: 'Unknown' }
-      })()
+        meta = { title: base || 'Untitled', author: 'Unknown' }
+      }
       setMeta(meta)
       const toc = newAdapter.getToc()
       setToc(toc.map(t => ({ label: t.label, href: t.location })))
       tocRef.current = toc.map(t => ({ label: t.label, href: t.location }))
+
+      // Selection capture for TXT/MOBI (EPUB uses postMessage from iframe)
+      const handleSelection = () => {
+        setTimeout(() => {
+          const adapter = adapterRef.current
+          if (!adapter) return
+          try {
+            const info = adapter.getSelectionInfo()
+            if (info.range) {
+              // Compute bounds from the selection range
+              const sel = window.getSelection()
+              let bounds = { top: 200, left: 200, width: 0, height: 0 }
+              if (sel && sel.rangeCount > 0) {
+                const rect = sel.getRangeAt(0).getBoundingClientRect()
+                bounds = { top: rect.top, left: rect.left, width: rect.width, height: rect.height }
+              }
+              setSelectionInfo({ text: info.selectedText, cfiRange: info.range.location, bounds })
+            } else {
+              setSelectionInfo(null)
+            }
+          } catch { /* ignore */ }
+        }, 50)
+      }
+      // For MOBI, content lives in an iframe whose events don't bubble to viewer
+      let selectionTarget: HTMLElement | Document = viewer
+      if (format === 'mobi') {
+        const iframe = viewer.querySelector('iframe')
+        if (iframe?.contentDocument) {
+          selectionTarget = iframe.contentDocument
+        }
+      }
+      selectionTarget.addEventListener('mouseup', handleSelection)
+      // Store for cleanup
+      ;(newAdapter as any)._selectionHandler = handleSelection
+      ;(newAdapter as any)._selectionTarget = selectionTarget
+
       // Try to load saved progress
       try {
         const saved = await loadProgress(filePath)
@@ -218,6 +340,22 @@ export function useBookEngine(shared: SharedRefs, opts: {
         }
       } catch (e) {
         logger.warn('[openBook] load txt/mobi progress failed', e)
+      }
+
+      // Load bookmarks and highlights
+      try {
+        const bms = await dbLoadBookmarks(filePath)
+        setBookmarks(bms)
+        const hls = await dbLoadHighlights(filePath)
+        setHighlights(hls)
+        // Restore highlights via adapter
+        for (const hl of hls) {
+          try {
+            await newAdapter.addHighlight({ location: hl.location || hl.cfiRange, text: hl.text, color: hl.color })
+          } catch (e) { logger.warn('[openBook] restore txt/mobi highlight failed', e) }
+        }
+      } catch (e) {
+        logger.warn('[openBook] load txt/mobi bookmarks/highlights failed', e)
       }
       return
     }
@@ -300,15 +438,16 @@ export function useBookEngine(shared: SharedRefs, opts: {
           doc.head.appendChild(style)
         }
         style.textContent = `
-          body, body * {
+          body {
             font-size: ${l.fontSize}% !important;
             font-family: ${l.fontFamily} !important;
             font-weight: ${l.fontWeight} !important;
             line-height: ${l.lineHeight} !important;
-          }
-          body {
             padding: 0 ${l.margin}px !important;
             max-width: 100% !important;
+          }
+          body *:not(h1):not(h2):not(h3):not(h4):not(h5):not(h6):not(code):not(pre) {
+            font-family: ${l.fontFamily} !important;
           }
         `
 
@@ -435,6 +574,7 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
   useEffect(() => {
     const handler = (e: MessageEvent) => {
       if (e.data?.type === 'reader-text-selected') {
+        if (adapterRef.current?.format !== 'epub') return
         setTimeout(() => {
           const iframe = document.querySelector<HTMLIFrameElement>('#viewer iframe')
           const sel = iframe?.contentDocument?.getSelection()
@@ -457,6 +597,16 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
     themeRef.current = t
     setThemeState(t)
     saveSetting('readerTheme', t)
+    const adapter = adapterRef.current
+    if (adapter) {
+      try {
+        if (t === 'custom') {
+          adapter.applyCustomThemeCSS(generateCustomThemeCSS(customThemeRef.current))
+        }
+        adapter.applyTheme(t)
+      } catch (e) { logger.error('[setTheme] adapter failed:', e) }
+      return
+    }
     try {
       if (t === 'custom') {
         const ct = customThemeRef.current
@@ -473,6 +623,14 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
   const setCustomTheme = useCallback((ct: CustomTheme) => {
     customThemeRef.current = ct
     saveSetting('customTheme', JSON.stringify(ct))
+    const adapter = adapterRef.current
+    if (adapter) {
+      try {
+        adapter.applyCustomThemeCSS(generateCustomThemeCSS(ct))
+        adapter.applyTheme('custom')
+      } catch (e) { logger.error('[setCustomTheme] adapter failed:', e) }
+      return
+    }
     try {
       renditionRef.current?.themes.registerCss('custom', generateCustomThemeCSS(ct))
       renditionRef.current?.themes.select('custom')
@@ -495,6 +653,11 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
 
   const resizeViewer = useCallback(() => {
     if (navigatingRef.current) return
+    const adapter = adapterRef.current
+    if (adapter) {
+      try { adapter.resize() } catch (e) { logger.warn('[resizeViewer] adapter failed:', e) }
+      return
+    }
     try {
       renditionRef.current?.resize()
     } catch (e) {
@@ -503,11 +666,27 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
   }, [])
 
   const destroy = useCallback(() => {
-    // T4: also destroy the BookAdapter (calls underlying epub.js destroy for EpubAdapter)
+    // Clear periodic adapter sync timer
+    if (adapterSyncTimerRef.current) {
+      clearInterval(adapterSyncTimerRef.current)
+      adapterSyncTimerRef.current = null
+    }
+    // Clean up selection listener for TXT/MOBI adapters
+    const adapter = adapterRef.current
+    if (adapter && (adapter as any)._selectionHandler) {
+      const target = (adapter as any)._selectionTarget as HTMLElement | Document | null
+      if (target) {
+        target.removeEventListener('mouseup', (adapter as any)._selectionHandler)
+      }
+      ;(adapter as any)._selectionHandler = null
+      ;(adapter as any)._selectionTarget = null
+    }
+    // Destroy via adapter (EpubAdapter internally destroys rendition+book)
     adapterRef.current?.destroy()
     adapterRef.current = null
-    renditionRef.current?.destroy()
-    bookRef.current?.destroy()
+    // Clear legacy refs (EpubAdapter.destroy already called rendition/book.destroy)
+    renditionRef.current = null
+    bookRef.current = null
   }, [])
 
   return {

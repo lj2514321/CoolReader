@@ -1,5 +1,65 @@
 # Changelog
 
+## [1.5.4] — 2026-06-15
+
+### 多格式适配器路由修复 & UI 优化
+
+**UX 一致性优化（UX Consistency Improvements）**
+
+- **TXT/MOBI 滚动进度同步**：TxtAdapter 添加 scroll 事件监听实时更新 `charOffset`，MobiAdapter 监听 iframe body `scrollTop`；`useBookEngine` 新增 1 秒周期性 `syncRef.current()` 定时器，确保 useProgressTimer 正确捕获 TXT/MOBI 阅读进度
+- **高亮持久化修复**：`addHighlight` 移除章节匹配守卫，所有高亮无论当前章节均存入 `highlightIdMap` 和 IndexedDB，`renderCurrentChapter()` 重新应用已有高亮
+- **自定义深色主题**：Reader.tsx 动态计算 CustomTheme 背景色和亮度，通过 `getLuminance` 判断 `data-theme="dark"` 或 `"light"`，修复自定义主题下面板文字不可见
+- **滚动模式 UI 显示**：添加 `window.mousemove` 监听器调用 `showControls()`，滚动阅读时鼠标移动自动显示控制栏
+- **高亮备注输入**：`window.prompt()` 替换为内联输入框（`.reader-hl-note-input`），选区工具栏展开式备注编辑
+- **AI 按钮主题适配**：`.reader-ai-btn` 从内联硬编码渐变改为 CSS 类，light/sepia 用 `#818cf8→#a78bfa`，dark 用 `#667eea→#764ba2`
+- **错误提示统一**：App.tsx 顶部错误横幅改为底部 toast（`.app-toast`），与拖拽导入 toast 合并为统一组件，5 秒自动消失
+- **共享加载动画**：`tokens.css` 新增 `.shared-spinner` CSS 动画（主题感知），ReadingStats 和 AIPanel 统一使用
+- **inline hover → CSS :hover**：ReaderMarkersPanel 书签/高亮删除按钮、ReaderSearchPanel 搜索结果从 `onMouseEnter/onMouseLeave` 改为 CSS 类 `:hover`
+- **书签标签优化**：TxtAdapter 使用章节文本前 30 字符，MobiAdapter 新增 `findTocLabelForChapter()` 从 TOC 递归查找章节标题
+- **SettingsPage 扁平模式**：tab 按钮、标签文字、颜色预览、占位符从内联 `rgba(255,255,255,...)` 迁移到 CSS 类（`.settings-bg-tab`、`.settings-section-label`、`.settings-color-preview`、`.settings-placeholder`），含扁平主题覆盖
+- **书架 CSS Token 迁移**：`.book-title`、`.book-author`、`.book-chapter`、`.book-timestamp`、`.book-format-badge`、`.book-progress-bar`、`.continue-reading-progress-bar/meta`、`.continue-reading-section-title`、`.goal-mini` 全部从硬编码 `rgba(255,255,255,...)` 迁移到 `var(--book-*)` 设计 Token
+- **书架扁平主题补全**：新增 `delete-modal-title/desc`、`modal-btn-cancel` 扁平覆盖；ContinueReadingCard 移除硬编码渐变
+- **EPUB 字体渲染修复**：`body, body * { font-family !important }` 改为双层选择器 — `body` 设置基础字体，`body *:not(h1-h6, code, pre)` 强制覆盖正文元素字体，标题保留书籍自身字体和粗细
+- **字体热切换**：所有 4 处 EPUB iframe 注入、TxtAdapter、MobiAdapter 的 `applyLayout()` 和 `renderCurrentChapter()` 均支持 font-family/font-weight 即时更新
+
+**多格式支持修复（Multi-Format Adapter Routing Fix）**
+
+- **hooks 层全面接入 BookAdapter**：`useReaderControls`、`useAnnotations`、`useSearch` 所有函数优先走 `adapterRef`，fallback 到 epub.js 的 `renditionRef`/`bookRef`，确保 TXT/MOBI 格式的翻页、搜索、高亮、书签、主题切换、布局调整全部正常工作
+- **BookAdapter 接口扩展**：新增 `applyLayout()`、`flow()`、`resize()` 三个方法，三个适配器均实现
+- **extractMeta 按格式分流**：TXT 用文件名作标题，MOBI 用 `initMobiFile` 提取元数据和封面，EPUB 走 epub.js — 修复 TXT 文件导入崩溃问题
+- **TxtAdapter offset 计算修复**：用正则 `exec` 记录实际分隔位置替代固定 `+2`，修复书签/高亮定位偏差
+- **选区捕获**：TXT/MOBI 新增 `mouseup` 监听器调用 `adapter.getSelectionInfo()`，支持文本选择工具栏
+- **高亮恢复**：TXT/MOBI 重新打开书籍时通过 `adapter.addHighlight()` 恢复已保存高亮
+- **避免双重销毁**：`destroy()` 只调 `adapterRef.destroy()`，不再重复调用 `rendition.destroy()`/`book.destroy()`
+- **postMessage handler 优化**：非 epub 格式时提前 return，避免无用的 iframe 查询
+- **EPUB 翻页动画修复**：`goNext`/`goPrev` 按 `adapter.format` 区分 — EPUB 走动画路径，TXT/MOBI 跳过动画
+
+**Bug 修复**
+
+- **saveProgress 空 cfi 警告**：条件改为 `!cfi && !location`，有 location 时不产生日志噪音
+- **bookReadingTime 孤立记录**：`deleteBook` 新增清理逻辑，删除书时同步清除关联的阅读时间记录
+- **reader-btn-active 样式丢失**：选中状态按钮自包含完整基础样式，不再依赖 `reader-btn` class 同时存在
+- **hookRegistered 从不复位**：`hookRegistered.current = false` 加入清理块，每次打开新 EPUB 都重新注册 content hook，修复第二本及后续 EPUB 丢失布局样式和选区脚本的问题
+- **MOBI 选区监听失效**：mouseup 监听从 `#viewer` div 改为 `iframe.contentDocument`，MOBI 文本选择现在正常捕获
+- **TXT/MOBI 阅读时间追踪**：`sessionStartRef`/`todaySecondsRef`/`bookSessionStartRef`/`bookTodayRef` 在 TXT/MOBI 分支初始化，阅读时长统计现在正常
+- **TXT/MOBI 元数据**：调用 `extractMeta` 获取真实书名/作者/封面（失败才降级为文件名）
+- **removeHighlight 视觉残留**：adapter 路径现在调用 `clearHighlights()` 后重新应用剩余高亮，保持 DOM 与 DB 一致
+- **TXT 高亮 DOM 覆盖**：`applyHighlightInDom` 改为一次性按所有高亮边界分段重建，不再 `innerHTML = ''` 逐个覆盖
+- **MOBI scrollTop 失效**：`overflow-y: hidden` 改为 `auto`；`renderCurrentChapter` 后恢复 scrollOffset
+- **MOBI prev 章末定位**：切换到上一章时滚动到底部而非顶部
+- **syncRef 在 TXT/MOBI 未设置**：txt/mobi 分支设置基于 `adapter.getCurrentLocation()` 的同步函数
+- **EpubAdapter applyLayout 失效**：直接更新当前 iframe 文档的 `_reader_layout` style 元素，不再只调 `themes.select()`
+- **custom 主题背景闪烁**：`themeBg` Record 新增 `custom` key，默认浅色
+- **TXT 分页精确化**：用 DOM `scrollHeight / clientHeight` 实测替代字符估算；翻页时自动滚动到 `charOffset` 对应位置
+- **MOBI 章内翻页**：按视口高度分页滚动，长章节不再一次性全显示；进度含滚动位置
+
+**UI 优化**
+
+- **Aa 布局面板定位**：从 top bar 内部移到 Reader 根容器，`position: absolute; top: 56px; right: 16px`，在顶栏下方展开
+- **面板尺寸约束**：`max-width: 280px; max-height: calc(100vh - 120px); overflow-y: auto`，自定义主题展开时不再溢出
+- **按钮去边框化**：移除主题按钮的 `border: 2px solid` 框线，统一用 `rgba(99,102,241,0.2)` 淡底色表示选中状态
+- **z-index 层级修正**：top bar 在面板打开时提升至 `z-index: 60`，面板 `z-index: 61`，overlay `z-index: 55`
+
 ## [1.5.3] — 2026-06-07
 
 ### 多格式电子书支持（Multi-Format Ebook Support）

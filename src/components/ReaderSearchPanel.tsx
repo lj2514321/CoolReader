@@ -46,19 +46,14 @@ export const ReaderSearchPanel: React.FC<ReaderSearchPanelProps> = ({
         <div data-scroll="true" style={{ maxHeight: 280, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
           {searchResults.map((r, idx) => (
             <div key={`${r.chapterIndex}-${r.matchIndex}`} onClick={() => onNavigateToResult(r)}
-              style={{
-                padding: '8px 10px', borderRadius: 8, cursor: 'pointer',
-                transition: 'background 0.1s',
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--reader-panel-hover-bg)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              className="reader-search-result-item"
             >
               <span className="reader-meta-text">{r.chapterLabel}</span>
-              <div style={{ fontSize: 12, color: 'var(--reader-panel-text)', lineHeight: 1.4 }}>
+              <div className="reader-search-text">
                 {r.contextBefore ? (
                   <span style={{ color: 'var(--reader-panel-muted)' }}>...{r.contextBefore}</span>
                 ) : null}
-                <span style={{ background: 'rgba(255,213,0,0.35)', borderRadius: 2, padding: '0 1px' }}>{r.matchText}</span>
+                <span className="reader-search-highlight">{r.matchText}</span>
                 {r.contextAfter ? (
                   <span style={{ color: 'var(--reader-panel-muted)' }}>{r.contextAfter}...</span>
                 ) : null}

@@ -139,6 +139,14 @@ export async function deleteBook(filePath: string): Promise<void> {
         await Promise.all(hlRecords.map(r => requestPromise(hlTx.objectStore('highlights').delete(r.id!))))
       }
     })(),
+    (async () => {
+      const brtRange = IDBKeyRange.bound([filePath, ''], [filePath, '￿'])
+      const brtRecords = await requestPromise<BookReadingTimeRecord[]>(db.transaction('bookReadingTime', 'readonly').objectStore('bookReadingTime').getAll(brtRange))
+      if (brtRecords.length > 0) {
+        const brtTx = db.transaction('bookReadingTime', 'readwrite')
+        await Promise.all(brtRecords.map(r => requestPromise(brtTx.objectStore('bookReadingTime').delete([r.filePath, r.date]))))
+      }
+    })(),
     requestPromise(store(db, 'covers', 'readwrite').delete(filePath)),
   ])
 }
@@ -198,7 +206,7 @@ export interface ProgressRecord {
 }
 
 export async function saveProgress(filePath: string, progress: number, cfi: string, index: number, chapterLabel?: string, location?: string): Promise<void> {
-  if (!cfi) logger.warn('[saveProgress] cfi is empty, index:', index)
+  if (!cfi && !location) logger.warn('[saveProgress] cfi and location are both empty, index:', index)
   const db = await openDB()
   await requestPromise(store(db, 'progress', 'readwrite').put({
     filePath, progress, cfi, location: location ?? cfi, index, chapterLabel,

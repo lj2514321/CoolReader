@@ -27,15 +27,16 @@ export class MobiAdapter implements BookAdapter {
   private charOffset = 0
   private iframe: HTMLIFrameElement | null = null
   private iframeDoc: Document | null = null
-  private layout: { fontSize: number; fontFamily: string; lineHeight: number; margin: number; flow: 'paginated' | 'scrolled-doc' }
+  private layout: { fontSize: number; fontFamily: string; fontWeight?: number; lineHeight: number; margin: number; flow: 'paginated' | 'scrolled-doc' }
   private theme: ThemeMode
   private customTheme: CustomTheme
   private highlightIdCounter = 0
   private highlightIdMap = new Map<string, { chapterIdx: number; start: number; end: number; color: string }>()
   private highlightElements = new Map<string, HTMLElement[]>()
+  private scrollOffset = 0
 
   constructor(opts: {
-    layout: { fontSize: number; fontFamily: string; lineHeight: number; margin: number; flow: 'paginated' | 'scrolled-doc' }
+    layout: { fontSize: number; fontFamily: string; fontWeight?: number; lineHeight: number; margin: number; flow: 'paginated' | 'scrolled-doc' }
     theme: ThemeMode
     customTheme: CustomTheme
   }) {
@@ -110,40 +111,81 @@ export class MobiAdapter implements BookAdapter {
   }
 
   async next(): Promise<void> {
+    const body = this.getIframeBody()
+    if (body && this.iframe) {
+      const viewportH = this.iframe.clientHeight
+      const maxScroll = body.scrollHeight - viewportH
+      if (body.scrollTop < maxScroll - 1) {
+        this.scrollOffset = Math.min(body.scrollTop + viewportH, maxScroll)
+        this.iframe.contentWindow!.scrollTo(0, this.scrollOffset)
+        return
+      }
+    }
     if (this.chapterIdx < this.spine.length - 1) {
       this.chapterIdx++
+      this.scrollOffset = 0
       this.charOffset = 0
       this.renderCurrentChapter()
     }
   }
 
   async prev(): Promise<void> {
+    const body = this.getIframeBody()
+    if (body && this.iframe && body.scrollTop > 1) {
+      const viewportH = this.iframe.clientHeight
+      this.scrollOffset = Math.max(body.scrollTop - viewportH, 0)
+      this.iframe.contentWindow!.scrollTo(0, this.scrollOffset)
+      return
+    }
     if (this.chapterIdx > 0) {
       this.chapterIdx--
       this.charOffset = 0
+      this.scrollOffset = 0
       this.renderCurrentChapter()
+      // Scroll to the bottom of the previous chapter
+      const prevBody = this.getIframeBody()
+      if (prevBody && this.iframe) {
+        const maxScroll = prevBody.scrollHeight - this.iframe.clientHeight
+        if (maxScroll > 0) {
+          this.scrollOffset = maxScroll
+          this.iframe.contentWindow!.scrollTo(0, this.scrollOffset)
+        }
+      }
     }
   }
 
   async goToLocation(location: string): Promise<void> {
-    // Format: 'chapterIdx:charOffset' or just 'chapterIdx'
+    // Format: 'chapterIdx:scrollTop'
     const parts = location.split(':')
     const idx = parseInt(parts[0], 10)
     if (isNaN(idx) || idx < 0 || idx >= this.spine.length) return
-    this.chapterIdx = idx
-    this.charOffset = parts[1] ? parseInt(parts[1], 10) || 0 : 0
-    this.renderCurrentChapter()
+    const scrollTop = parts[1] ? parseInt(parts[1], 10) || 0 : 0
+    this.scrollOffset = scrollTop
+    if (idx !== this.chapterIdx) {
+      this.chapterIdx = idx
+      this.charOffset = 0
+      this.renderCurrentChapter()
+    }
+    // Apply scroll position
+    if (this.iframe && scrollTop > 0) {
+      this.iframe.contentWindow!.scrollTo(0, scrollTop)
+    }
   }
 
   getCurrentLocation(): BookLocation {
     const progress = this.spine.length > 0 ? Math.round((this.chapterIdx / this.spine.length) * 100) : 0
     const current = this.spine[this.chapterIdx]
+    // Sync scrollOffset with actual iframe scroll position
+    if (this.iframe) {
+      const body = this.getIframeBody()
+      if (body) this.scrollOffset = body.scrollTop
+    }
     return {
       format: 'mobi',
-      location: `${this.chapterIdx}:${this.charOffset}`,
+      location: `${this.chapterIdx}:${this.scrollOffset}`,
       chapterIdx: this.chapterIdx,
       progress,
-      chapterLabel: current?.id || '',
+      chapterLabel: this.findTocLabelForChapter(this.chapterIdx) || `Chapter ${this.chapterIdx + 1}`,
     }
   }
 
@@ -222,9 +264,12 @@ export class MobiAdapter implements BookAdapter {
     const chIdx = parseInt(match[1], 10)
     const start = parseInt(match[2], 10)
     const end = match[3] ? parseInt(match[3], 10) : start + spec.text.length
-    if (chIdx !== this.chapterIdx) return ''
+    if (isNaN(chIdx) || chIdx < 0 || chIdx >= this.spine.length) return ''
+    // Always store so highlights survive chapter switches
     this.highlightIdMap.set(id, { chapterIdx: chIdx, start, end, color: spec.color })
-    this.applyHighlightInDom(id, start, end, spec.color)
+    if (chIdx === this.chapterIdx) {
+      this.applyHighlightInDom(id, start, end, spec.color)
+    }
     return id
   }
 
@@ -256,6 +301,26 @@ export class MobiAdapter implements BookAdapter {
     this.injectThemeStyles(this.theme, css)
   }
 
+  applyLayout(): void {
+    if (!this.iframeDoc?.body) return
+    const l = this.layout
+    const body = this.iframeDoc.body
+    body.style.fontSize = `${l.fontSize}%`
+    body.style.fontFamily = l.fontFamily
+    body.style.fontWeight = String(l.fontWeight ?? 400)
+    body.style.lineHeight = String(l.lineHeight)
+    body.style.padding = `24px ${l.margin}px`
+  }
+
+  flow(_mode: 'paginated' | 'scrolled-doc'): void {
+    // MOBI adapter uses iframe rendering; flow mode is not applicable.
+  }
+
+  resize(): void {
+    // Re-render to adjust to new viewport size.
+    this.renderCurrentChapter()
+  }
+
   getSelectionInfo(): SelectionInfo {
     if (!this.iframeDoc) return { selectedText: '', range: null }
     const sel = this.iframeDoc.getSelection()
@@ -282,6 +347,10 @@ export class MobiAdapter implements BookAdapter {
 
   // ---- Internal ----
 
+  private getIframeBody(): HTMLElement | null {
+    return this.iframe?.contentDocument?.body ?? null
+  }
+
   private renderCurrentChapter(): void {
     if (!this.iframeDoc || !this.mobi) return
     const item = this.spine[this.chapterIdx]
@@ -296,14 +365,24 @@ export class MobiAdapter implements BookAdapter {
         padding: 24px ${this.layout.margin}px;
         font-size: ${this.layout.fontSize}%;
         font-family: ${this.layout.fontFamily};
+        font-weight: ${this.layout.fontWeight ?? 400};
         line-height: ${this.layout.lineHeight};
         word-wrap: break-word;
+        overflow-y: auto;
       }
       img { max-width: 100%; height: auto; }
     </style></head><body>${html}</body></html>`)
     this.iframeDoc.close()
+    this.iframe?.contentWindow?.scrollTo(0, this.scrollOffset)
 
     this.injectThemeStyles(this.theme, null)
+    // Track iframe scroll position so syncRef can pick it up for progress saving
+    const iframeBody = this.getIframeBody()
+    if (iframeBody) {
+      iframeBody.addEventListener('scroll', () => {
+        this.scrollOffset = iframeBody.scrollTop
+      }, { passive: true })
+    }
     // Re-apply existing highlights for this chapter
     this.highlightIdMap.forEach((hl, id) => {
       if (hl.chapterIdx === this.chapterIdx) {
@@ -386,5 +465,23 @@ export class MobiAdapter implements BookAdapter {
       }
     }
     return '0:0'
+  }
+
+  private findTocLabelForChapter(chapterIdx: number): string {
+    const spineId = this.spine[chapterIdx]?.id
+    if (!spineId) return ''
+    const search = (items: typeof this.toc): string => {
+      for (const item of items) {
+        if (item.href === spineId || this.spine[chapterIdx]?.text.includes(item.href)) {
+          return item.label
+        }
+        if (item.subitems) {
+          const found = search(item.subitems)
+          if (found) return found
+        }
+      }
+      return ''
+    }
+    return search(this.toc)
   }
 }

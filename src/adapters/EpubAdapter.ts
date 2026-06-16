@@ -54,7 +54,8 @@ export class EpubAdapter implements BookAdapter {
     this.destroy()
 
     const data = await window.electronAPI!.readFile(filePath)
-    const book = ePub(data)
+    const buffer: ArrayBuffer = data instanceof ArrayBuffer ? data : data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer
+    const book = ePub(buffer)
     this.book = book
     await book.ready
 
@@ -77,19 +78,20 @@ export class EpubAdapter implements BookAdapter {
       let style = doc.getElementById('_reader_layout') as HTMLStyleElement | null
       if (!style) {
         style = doc.createElement('style')
-        style.id = '_reader_layout'
-        doc.head.appendChild(style)
+        style!.id = '_reader_layout'
+        doc.head.appendChild(style!)
       }
-      style.textContent = `
-        body, body * {
+      style!.textContent = `
+        body {
           font-size: ${l.fontSize}% !important;
           font-family: ${l.fontFamily} !important;
           font-weight: ${l.fontWeight ?? 400} !important;
           line-height: ${l.lineHeight} !important;
-        }
-        body {
           padding: 0 ${l.margin}px !important;
           max-width: 100% !important;
+        }
+        body *:not(h1):not(h2):not(h3):not(h4):not(h5):not(h6):not(code):not(pre) {
+          font-family: ${l.fontFamily} !important;
         }
       `
 
@@ -126,17 +128,18 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
           const iframe = container.querySelector<HTMLIFrameElement>('iframe')
           const sel = iframe?.contentDocument?.getSelection()
           if (!sel || sel.isCollapsed) {
-            this.onSelectionChange({ selectedText: '', range: null })
+            this.onSelectionChange!({ selectedText: '', range: null })
             return
           }
           const range = sel.getRangeAt(0)
-          if (!this.rendition || typeof this.rendition.getCfiFromRange !== 'function') {
-            this.onSelectionChange({ selectedText: e.data.text, range: null })
+          const cfiFn = this.rendition?.getCfiFromRange
+          if (typeof cfiFn !== 'function') {
+            this.onSelectionChange!({ selectedText: e.data.text, range: null })
             return
           }
           try {
-            const cfiRange = this.rendition.getCfiFromRange(range)
-            this.onSelectionChange({
+            const cfiRange = cfiFn(range)
+            this.onSelectionChange!({
               selectedText: e.data.text,
               range: { location: cfiRange, text: e.data.text, color: '#ffeb3b' },
             })
@@ -201,7 +204,7 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
     const idx = Number(cur?.start?.index) || 0
     const cfi = cur?.start?.cfi || ''
     const progress = count > 0 ? Math.round((idx / count) * 100) : 0
-    const spineItems = this.book?.spine?.items
+    const spineItems = this.book?.spine?.items as Array<{ href?: string }> | undefined
     const href = spineItems?.[idx]?.href || ''
     return {
       format: 'epub',
@@ -296,16 +299,17 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
   }
 
   clearHighlights(): void {
-    if (!this.rendition) return
+    const rendition = this.rendition
+    if (!rendition) return
+    const annotations = rendition.annotations
+    if (typeof annotations?.remove !== 'function') return
     try {
-      if (typeof this.rendition.annotations?.remove === 'function') {
-        // Remove all by iterating known highlights
-        this.highlightIdMap.forEach(cfiRange => {
-          try {
-            this.rendition!.annotations.remove(cfiRange, 'highlight')
-          } catch { /* ignore */ }
-        })
-      }
+      // Remove all by iterating known highlights
+      this.highlightIdMap.forEach(cfiRange => {
+        try {
+          annotations.remove(cfiRange, 'highlight')
+        } catch { /* ignore */ }
+      })
     } catch (e) {
       logger.warn('[EpubAdapter clearHighlights]', e)
     }
@@ -329,6 +333,57 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
       }
     } catch (e) {
       logger.warn('[EpubAdapter applyCustomThemeCSS]', e)
+    }
+  }
+
+  applyLayout(): void {
+    // Layout CSS is injected via the content hook in open() for NEW views.
+    // For already-rendered views, update the _reader_layout style element directly.
+    if (this.rendition) {
+      try {
+        this.rendition.themes.select(this.theme)
+      } catch { /* ignore */ }
+    }
+    // Find the current iframe document and update or create the _reader_layout style element
+    const iframe = (this.rendition as any).manager?.container?.querySelector?.('iframe') as HTMLIFrameElement | null
+    if (iframe?.contentDocument) {
+      const l = this.layout
+      const css = `
+        body {
+          font-size: ${l.fontSize}% !important;
+          font-family: ${l.fontFamily} !important;
+          font-weight: ${l.fontWeight ?? 400} !important;
+          line-height: ${l.lineHeight} !important;
+          padding: 0 ${l.margin}px !important;
+          max-width: 100% !important;
+        }
+        body *:not(h1):not(h2):not(h3):not(h4):not(h5):not(h6):not(code):not(pre) {
+          font-family: ${l.fontFamily} !important;
+        }
+      `
+      let style = iframe.contentDocument.getElementById('_reader_layout') as HTMLStyleElement | null
+      if (!style) {
+        style = iframe.contentDocument.createElement('style')
+        style.id = '_reader_layout'
+        iframe.contentDocument.head.appendChild(style)
+      }
+      style.textContent = css
+    }
+  }
+
+  flow(mode: 'paginated' | 'scrolled-doc'): void {
+    try {
+      this.rendition?.flow(mode)
+    } catch (e) {
+      logger.warn('[EpubAdapter flow]', e)
+    }
+  }
+
+  resize(): void {
+    try {
+      this.rendition?.resize()
+    } catch (e) {
+      logger.warn('[EpubAdapter resize]', e)
     }
   }
 

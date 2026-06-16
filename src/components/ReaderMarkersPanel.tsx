@@ -1,5 +1,6 @@
 import React from 'react'
-import { Bookmark, Highlight } from '../types'
+import type { Bookmark, Highlight } from '../types'
+import { Bookmark as BookmarkIcon, Highlighter, X } from 'lucide-react'
 import '../styles/components/reader.css'
 
 interface ReaderMarkersPanelProps {
@@ -38,10 +39,10 @@ export const ReaderMarkersPanel: React.FC<ReaderMarkersPanelProps> = ({
           <div className="reader-marker-tab">
             <button onClick={() => onMarkerTabChange('bookmarks')}
               className={markerTab === 'bookmarks' ? 'reader-marker-tab reader-marker-tab-active' : 'reader-marker-tab'}
-            >🔖 书签 ({bookmarks.length})</button>
+            ><BookmarkIcon size={14} /> 书签 ({bookmarks.length})</button>
             <button onClick={() => onMarkerTabChange('highlights')}
               className={markerTab === 'highlights' ? 'reader-marker-tab reader-marker-tab-active' : 'reader-marker-tab'}
-            >🖍 标注 ({highlights.length})</button>
+            ><Highlighter size={14} /> 标注 ({highlights.length})</button>
           </div>
           <div data-scroll="true" style={{ overflowY: 'auto', maxHeight: 320, padding: '8px 0' }}>
             {markerTab === 'bookmarks' && bookmarks.length === 0 && (
@@ -51,17 +52,15 @@ export const ReaderMarkersPanel: React.FC<ReaderMarkersPanelProps> = ({
               <div key={b.id} className="reader-marker-item"
                 onClick={() => onGoToCfi(b.cfi)}
                 onContextMenu={e => { e.preventDefault(); onCtxMenu(String(b.id), e) }}>
-                <span style={{ fontSize: 12 }}>🔖</span>
+                <BookmarkIcon size={12} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="reader-text-ellipsis" style={{ fontSize: 12, color: 'var(--reader-fg)' }}>{b.label}</div>
                   <div className="reader-meta-text" style={{ marginTop: 1 }}>{new Date(b.createdAt).toLocaleString()}</div>
                 </div>
                 <button onClick={e => { e.stopPropagation(); onRemoveBookmark(b.id!) }}
-                  className="reader-btn"
-                  style={{ padding: '2px 6px', fontSize: 12, opacity: 0.6, flexShrink: 0 }}
-                  onMouseEnter={e => e.currentTarget.style.opacity = '1'}
-                  onMouseLeave={e => e.currentTarget.style.opacity = '0.6'}
-                >✕</button>
+                  className="reader-btn reader-marker-delete-btn"
+                  style={{ padding: '2px 6px', fontSize: 12, flexShrink: 0 }}
+                ><X size={12} /></button>
               </div>
             ))}
             {markerTab === 'highlights' && highlights.length === 0 && (
@@ -75,11 +74,9 @@ export const ReaderMarkersPanel: React.FC<ReaderMarkersPanelProps> = ({
                   {h.note && <div style={{ fontSize: 10, color: 'var(--reader-panel-muted)', marginTop: 2, fontStyle: 'italic' }}>{h.note}</div>}
                 </div>
                 <button onClick={() => onRemoveHighlight(h.id!, h.cfiRange)}
-                  className="reader-btn"
-                  style={{ padding: '2px 6px', fontSize: 12, opacity: 0.6, flexShrink: 0 }}
-                  onMouseEnter={e => e.currentTarget.style.opacity = '1'}
-                  onMouseLeave={e => e.currentTarget.style.opacity = '0.6'}
-                >✕</button>
+                  className="reader-btn reader-marker-delete-btn"
+                  style={{ padding: '2px 6px', fontSize: 12, flexShrink: 0 }}
+                ><X size={12} /></button>
               </div>
             ))}
           </div>

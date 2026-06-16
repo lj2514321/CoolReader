@@ -30,7 +30,7 @@
   height: 170px;
   border-radius: 10px;
   overflow: hidden;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--book-card-shadow);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -48,8 +48,8 @@
   font-weight: 700;
   letter-spacing: 0.5px;
   color: #fff;
-  background: rgba(0, 0, 0, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--book-badge-bg);
+  border: 1px solid var(--book-badge-border);
   border-radius: 6px;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
@@ -78,7 +78,7 @@
   left: 0;
   right: 0;
   height: 3px;
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--book-progress-bg);
   border-radius: 0 0 10px 10px;
   overflow: hidden;
 }
@@ -93,7 +93,7 @@
 .book-title {
   font-size: 13px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--book-title-color);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -102,7 +102,7 @@
 
 .book-author {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--book-author-color);
   margin-top: 4px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -111,7 +111,7 @@
 
 .book-chapter {
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--book-chapter-color);
   margin-top: 4px;
   line-height: 1.2;
   overflow: hidden;
@@ -121,7 +121,7 @@
 
 .book-timestamp {
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.2);
+  color: var(--book-timestamp-color);
   margin-top: 6px;
   line-height: 1.2;
 }
@@ -188,7 +188,7 @@
 .continue-reading-progress-bar {
   height: 3px;
   border-radius: 2px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--book-progress-bg);
   overflow: hidden;
 }
 
@@ -201,7 +201,7 @@
 
 .continue-reading-progress-meta {
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--book-muted-color);
   margin-top: 3px;
   display: flex;
   justify-content: space-between;
@@ -229,6 +229,8 @@
   align-items: center;
   justify-content: center;
   font-size: 18px;
+  color: var(--book-icon-color);
+  transition: color 0.3s ease;
 }
 
 .bookshelf-header-time {
@@ -240,16 +242,18 @@
 .bookshelf-header-time-value {
   font-size: 20px;
   font-weight: 700;
-  color: #fff;
+  color: var(--book-title-color);
   letter-spacing: -0.3;
   line-height: 1.3;
+  transition: color 0.3s ease;
 }
 
 .bookshelf-header-time-label {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--book-chapter-color);
   font-weight: 500;
   margin-top: 1px;
+  transition: color 0.3s ease;
 }
 
 .bookshelf-header-spacer {
@@ -269,7 +273,7 @@
 }
 
 .search-input::placeholder {
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--book-chapter-color);
 }
 
 .sort-controls {
@@ -312,7 +316,7 @@
 .continue-reading-section-title {
   font-size: 14px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--book-section-title-color);
   margin-bottom: 12px;
 }
 
@@ -472,7 +476,7 @@
 
 .goal-mini {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--book-muted-color);
   font-weight: 500;
 }
 
@@ -490,12 +494,6 @@
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
-[data-ui-theme="flat"] .book-title {
-  color: #1a1a2e;
-}
-[data-ui-theme="flat"] .book-author {
-  color: #6b7280;
-}
 [data-ui-theme="flat"] .book-progress-fill {
   background: #6366f1;
 }
@@ -512,11 +510,11 @@
 }
 [data-ui-theme="flat"] .sort-btn {
   background: #f3f4f6;
-  color: #374151;
+  color: var(--book-author-color);
 }
 [data-ui-theme="flat"] .sort-btn:hover {
   background: #e5e7eb;
-  color: #111827;
+  color: var(--book-title-color);
 }
 [data-ui-theme="flat"] .sort-btn.active {
   background: #6366f1;
@@ -525,7 +523,10 @@
 [data-ui-theme="flat"] .search-input {
   background: #f3f4f6;
   border: 1px solid #d1d5db;
-  color: #111827;
+  color: var(--book-title-color);
+}
+[data-ui-theme="flat"] .search-input::placeholder {
+  color: rgba(0, 0, 0, 0.35);
 }
 [data-ui-theme="flat"] .bookshelf-empty-content {
   background: #ffffff;
@@ -535,7 +536,7 @@
 [data-ui-theme="flat"] .bookshelf-empty-icon,
 [data-ui-theme="flat"] .bookshelf-empty-title,
 [data-ui-theme="flat"] .bookshelf-empty-desc {
-  color: #374151;
+  color: var(--book-author-color);
 }
 [data-ui-theme="flat"] .continue-reading-section {
   background: #f9fafb;
@@ -553,5 +554,14 @@
 [data-ui-theme="flat"] .modal-btn-remove {
   background: #f3f4f6;
   border: 1px solid #e5e7eb;
-  color: #374151;
+  color: var(--book-author-color);
+}
+[data-ui-theme="flat"] .delete-modal-title {
+  color: var(--book-title-color);
+}
+[data-ui-theme="flat"] .delete-modal-desc {
+  color: var(--book-author-color);
+}
+[data-ui-theme="flat"] .modal-btn-cancel {
+  color: var(--book-author-color);
 }

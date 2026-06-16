@@ -1,6 +1,6 @@
 {
   "name": "coolreader",
-  "version": "1.5.3",
+  "version": "1.5.4",
   "private": true,
   "main": "./out/main/index.js",
   "scripts": {
@@ -45,6 +45,7 @@
     "chardet": "^2.1.1",
     "epubjs": "^0.3.93",
     "iconv-lite": "^0.7.2",
+    "lucide-react": "^1.18.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "webdav": "^5.10.0"

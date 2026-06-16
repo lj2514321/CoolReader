@@ -28,6 +28,9 @@ const REQUIRED_METHODS: Array<keyof BookAdapter> = [
   'clearHighlights',
   'applyTheme',
   'applyCustomThemeCSS',
+  'applyLayout',
+  'flow',
+  'resize',
   'getSelectionInfo',
 ]
 

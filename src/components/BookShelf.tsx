@@ -1,6 +1,7 @@
 import { useState, useMemo, memo, useEffect } from 'react'
 import { BookEntry } from '../types'
 import { loadSetting } from '../utils/db'
+import { BookOpen, Timer, Library, Trash2, Target } from 'lucide-react'
 import { useBookCover } from '../hooks/useBookCover'
 import { colors } from '../utils/styles'
 import '../styles/components/bookshelf.css'
@@ -45,7 +46,7 @@ function GoalMini({ secs, goalMin }: { secs: number; goalMin: number }) {
   const pct = Math.min(100, Math.round((mins / goalMin) * 100))
   return (
     <span className={`goal-mini ${pct >= 100 ? 'complete' : ''}`}>
-      🎯 {mins}m / {goalMin}m
+      <Target size={12} /> {mins}m / {goalMin}m
     </span>
   )
 }
@@ -88,7 +89,7 @@ const BookCard = memo(function BookCard({ book, i, onOpenBook, onContextMenu }: 
         {displayCover ? (
           <img src={displayCover} alt={book.meta.title} className="book-cover-img" />
         ) : (
-          <span className="book-cover-fallback">📖</span>
+          <span className="book-cover-fallback"><BookOpen size={32} /></span>
         )}
         {book.progress !== undefined && (
           <div className="book-progress-bar">
@@ -125,12 +126,11 @@ const ContinueReadingCard = memo(function ContinueReadingCard({ book, onOpenBook
       onClick={() => onOpenBook(book.filePath)}
     >
       <div className={`continue-reading-cover ${!displayCover ? 'book-cover-gradient' : ''}`}
-        style={!displayCover ? { background: 'linear-gradient(135deg, #6366f1, #a855f7)' } : undefined}
       >
         {displayCover ? (
           <img src={displayCover} alt={book.meta.title} className="book-cover-img" />
         ) : (
-          <span className="continue-reading-cover-fallback">📖</span>
+          <span className="continue-reading-cover-fallback"><BookOpen size={32} /></span>
         )}
       </div>
       <div className="continue-reading-info">
@@ -199,7 +199,7 @@ export function BookShelf({ books, readingTime, onOpenBook, onDelete }: BookShel
   return (
     <div className="bookshelf">
       <div className="bookshelf-header">
-        <div className="bookshelf-header-timer">⏱</div>
+        <div className="bookshelf-header-timer"><Timer size={16} /></div>
         <div>
           <div className="bookshelf-header-time">
             <span className="bookshelf-header-time-value">
@@ -229,7 +229,7 @@ export function BookShelf({ books, readingTime, onOpenBook, onDelete }: BookShel
 
       {recentBooks.length > 0 && (
         <div className="continue-reading-section">
-          <div className="continue-reading-section-title">📖 继续阅读</div>
+          <div className="continue-reading-section-title"><BookOpen size={16} /> 继续阅读</div>
           <div className="continue-reading-scroll">
             {recentBooks.map(book => (
               <ContinueReadingCard key={book.filePath} book={book} onOpenBook={onOpenBook} />
@@ -241,7 +241,7 @@ export function BookShelf({ books, readingTime, onOpenBook, onDelete }: BookShel
       {books.length === 0 ? (
         <div className="bookshelf-empty">
           <div className="bookshelf-empty-content">
-            <div className="bookshelf-empty-icon">📚</div>
+            <div className="bookshelf-empty-icon"><Library size={48} /></div>
             <p className="bookshelf-empty-title">还没有书</p>
             <p className="bookshelf-empty-desc">
               点击左侧「导入」<br/>或拖拽 EPUB 文件到窗口
@@ -265,7 +265,7 @@ export function BookShelf({ books, readingTime, onOpenBook, onDelete }: BookShel
       {confirmPath && (
         <div className="delete-modal-overlay" onClick={() => setConfirmPath(null)}>
           <div className="delete-modal" onClick={e => e.stopPropagation()}>
-            <div className="delete-modal-icon">🗑</div>
+            <div className="delete-modal-icon"><Trash2 size={40} /></div>
             <p className="delete-modal-title">确认删除</p>
             <p className="delete-modal-desc">删除后将无法恢复</p>
             <div className="delete-modal-actions">

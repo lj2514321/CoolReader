@@ -1,4 +1,5 @@
 import './SidebarNav.css'
+import { Library, BarChart3, Settings, Download } from 'lucide-react'
 
 export type LibPage = 'books' | 'settings' | 'stats'
 
@@ -23,24 +24,24 @@ export function SidebarNav({ libPage, bookCount, onSwitchPage, onImport }: Sideb
           onClick={() => onSwitchPage('books')}
           className={libPage === 'books' ? 'nav-btn active' : 'nav-btn'}
         >
-          <span className="nav-icon">📚</span><span>书架</span>
+          <span className="nav-icon"><Library size={16} /></span><span>书架</span>
         </button>
         <button
           onClick={() => onSwitchPage('stats')}
           className={libPage === 'stats' ? 'nav-btn active' : 'nav-btn'}
         >
-          <span className="nav-icon">📊</span><span>统计</span>
+          <span className="nav-icon"><BarChart3 size={16} /></span><span>统计</span>
         </button>
         <button
           onClick={() => onSwitchPage('settings')}
           className={libPage === 'settings' ? 'nav-btn active' : 'nav-btn'}
         >
-          <span className="nav-icon">⚙</span><span>设置</span>
+          <span className="nav-icon"><Settings size={16} /></span><span>设置</span>
         </button>
       </div>
       <div>
         <button onClick={onImport} className="nav-btn">
-          <span className="nav-icon">📥</span><span>导入</span>
+          <span className="nav-icon"><Download size={16} /></span><span>导入</span>
         </button>
       </div>
     </div>

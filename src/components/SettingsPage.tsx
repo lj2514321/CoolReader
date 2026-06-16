@@ -166,11 +166,7 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
                 <button
                   key={tab}
                   onClick={() => setCustomTab(tab)}
-                  style={{
-                    flex: 1, padding: '8px 0', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600,
-                    background: customTab === tab ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.08)',
-                    border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)',
-                  }}
+                  className={`settings-bg-tab ${customTab === tab ? 'active' : ''}`}
                 >
                   {tab === 'preset' ? '预设' : tab === 'color' ? '纯色' : tab === 'gradient' ? '渐变' : '图片'}
                 </button>
@@ -199,7 +195,7 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
             {customTab === 'color' && (
               <div>
                 <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>颜色</div>
+                  <div className="settings-section-label">颜色</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <input
                       type="color"
@@ -211,16 +207,16 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
                       style={{ width: 44, height: 36, border: 'none', borderRadius: 8, cursor: 'pointer', background: 'none' }}
                     />
                     <div
+                      className="settings-color-preview"
                       style={{
                         flex: 1, height: 36, borderRadius: 8,
                         background: hexToRgba(customColor, customColorAlpha / 100),
-                        border: '1px solid rgba(255,255,255,0.15)',
                       }}
                     />
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>透明度 {customColorAlpha}%</div>
+                  <div className="settings-section-label">透明度 {customColorAlpha}%</div>
                   <input
                     type="range"
                     min={70} max={100} step={1}
@@ -240,17 +236,13 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
             {customTab === 'gradient' && (
               <div>
                 <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>类型</div>
+                  <div className="settings-section-label">类型</div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     {(['linear', 'radial'] as const).map(t => (
                       <button
                         key={t}
                         onClick={() => setGradientType(t)}
-                        style={{
-                          flex: 1, padding: '6px 0', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600,
-                          background: gradientType === t ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.08)',
-                          border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)',
-                        }}
+                        className={`settings-bg-tab ${gradientType === t ? 'active' : ''}`}
                       >
                         {t === 'linear' ? '线性' : '径向'}
                       </button>
@@ -259,7 +251,7 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
                 </div>
                 {gradientType === 'linear' && (
                   <div style={{ marginBottom: 12 }}>
-                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>角度 {gradientAngle}°</div>
+                    <div className="settings-section-label">角度 {gradientAngle}°</div>
                     <input
                       type="range" min={0} max={360} step={1}
                       value={gradientAngle}
@@ -274,7 +266,7 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
                 )}
                 <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>起始色</div>
+                    <div className="settings-section-label">起始色</div>
                     <input
                       type="color"
                       value={gradientStop1.color.startsWith('rgba') ? '#000000' : gradientStop1.color}
@@ -287,7 +279,7 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
                     />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>结束色</div>
+                    <div className="settings-section-label">结束色</div>
                     <input
                       type="color"
                       value={gradientStop2.color.startsWith('rgba') ? '#000000' : gradientStop2.color}
@@ -301,12 +293,12 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
                   </div>
                 </div>
                 <div style={{ marginBottom: 8 }}>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>预览</div>
+                  <div className="settings-section-label">预览</div>
                   <div
+                    className="settings-color-preview"
                     style={{
                       height: 48, borderRadius: 8,
                       background: buildGradientString(gradientType, gradientAngle, gradientStop1, gradientStop2),
-                      border: '1px solid rgba(255,255,255,0.15)',
                     }}
                   />
                 </div>
@@ -315,7 +307,7 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
 
             {/* Image tab */}
             {customTab === 'image' && (
-              <div style={{ textAlign: 'center', padding: '40px 0', color: 'rgba(255,255,255,0.4)' }}>
+              <div className="settings-placeholder">
                 上传功能开发中
               </div>
             )}
@@ -407,7 +399,7 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
           <div className="settings-sub-content" style={{ padding: 24 }}>
             <div style={{ marginBottom: 20 }}>
               <div className="goal-label">选择界面风格</div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>
+              <div style={{ fontSize: 12, marginTop: 4 }} className="settings-placeholder">
                 选择后立即生效，无需重启
               </div>
             </div>

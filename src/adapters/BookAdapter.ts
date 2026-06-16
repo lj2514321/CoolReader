@@ -102,6 +102,15 @@ export interface BookAdapter {
   /** Apply user-defined custom theme CSS. */
   applyCustomThemeCSS(css: string): void
 
+  // ---- Layout ----
+
+  /** Re-apply layout CSS (font size, family, line-height, margin). Called on layout change. */
+  applyLayout(): void
+  /** Change flow mode ('paginated' | 'scrolled-doc'). Only meaningful for epub. */
+  flow(mode: 'paginated' | 'scrolled-doc'): void
+  /** Notify adapter of viewport resize. */
+  resize(): void
+
   // ---- Selection ----
 
   /** Get current user selection (text + location range). */

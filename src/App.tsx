@@ -3,6 +3,7 @@ import { Library } from './components/Library'
 import { Reader } from './components/Reader'
 import { Sidebar } from './components/Sidebar'
 import { TitleBar } from './components/TitleBar'
+import { BookOpen, X } from 'lucide-react'
 import { useEpub } from './hooks/useEpub'
 import { useDragDrop } from './hooks/useDragDrop'
 import { useProgressTimer } from './hooks/useProgressTimer'
@@ -28,6 +29,11 @@ export default function App() {
   const [books, setBooks] = useState<BookEntry[]>([])
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  useEffect(() => {
+    if (!error) return
+    const t = setTimeout(() => setError(null), 5000)
+    return () => clearTimeout(t)
+  }, [error])
   const [currentBook, setCurrentBook] = useState<string | null>(null)
   const [readingTime, setReadingTime] = useState(0)
   const { meta, toc, theme, progress, progressRef, cfiRef, indexRef, sectionHrefRef, extractMeta, openBook, initReadingTime, setTheme, setCustomTheme, setAnimationMode, setReducedMotion, goNext, goPrev, goToHref, goToCfi, seekTo, getReadingSeconds, saveReadingTime, resizeViewer, destroy, getChapterText, getFullBookText, layout, updateLayout, bookmarks, highlights, selectionInfo, currentCfi, toggleBookmark, removeBookmarkById, addHighlight, removeHighlight, clearSelection, searchText, navigateToSearchResult, getChapterLabel, customThemeRef } = useEpub()
@@ -243,16 +249,6 @@ export default function App() {
         ...customBgStyle,
       }}>
       <TitleBar />
-      {error && (
-        <div style={{
-          background: 'rgba(220,38,38,0.85)', backdropFilter: 'blur(8px)',
-          padding: '8px 20px', color: '#fff', fontSize: 13, fontWeight: 600,
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        }}>
-          <span>错误: {error}</span>
-          <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 16 }}>✕</button>
-        </div>
-      )}
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
         <div style={{
           position: 'absolute', inset: 0,
@@ -324,15 +320,19 @@ export default function App() {
           </div>
         </div>
       </div>
-      {toast && (
-        <div style={{
+      {(error || toast) && (
+        <div className="app-toast" style={{
           position: 'fixed', bottom: 40, left: '50%', transform: 'translateX(-50%)', zIndex: 10000,
           background: 'rgba(220,38,38,0.9)', backdropFilter: 'blur(12px)',
           padding: '12px 24px', borderRadius: 12,
           color: '#fff', fontSize: 13, fontWeight: 500,
           maxWidth: 400, textAlign: 'center',
           animation: 'fadeIn 0.2s ease',
-        }}>{toast}</div>
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <span>{error ? `错误: ${error}` : toast}</span>
+          {error && <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', padding: 0 }}><X size={14} /></button>}
+        </div>
       )}
       {isDragging && (
         <div style={{
@@ -342,7 +342,7 @@ export default function App() {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           flexDirection: 'column', gap: 16,
         }}>
-          <div style={{ fontSize: 56, opacity: 0.7 }}>📖</div>
+          <div style={{ fontSize: 56, opacity: 0.7 }}><BookOpen size={56} /></div>
           <div style={{ fontSize: 20, fontWeight: 700, color: '#fff', opacity: 0.8 }}>释放以导入电子书文件</div>
         </div>
       )}

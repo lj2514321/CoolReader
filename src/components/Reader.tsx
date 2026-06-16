@@ -1,7 +1,17 @@
 import { memo, useEffect, useRef, useState } from 'react'
-import { BookMeta, ThemeMode, AIConfig, ReaderLayout, fontFamilies, defaultLayout, Bookmark, Highlight, highlightColors, SearchResult, CustomTheme, defaultCustomTheme, AnimationMode } from '../types'
+import {
+  Sun, Moon, Contrast,
+  Bookmark as BookmarkIcon, Search, List, Maximize2,
+  ChevronLeft, ChevronRight,
+  SlidersHorizontal,
+  BookmarkCheck, Highlighter, Trash2,
+  ArrowLeft, LayoutList, Send, X,
+  BookOpen, Library, BarChart3, Settings,
+  CheckCircle2, Sparkles, Timer, FolderOpen,
+} from 'lucide-react'
+import { BookMeta, ThemeMode, AIConfig, ReaderLayout, fontFamilies, defaultLayout, Highlight, highlightColors, SearchResult, CustomTheme, defaultCustomTheme, AnimationMode } from '../types'
 import { useReaderKeyboard } from '../hooks/useReaderKeyboard'
-import { parseRGBA } from '../utils/customTheme'
+import { parseRGBA, getLuminance, getGradientLuminance } from '../utils/customTheme'
 import { UI_AUTO_HIDE_DELAY, WHEEL_THROTTLE_DELAY, SEARCH_DEBOUNCE_DELAY, CLICK_ZONE_LEFT, CLICK_ZONE_RIGHT, FONT_SIZE_MIN, FONT_SIZE_MAX, FONT_WEIGHT_MIN, FONT_WEIGHT_MAX, FONT_WEIGHT_STEP, LINE_HEIGHT_MIN, LINE_HEIGHT_MAX, LINE_HEIGHT_STEP, MARGIN_MIN, MARGIN_MAX, SELECTION_TOOLBAR_OFFSET, SELECTION_TOOLBAR_HALF_WIDTH } from '../utils/constants'
 import { AIPanel } from './AIPanel'
 import { ReaderSearchPanel } from './ReaderSearchPanel'
@@ -44,10 +54,10 @@ interface ReaderProps {
   onNavigateToSearchResult: (result: SearchResult) => void
 }
 
-const themes: { key: ThemeMode; icon: string }[] = [
-  { key: 'light', icon: '☀' },
-  { key: 'sepia', icon: '☕' },
-  { key: 'dark', icon: '◉' },
+const themes: { key: ThemeMode; icon: React.ReactNode }[] = [
+  { key: 'light', icon: <Sun size={16} /> },
+  { key: 'sepia', icon: <Contrast size={16} /> },
+  { key: 'dark', icon: <Moon size={16} /> },
 ]
 
 const themeBg: Record<Exclude<ThemeMode, 'custom'>, string> = {
@@ -56,10 +66,28 @@ const themeBg: Record<Exclude<ThemeMode, 'custom'>, string> = {
   dark: '#0a0a1a',
 }
 
+function getCustomThemeBg(ct: CustomTheme): string {
+  if (ct.type === 'solid') return ct.color || 'rgba(255,255,255,1)'
+  const stops = (ct.gradientStops || []).map(s => `${s.color} ${s.position}%`).join(', ')
+  if (!stops) return '#ece8f4'
+  return ct.gradientType === 'radial'
+    ? `radial-gradient(ellipse at center, ${stops})`
+    : `linear-gradient(${ct.gradientAngle ?? 135}deg, ${stops})`
+}
+
+function isCustomThemeDark(ct: CustomTheme): boolean {
+  if (ct.type === 'solid') return getLuminance(ct.color || 'rgba(255,255,255,1)') < 0.4
+  return getGradientLuminance(ct.gradientStops || []) < 0.4
+}
+
 export const Reader = memo(function Reader({
   filePath, meta, theme, layout, onLayoutChange, onAnimationModeChange, onReducedMotionChange, progress, onLoad, onBack, onNext, onPrev, onToggleSidebar, onThemeChange, onCustomThemeChange, customTheme, onSeek, onResize, aiConfig, onGetChapterText, onGetFullBookText, bookmarks, highlights, currentCfi, selectionInfo, onToggleBookmark, onRemoveBookmark, onAddHighlight, onRemoveHighlight, onClearSelection, onGoToCfi, onSearch, onNavigateToSearchResult,
 }: ReaderProps) {
-  const dark = theme === 'dark'
+  const ct = customTheme ?? defaultCustomTheme
+  const customDark = theme === 'custom' && isCustomThemeDark(ct)
+  const dark = theme === 'dark' || customDark
+  const readerBg = theme === 'custom' ? getCustomThemeBg(ct) : themeBg[theme]
+  const dataTheme = theme === 'custom' ? (customDark ? 'dark' : 'light') : theme
 
   const nextRef = useRef(onNext)
   const prevRef = useRef(onPrev)
@@ -103,6 +131,9 @@ export const Reader = memo(function Reader({
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [searching, setSearching] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const [hlNoteColor, setHlNoteColor] = useState<string | null>(null)
+  const [hlNoteText, setHlNoteText] = useState('')
+  const hlNoteInputRef = useRef<HTMLInputElement>(null)
   const flowRef = useRef(layout.flow)
   flowRef.current = layout.flow
   const showLayoutRef = useRef(showLayout)
@@ -134,6 +165,13 @@ export const Reader = memo(function Reader({
   useEffect(() => {
     showControls()
     return () => clearTimeout(hideTimer.current)
+  }, [])
+
+  // Mouse-driven UI reveal — essential in scroll mode where the click overlay is pointer-events:none
+  useEffect(() => {
+    const handler = () => showControls()
+    window.addEventListener('mousemove', handler, { passive: true })
+    return () => window.removeEventListener('mousemove', handler)
   }, [])
 
   useEffect(() => {
@@ -196,6 +234,10 @@ export const Reader = memo(function Reader({
     if (showSearch) searchInputRef.current?.focus()
   }, [showSearch])
 
+  useEffect(() => {
+    if (hlNoteColor) hlNoteInputRef.current?.focus()
+  }, [hlNoteColor])
+
   const searchTimer = useRef<ReturnType<typeof setTimeout>>()
   useEffect(() => {
     if (!searchQuery.trim()) { setSearchResults([]); return }
@@ -236,7 +278,7 @@ export const Reader = memo(function Reader({
   )
 
   return (
-    <div ref={containerRef} data-theme={theme === 'custom' ? 'light' : theme} style={{ height: '100%', background: themeBg[theme as Exclude<ThemeMode, 'custom'>], overflow: 'hidden', position: 'relative' }}>
+    <div ref={containerRef} data-theme={dataTheme} style={{ height: '100%', background: readerBg, overflow: 'hidden', position: 'relative' }}>
       <div id="viewer" style={{ position: 'absolute', inset: 0 }} />
       <div
         onClick={handleViewerClick}
@@ -260,7 +302,7 @@ export const Reader = memo(function Reader({
           opacity: showUI || showLayout || showMarkers ? 1 : 0,
           pointerEvents: showUI || showLayout || showMarkers ? 'auto' : 'none',
           transition: 'opacity 0.3s ease',
-          zIndex: 2,
+          zIndex: showLayout ? 60 : 2,
         }}>
         <div className="reader-top-bar-inner reader-glass">
           <button onClick={onBack} className="reader-btn">←&ensp;返回</button>
@@ -273,73 +315,62 @@ export const Reader = memo(function Reader({
               className={`reader-btn${theme === t.key ? ' reader-theme-btn-active' : ''}`}
               style={{
                 padding: '7px 10px',
-                background: theme === t.key ? 'rgba(99,102,241,0.4)' : 'transparent',
-                border: theme === t.key ? '2px solid rgba(99,102,241,0.8)' : '2px solid transparent',
+                background: theme === t.key ? 'rgba(99,102,241,0.18)' : 'transparent',
                 opacity: 1,
                 fontWeight: theme === t.key ? 700 : 400,
               }}
             >{t.icon}</button>
           ))}
           <button onClick={(e) => { e.stopPropagation(); setShowLayout(v => !v); setShowMarkers(false); setShowAI(false) }}
-            className="reader-btn"
-            style={{
-              padding: '7px 12px', opacity: 1,
-              background: showLayout ? 'rgba(99,102,241,0.3)' : 'transparent',
-            }}
+            className={`reader-btn${showLayout ? ' reader-btn-active' : ''}`}
+            style={{ padding: '7px 12px', opacity: 1 }}
           >Aa</button>
           <button onClick={(e) => { e.stopPropagation(); onToggleBookmark() }}
-            className="reader-btn"
-            style={{
-              padding: '7px 12px', opacity: 1, fontSize: 16,
-              background: isBookmarked ? 'rgba(99,102,241,0.3)' : 'transparent',
-            }}
-          >🔖</button>
+            className={`reader-btn${isBookmarked ? ' reader-btn-active' : ''}`}
+            style={{ padding: '7px 12px', opacity: 1, fontSize: 16 }}
+          ><BookmarkIcon size={15} /></button>
           <button onClick={(e) => { e.stopPropagation(); setShowSearch(v => !v); setShowLayout(false); setShowMarkers(false); setShowAI(false) }}
-            className="reader-btn"
-            style={{
-              padding: '7px 12px', opacity: 1, fontSize: 15,
-              background: showSearch ? 'rgba(99,102,241,0.3)' : 'transparent',
-            }}
-          >🔍</button>
+            className={`reader-btn${showSearch ? ' reader-btn-active' : ''}`}
+            style={{ padding: '7px 12px', opacity: 1, fontSize: 15 }}
+          ><Search size={15} /></button>
           <button onClick={(e) => { e.stopPropagation(); setShowMarkers(v => !v); setShowLayout(false); setShowAI(false) }}
-            className="reader-btn"
-            style={{
-              padding: '7px 12px', opacity: 1,
-              background: showMarkers ? 'rgba(99,102,241,0.3)' : 'transparent',
-            }}
-          >☰</button>
+            className={`reader-btn${showMarkers ? ' reader-btn-active' : ''}`}
+            style={{ padding: '7px 12px', opacity: 1 }}
+          ><List size={15} /></button>
           <button onClick={(e) => { e.stopPropagation(); window.electronAPI?.toggleFullscreen() }}
             className="reader-btn"
             style={{ padding: '7px 10px', opacity: 1, fontSize: 14 }}
-          >⛶</button>
+          ><Maximize2 size={15} /></button>
         </div>
-        {showLayout && (
-          <>
-            <div onClick={() => { setShowLayout(false); setShowCustomTheme(false) }} className="reader-panel-overlay" />
-            <div onClick={e => e.stopPropagation()} className="reader-layout-panel reader-glass">
-              <div className="reader-layout-row">
-                {themes.filter(t => t.key !== 'custom').map(t => (
-                  <button key={t.key} onClick={() => { onThemeChange(t.key); setShowCustomTheme(false) }}
-                    className={theme === t.key ? 'reader-btn-active' : 'reader-btn'}
-                  >{t.icon}</button>
-                ))}
-                <button onClick={() => { onThemeChange('custom'); setShowCustomTheme(true) }}
-                  className={theme === 'custom' ? 'reader-btn-active' : 'reader-btn'}
-                >🎨</button>
-              </div>
-              {showCustomTheme && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <div className="reader-layout-row">
-                    <button onClick={() => setLocalCustomTheme(t => ({ ...t, type: 'solid' }))}
-                      className={localCustomTheme.type === 'solid' ? 'reader-btn-active' : 'reader-btn'}
-                    >
-                      纯色
-                    </button>
-                    <button onClick={() => setLocalCustomTheme(t => ({ ...t, type: 'gradient' }))}
-                      className={localCustomTheme.type === 'gradient' ? 'reader-btn-active' : 'reader-btn'}
-                    >
-                      渐变
-                    </button>
+      </div>
+
+      {showLayout && (
+        <>
+          <div onClick={() => { setShowLayout(false); setShowCustomTheme(false) }} className="reader-panel-overlay" />
+          <div onClick={e => e.stopPropagation()} className="reader-layout-panel reader-glass">
+            <div className="reader-layout-row">
+              {themes.filter(t => t.key !== 'custom').map(t => (
+                <button key={t.key} onClick={() => { onThemeChange(t.key); setShowCustomTheme(false) }}
+                  className={theme === t.key ? 'reader-btn-active' : 'reader-btn'}
+                >{t.icon}</button>
+              ))}
+              <button onClick={() => { onThemeChange('custom'); setShowCustomTheme(true) }}
+                className={theme === 'custom' ? 'reader-btn-active' : 'reader-btn'}
+              ><SlidersHorizontal size={16} /></button>
+            </div>
+            {showCustomTheme && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div className="reader-layout-row">
+                  <button onClick={() => setLocalCustomTheme(t => ({ ...t, type: 'solid' }))}
+                    className={localCustomTheme.type === 'solid' ? 'reader-btn-active' : 'reader-btn'}
+                  >
+                    纯色
+                  </button>
+                  <button onClick={() => setLocalCustomTheme(t => ({ ...t, type: 'gradient' }))}
+                    className={localCustomTheme.type === 'gradient' ? 'reader-btn-active' : 'reader-btn'}
+                  >
+                    渐变
+                  </button>
                   </div>
                   {localCustomTheme.type === 'solid' && (
                     <div className="reader-layout-row">
@@ -551,7 +582,7 @@ export const Reader = memo(function Reader({
           </>
         )}
 
-<ReaderSearchPanel
+      <ReaderSearchPanel
         visible={showSearch}
         searchQuery={searchQuery}
         onSearchQueryChange={setSearchQuery}
@@ -560,7 +591,6 @@ export const Reader = memo(function Reader({
         onNavigateToResult={onNavigateToSearchResult}
         onClose={() => setShowSearch(false)}
       />
-      </div>
 
       {/* bottom bar */}
       <div className="reader-bottom-bar"
@@ -571,7 +601,7 @@ export const Reader = memo(function Reader({
           zIndex: 2,
         }}>
         <div className="reader-bottom-bar-inner reader-glass">
-          <button onClick={onPrev} className="reader-btn">◂&ensp;上一页</button>
+          <button onClick={onPrev} className="reader-btn"><ChevronLeft size={16} />&ensp;上一页</button>
 
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10 }}>
             <div
@@ -591,7 +621,7 @@ export const Reader = memo(function Reader({
             <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--reader-fg)', opacity: 0.5, minWidth: 32, textAlign: 'right' }}>{progress}%</span>
           </div>
 
-          <button onClick={onNext} className="reader-btn">下一页&ensp;▸</button>
+          <button onClick={onNext} className="reader-btn">下一页&ensp;<ChevronRight size={16} /></button>
         </div>
       </div>
 
@@ -599,22 +629,52 @@ export const Reader = memo(function Reader({
       {selectionInfo && (
         <div className="reader-selection-bar"
           style={{
-            top: selectionInfo.bounds.top - 50,
+            top: selectionInfo.bounds.top - (hlNoteColor ? 90 : 50),
             left: Math.max(SELECTION_TOOLBAR_OFFSET, selectionInfo.bounds.left + selectionInfo.bounds.width / 2 - SELECTION_TOOLBAR_HALF_WIDTH),
           }}>
-          {highlightColors.map(color => (
-            <button key={color} onClick={() => {
-              const note = window.prompt('输入笔记（可选）：')
-              // @ts-expect-error note param is a pre-existing type mismatch
-              onAddHighlight(color, note?.trim() || undefined)
-            }}
-              className="reader-selection-color-btn"
-              style={{ background: color }}
-            />
-          ))}
-          <button onClick={onClearSelection}
-            className="reader-btn reader-selection-clear-btn"
-          >✕</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            {highlightColors.map(color => (
+              <button key={color} onClick={() => {
+                setHlNoteColor(color)
+                setHlNoteText('')
+              }}
+                className="reader-selection-color-btn"
+                style={{ background: color, outline: hlNoteColor === color ? '2px solid var(--reader-fg)' : 'none' }}
+              />
+            ))}
+            <button onClick={() => { onClearSelection(); setHlNoteColor(null) }}
+              className="reader-btn reader-selection-clear-btn"
+            ><X size={16} /></button>
+          </div>
+          {hlNoteColor && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+              <input
+                ref={hlNoteInputRef}
+                value={hlNoteText}
+                onChange={e => setHlNoteText(e.target.value)}
+                placeholder="添加笔记（可选）..."
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    // @ts-expect-error note param is a pre-existing type mismatch
+                    onAddHighlight(hlNoteColor, hlNoteText.trim() || undefined)
+                    setHlNoteColor(null)
+                    setHlNoteText('')
+                  }
+                  if (e.key === 'Escape') { setHlNoteColor(null); setHlNoteText('') }
+                }}
+                className="reader-hl-note-input"
+              />
+              <button onClick={() => {
+                // @ts-expect-error note param is a pre-existing type mismatch
+                onAddHighlight(hlNoteColor, hlNoteText.trim() || undefined)
+                setHlNoteColor(null)
+                setHlNoteText('')
+              }}
+                className="reader-btn"
+                style={{ padding: '4px 8px', color: 'var(--reader-fg)' }}
+              ><Send size={14} /></button>
+            </div>
+          )}
         </div>
       )}
 
@@ -637,7 +697,7 @@ export const Reader = memo(function Reader({
           <div className="reader-context-menu">
             <button onClick={() => { onRemoveBookmark(ctxBmId); setCtxBmId(null) }}
               className="reader-context-btn reader-context-delete-btn"
-            >🗑 删除书签</button>
+            ><Trash2 size={14} /> 删除书签</button>
           </div>
         </div>
       )}
@@ -649,8 +709,6 @@ export const Reader = memo(function Reader({
           className="reader-ai-btn"
           style={{
             position: 'absolute', bottom: 16, right: 16, zIndex: 5,
-            background: 'linear-gradient(135deg, #667eea, #764ba2)',
-            boxShadow: '0 4px 12px rgba(102,126,234,0.4)',
           }}
         >AI</button>
       )}

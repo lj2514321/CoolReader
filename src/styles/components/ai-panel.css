@@ -196,6 +196,9 @@
   padding: 10px 14px;
   color: var(--ai-muted);
   font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .ai-loading-text {

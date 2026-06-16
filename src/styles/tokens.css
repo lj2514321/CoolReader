@@ -5,6 +5,19 @@
   --transition-theme: background 0.3s ease, border 0.3s ease, box-shadow 0.3s ease, color 0.3s ease, opacity 0.3s ease;
   --nav-title-color: #ffffff;
   --nav-subtitle-color: rgba(255, 255, 255, 0.35);
+  /* bookshelf text on dark/card backgrounds */
+  --book-title-color: rgba(255, 255, 255, 0.85);
+  --book-author-color: rgba(255, 255, 255, 0.35);
+  --book-chapter-color: rgba(255, 255, 255, 0.35);
+  --book-icon-color: rgba(255, 255, 255, 0.5);
+  --book-timer-color: rgba(255, 255, 255, 0.6);
+  --book-timestamp-color: rgba(255, 255, 255, 0.2);
+  --book-muted-color: rgba(255, 255, 255, 0.4);
+  --book-progress-bg: rgba(0, 0, 0, 0.3);
+  --book-section-title-color: rgba(255, 255, 255, 0.5);
+  --book-badge-bg: rgba(0, 0, 0, 0.6);
+  --book-badge-border: rgba(255, 255, 255, 0.2);
+  --book-card-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
 }
 
 [data-ui-theme="flat"] {
@@ -14,4 +27,50 @@
   --transition-theme: background 0.3s ease, border 0.3s ease, box-shadow 0.3s ease, color 0.3s ease, opacity 0.3s ease;
   --nav-title-color: #111827;
   --nav-subtitle-color: rgba(0, 0, 0, 0.45);
+  /* bookshelf text on light/card backgrounds */
+  --book-title-color: #111827;
+  --book-author-color: rgba(0, 0, 0, 0.45);
+  --book-chapter-color: rgba(0, 0, 0, 0.45);
+  --book-icon-color: rgba(0, 0, 0, 0.5);
+  --book-timer-color: rgba(0, 0, 0, 0.6);
+  --book-timestamp-color: rgba(0, 0, 0, 0.3);
+  --book-muted-color: rgba(0, 0, 0, 0.4);
+  --book-progress-bg: rgba(0, 0, 0, 0.08);
+  --book-section-title-color: rgba(0, 0, 0, 0.5);
+  --book-badge-bg: rgba(99, 102, 241, 0.85);
+  --book-badge-border: rgba(99, 102, 241, 0.3);
+  --book-card-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.shared-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2.5px solid rgba(255, 255, 255, 0.15);
+  border-top-color: rgba(99, 102, 241, 0.8);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+[data-ui-theme="flat"] .shared-spinner {
+  border-color: rgba(0, 0, 0, 0.1);
+  border-top-color: #6366f1;
+}
+
+.shared-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px;
+}
+
+.shared-loading-text {
+  font-size: 13px;
+  color: var(--book-muted-color);
+  font-weight: 500;
 }

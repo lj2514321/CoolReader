@@ -118,6 +118,7 @@ declare module 'epubjs' {
     destroy(): void
     manager?: Manager
     getCfiFromRange(range: Range): string
+    on(event: string, handler: (...args: unknown[]) => void): void
     // v1.5.3 extensions
     readonly currentLocation: () => {
       start?: {

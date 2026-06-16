@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { NavItem, ThemeMode } from '../types'
+import { X } from 'lucide-react'
 import '../styles/components/sidebar.css'
 
 interface SidebarProps {
@@ -74,7 +75,7 @@ export function Sidebar({ toc, activeHref, onNavigate, onClose, theme = 'dark' }
     <div data-theme={theme === 'custom' ? 'light' : theme} className="sidebar-root">
       <div className="sidebar-header">
         <span className="sidebar-header-title">目录</span>
-        <button onClick={onClose} className="sidebar-close-btn">✕</button>
+        <button onClick={onClose} className="sidebar-close-btn"><X size={16} /></button>
       </div>
       <div ref={scrollRef} data-scroll className="sidebar-scroll">
         <TocList items={toc} onNavigate={onNavigate} activeHref={activeHref} btnRefs={btnRefs} />

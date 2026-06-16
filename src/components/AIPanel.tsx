@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react'
 import type { AIConfig, AIChatMessage } from '../types'
 import { getElectronAPI } from '../utils/electronAPI'
+import { X } from 'lucide-react'
 import '../styles/components/ai-panel.css'
 
 interface AIPanelProps {
@@ -160,7 +161,7 @@ export function AIPanel({ visible, onClose, config, theme, onGetChapterText, onG
               >总结本章</button>
               <button onClick={onClose}
                 className="ai-close-btn"
-              >✕</button>
+              ><X size={16} /></button>
             </div>
           </div>
 
@@ -182,6 +183,7 @@ export function AIPanel({ visible, onClose, config, theme, onGetChapterText, onG
             )}
             {loading && !streamingText && (
               <div className="ai-loading">
+                <div className="shared-spinner" style={{ width: 16, height: 16, borderWidth: 2 }} />
                 <span className="ai-loading-text">思考中...</span>
               </div>
             )}

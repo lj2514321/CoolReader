@@ -7,12 +7,16 @@ import { applyPageAnimation } from '../../utils/animation'
 import { logger } from '../../utils/logger'
 
 export function useReaderControls(shared: SharedRefs) {
-  const { bookRef, renditionRef, syncRef, navigatingRef, indexRef, cfiRef, progressRef, themeRef, layoutRef, setLayoutStateRef, totalSectionsRef, sessionStartRef, todaySecondsRef, bookTodayRef, bookSessionStartRef, bookPathRef } = shared
+  const { bookRef, renditionRef, syncRef, navigatingRef, indexRef, cfiRef, progressRef, themeRef, layoutRef, setLayoutStateRef, totalSectionsRef, sessionStartRef, todaySecondsRef, bookTodayRef, bookSessionStartRef, bookPathRef, adapterRef } = shared
 
   const setTheme = useCallback((t: ThemeMode) => {
     themeRef.current = t
-    // We need to call setThemeState from the caller — handled via return value
     saveSetting('readerTheme', t)
+    const adapter = adapterRef.current
+    if (adapter) {
+      try { adapter.applyTheme(t) } catch (e) { logger.error('[setTheme] adapter failed:', e) }
+      return
+    }
     try {
       renditionRef.current?.themes.select(t)
     } catch (e) {
@@ -21,6 +25,12 @@ export function useReaderControls(shared: SharedRefs) {
   }, [])
 
   const applyLayout = useCallback(() => {
+    const adapter = adapterRef.current
+    if (adapter) {
+      try { adapter.applyLayout() } catch (e) { logger.warn('[applyLayout] adapter failed:', e) }
+      return
+    }
+    // Fallback: legacy epub iframe injection
     const iframe = document.querySelector<HTMLIFrameElement>('#viewer iframe')
     if (!iframe?.contentDocument?.head) return
     const l = layoutRef.current
@@ -31,15 +41,16 @@ export function useReaderControls(shared: SharedRefs) {
       iframe.contentDocument.head.appendChild(style)
     }
     style.textContent = `
-      body, body * {
+      body {
         font-size: ${l.fontSize}% !important;
         font-family: ${l.fontFamily} !important;
         font-weight: ${l.fontWeight} !important;
         line-height: ${l.lineHeight} !important;
-      }
-      body {
         padding: 0 ${l.margin}px !important;
         max-width: 100% !important;
+      }
+      body *:not(h1):not(h2):not(h3):not(h4):not(h5):not(h6):not(code):not(pre) {
+        font-family: ${l.fontFamily} !important;
       }
     `
   }, [])
@@ -49,18 +60,23 @@ export function useReaderControls(shared: SharedRefs) {
     layoutRef.current = next
     setLayoutStateRef.current?.(next)
     saveSetting('readerLayout', JSON.stringify(next))
+    const adapter = adapterRef.current
     if (patch.flow) {
-      try {
-        renditionRef.current?.flow(next.flow)
-        // @ts-expect-error 'scrolled' flow mode is supported at runtime but not in ReaderLayout flow type
-        if (next.flow !== 'scrolled') {
-          requestAnimationFrame(() => enableSmoothScroll(renditionRef.current))
+      if (adapter) {
+        try { adapter.flow(next.flow) } catch (e) { logger.warn('[updateLayout] adapter flow failed:', e) }
+      } else {
+        try {
+          renditionRef.current?.flow(next.flow)
+          // @ts-expect-error 'scrolled' flow mode is supported at runtime but not in ReaderLayout flow type
+          if (next.flow !== 'scrolled') {
+            requestAnimationFrame(() => enableSmoothScroll(renditionRef.current))
+          }
+          requestAnimationFrame(() => {
+            try { renditionRef.current?.themes.select(themeRef.current) } catch (e) { logger.warn('[updateLayout] re-select theme failed', e) }
+          })
+        } catch (e) {
+          logger.warn('[updateLayout] flow change failed:', e)
         }
-        requestAnimationFrame(() => {
-          try { renditionRef.current?.themes.select(themeRef.current) } catch (e) { logger.warn('[updateLayout] re-select theme failed', e) }
-        })
-      } catch (e) {
-        logger.warn('[updateLayout] flow change failed:', e)
       }
     }
     applyLayout()
@@ -68,7 +84,17 @@ export function useReaderControls(shared: SharedRefs) {
 
   const goNext = useCallback(async () => {
     navigatingRef.current = true
-    await renditionRef.current?.next()
+    const adapter = adapterRef.current
+    // Non-epub adapters (txt/mobi): no animation, just navigate
+    if (adapter && adapter.format !== 'epub') {
+      await adapter.next()
+      navigatingRef.current = false
+      requestAnimationFrame(syncRef.current)
+      return
+    }
+    // EPUB path (adapter or legacy): navigate + animation
+    if (adapter) await adapter.next()
+    else await renditionRef.current?.next()
     const animMode = layoutRef.current.animationMode || 'slide'
     const reducedMotion = layoutRef.current.reducedMotion || false
     // @ts-expect-error '3d' is supported at runtime but missing from AnimationMode type
@@ -85,7 +111,17 @@ export function useReaderControls(shared: SharedRefs) {
 
   const goPrev = useCallback(async () => {
     navigatingRef.current = true
-    await renditionRef.current?.prev()
+    const adapter = adapterRef.current
+    // Non-epub adapters (txt/mobi): no animation, just navigate
+    if (adapter && adapter.format !== 'epub') {
+      await adapter.prev()
+      navigatingRef.current = false
+      requestAnimationFrame(syncRef.current)
+      return
+    }
+    // EPUB path (adapter or legacy): navigate + animation
+    if (adapter) await adapter.prev()
+    else await renditionRef.current?.prev()
     const animMode = layoutRef.current.animationMode || 'slide'
     const reducedMotion = layoutRef.current.reducedMotion || false
     // @ts-expect-error '3d' is supported at runtime but missing from AnimationMode type
@@ -102,6 +138,19 @@ export function useReaderControls(shared: SharedRefs) {
 
   const goToHref = useCallback(async (href: string) => {
     navigatingRef.current = true
+    // Adapter path: location string may be 'chapterIdx:charOffset' or a href
+    const adapter = adapterRef.current
+    if (adapter) {
+      try {
+        await adapter.goToLocation(href)
+        requestAnimationFrame(syncRef.current)
+      } catch (e) {
+        logger.warn('[goToHref] adapter goToLocation failed:', e)
+      }
+      navigatingRef.current = false
+      return
+    }
+    // Fallback: legacy epub path
     const rendition = renditionRef.current
     const book = bookRef.current
     if (!rendition || !book) {
@@ -154,6 +203,17 @@ export function useReaderControls(shared: SharedRefs) {
 
   const goToCfi = useCallback(async (cfi: string) => {
     navigatingRef.current = true
+    const adapter = adapterRef.current
+    if (adapter) {
+      try {
+        await adapter.goToLocation(cfi)
+        requestAnimationFrame(syncRef.current)
+      } catch (e) {
+        logger.warn('[goToCfi] adapter goToLocation failed:', e)
+      }
+      navigatingRef.current = false
+      return
+    }
     try {
       await renditionRef.current?.display(cfi)
       requestAnimationFrame(syncRef.current)
@@ -165,6 +225,17 @@ export function useReaderControls(shared: SharedRefs) {
   }, [])
 
   const seekTo = useCallback(async (pct: number) => {
+    const adapter = adapterRef.current
+    if (adapter) {
+      const count = adapter.getChapterCount()
+      if (count === 0) return
+      const idx = Math.max(0, Math.min(count - 1, Math.floor(pct / 100 * count)))
+      navigatingRef.current = true
+      await adapter.goToLocation(`${idx}:0`)
+      navigatingRef.current = false
+      requestAnimationFrame(syncRef.current)
+      return
+    }
     const rendition = renditionRef.current
     const count = totalSectionsRef.current
     if (!rendition || count === 0) return
@@ -201,6 +272,13 @@ export function useReaderControls(shared: SharedRefs) {
   }, [getBookReadingSeconds])
 
   const getChapterText = useCallback(async (): Promise<string> => {
+    const adapter = adapterRef.current
+    if (adapter) {
+      const idx = indexRef.current
+      const text = await adapter.getChapterText(idx)
+      // Strip HTML tags for plain text (AI assistant consumption)
+      return text.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, 4000)
+    }
     const book = bookRef.current
     const idx = indexRef.current
     if (!book) return ''
@@ -217,6 +295,11 @@ export function useReaderControls(shared: SharedRefs) {
   }, [])
 
   const getFullBookText = useCallback(async (): Promise<string> => {
+    const adapter = adapterRef.current
+    if (adapter) {
+      const text = await adapter.getFullText()
+      return text.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, 8000)
+    }
     const book = bookRef.current
     if (!book) return ''
     try {

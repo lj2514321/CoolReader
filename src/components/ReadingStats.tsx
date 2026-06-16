@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { BookEntry } from '../types'
 import { loadReadingTimeRange, loadBookReadingTimeRange, loadSetting, BookReadingTimeRecord } from '../utils/db'
+import { BarChart3, BookOpen, CheckCircle2 } from 'lucide-react'
 import '../styles/components/reading-stats.css'
 
 const statCardBg = 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 100%)'
@@ -20,7 +21,7 @@ function GoalBar({ secs, goalMin }: { secs: number; goalMin: number }) {
         />
       </div>
       <div className="stat-goal-label">
-        {pct >= 100 ? '🎉 已达标' : `${pct}%`}
+        {pct >= 100 ? <><CheckCircle2 size={14} /> 已达标</> : `${pct}%`}
       </div>
     </div>
   )
@@ -134,10 +135,13 @@ export function ReadingStats({ books }: ReadingStatsProps) {
 
   return (
     <div className="stats-container">
-      <h2 className="stats-title">📊 阅读统计</h2>
+      <h2 className="stats-title"><BarChart3 size={18} /> 阅读统计</h2>
 
       {!loaded ? (
-        <div className="stats-loading">加载中...</div>
+        <div className="shared-loading">
+          <div className="shared-spinner" />
+          <span className="shared-loading-text">加载中...</span>
+        </div>
       ) : (
         <>
           <div className="stats-grid">
@@ -194,7 +198,7 @@ export function ReadingStats({ books }: ReadingStatsProps) {
               </div>
               {bookTotals.map((bt, i) => (
                 <div key={bt.filePath} className={`stats-book-row${i < bookTotals.length - 1 ? ' stats-book-divider' : ''}`}>
-                  <span className="stats-book-icon">📖</span>
+                  <span className="stats-book-icon"><BookOpen size={14} /></span>
                   <span className="stats-book-title">
                     {getBookTitle(bt.filePath)}
                   </span>
