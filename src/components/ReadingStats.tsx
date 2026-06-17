@@ -4,7 +4,7 @@ import { loadReadingTimeRange, loadBookReadingTimeRange, loadSetting, BookReadin
 import { BarChart3, BookOpen, CheckCircle2 } from 'lucide-react'
 import '../styles/components/reading-stats.css'
 
-const statCardBg = 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 100%)'
+const statCardBg = 'linear-gradient(135deg, rgba(45,90,90,0.12) 0%, rgba(61,122,122,0.08) 100%)'
 
 interface ReadingStatsProps {
   books: BookEntry[]

@@ -64,12 +64,12 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
 
   // Bg preset tab state
   const [customTab, setCustomTab] = useState<CustomBgTab>('preset')
-  const [customColor, setCustomColor] = useState('#6366f1')
+  const [customColor, setCustomColor] = useState('#2d5a5a')
   const [customColorAlpha, setCustomColorAlpha] = useState(90)
   const [gradientType, setGradientType] = useState<GradientType>('linear')
   const [gradientAngle, setGradientAngle] = useState(135)
-  const [gradientStop1, setGradientStop1] = useState<GradientStop>({ color: 'rgba(99,102,241,0.85)', position: 0 })
-  const [gradientStop2, setGradientStop2] = useState<GradientStop>({ color: 'rgba(168,85,247,0.9)', position: 100 })
+  const [gradientStop1, setGradientStop1] = useState<GradientStop>({ color: 'rgba(45,90,90,0.85)', position: 0 })
+  const [gradientStop2, setGradientStop2] = useState<GradientStop>({ color: 'rgba(61,122,122,0.9)', position: 100 })
 
   const { theme: uiTheme, setTheme: setUiTheme } = useTheme()
 
@@ -226,7 +226,7 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
                       setCustomColorAlpha(alpha)
                       onCustomBgChange?.({ type: 'color', color: hexToRgba(customColor, alpha / 100) })
                     }}
-                    style={{ width: '100%', accentColor: '#6366f1' }}
+                    style={{ width: '100%', accentColor: '#2d5a5a' }}
                   />
                 </div>
               </div>
@@ -260,7 +260,7 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
                         setGradientAngle(angle)
                         onCustomBgChange?.({ type: 'gradient', gradient: buildGradientConfig(gradientType, angle, gradientStop1, gradientStop2) })
                       }}
-                      style={{ width: '100%', accentColor: '#6366f1' }}
+                      style={{ width: '100%', accentColor: '#2d5a5a' }}
                     />
                   </div>
                 )}

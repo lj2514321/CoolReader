@@ -90,6 +90,20 @@ export class EpubAdapter implements BookAdapter {
           padding: 0 ${l.margin}px !important;
           max-width: 100% !important;
         }
+        body p {
+          margin: 0 0 1.4em 0 !important;
+          text-indent: 0 !important;
+        }
+        body h1, body h2, body h3 {
+          font-family: ${l.fontFamily} !important;
+          font-weight: 500 !important;
+          text-align: center !important;
+          letter-spacing: 0.5px !important;
+          margin: 1.5em 0 !important;
+        }
+        body h1 { font-size: 1.4em !important; }
+        body h2 { font-size: 1.2em !important; }
+        body h3 { font-size: 1.1em !important; }
         body *:not(h1):not(h2):not(h3):not(h4):not(h5):not(h6):not(code):not(pre) {
           font-family: ${l.fontFamily} !important;
         }

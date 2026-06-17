@@ -75,7 +75,7 @@ export function CustomThemePanel({ theme, onChange, onClose }: Props) {
 
   const previewGradient = () => {
     if (theme.type === 'solid') {
-      return theme.color || 'rgba(255,255,255,1)'
+      return theme.color || 'rgba(244,237,224,1)'
     }
     const stops = (theme.gradientStops || []).map(s => `${s.color} ${s.position}%`).join(', ')
     if (!stops) return 'transparent'
@@ -90,16 +90,16 @@ export function CustomThemePanel({ theme, onChange, onClose }: Props) {
       position: 'absolute', top: 'calc(100% + 8px)', right: 16, zIndex: 20,
       width: 340,
       borderRadius: 14, padding: '14px 16px',
-      background: 'rgba(20,15,50,0.92)',
+      background: 'rgba(26,26,31,0.92)',
       backdropFilter: 'blur(24px) saturate(140%)',
       WebkitBackdropFilter: 'blur(24px) saturate(140%)',
-      border: '1px solid rgba(255,255,255,0.12)',
+      border: '1px solid rgba(244,237,224,0.12)',
       boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
       display: 'flex', flexDirection: 'column', gap: 12,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.7)' }}>自定义背景</span>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: 16 }}>×</button>
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(244,237,224,0.7)' }}>自定义背景</span>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(244,237,224,0.4)', cursor: 'pointer', fontSize: 16 }}>×</button>
       </div>
 
       {/* Type toggle */}
@@ -107,16 +107,16 @@ export function CustomThemePanel({ theme, onChange, onClose }: Props) {
         <button onClick={() => onChange({ ...theme, type: 'solid' })}
           style={{
             flex: 1, padding: '6px 0', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600,
-            background: theme.type === 'solid' ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.08)',
-            border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)',
+            background: theme.type === 'solid' ? 'rgba(45,90,90,0.4)' : 'rgba(244,237,224,0.08)',
+            border: '1px solid rgba(244,237,224,0.12)', color: 'rgba(244,237,224,0.8)',
           }}>
           纯色
         </button>
         <button onClick={() => onChange({ ...theme, type: 'gradient' })}
           style={{
             flex: 1, padding: '6px 0', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600,
-            background: theme.type === 'gradient' ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.08)',
-            border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)',
+            background: theme.type === 'gradient' ? 'rgba(45,90,90,0.4)' : 'rgba(244,237,224,0.08)',
+            border: '1px solid rgba(244,237,224,0.12)', color: 'rgba(244,237,224,0.8)',
           }}>
           渐变
         </button>
@@ -132,7 +132,7 @@ export function CustomThemePanel({ theme, onChange, onClose }: Props) {
               style={{ width: 44, height: 32, border: 'none', cursor: 'pointer', borderRadius: 6, background: 'none' }}
             />
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap' }}>透明度</span>
+              <span style={{ fontSize: 11, color: 'rgba(244,237,224,0.5)', whiteSpace: 'nowrap' }}>透明度</span>
               <input
                 type="range" min={70} max={100} value={Math.round(alpha * 100)}
                 onChange={e => {
@@ -143,9 +143,9 @@ export function CustomThemePanel({ theme, onChange, onClose }: Props) {
                     onChange({ ...theme, color: rgbaToString(r, g, b, a) })
                   }
                 }}
-                style={{ flex: 1, accentColor: '#6366f1', cursor: 'pointer' }}
+                style={{ flex: 1, accentColor: '#2d5a5a', cursor: 'pointer' }}
               />
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', minWidth: 28 }}>{Math.round(alpha * 100)}%</span>
+              <span style={{ fontSize: 11, color: 'rgba(244,237,224,0.5)', minWidth: 28 }}>{Math.round(alpha * 100)}%</span>
             </div>
           </div>
         </>
@@ -159,43 +159,43 @@ export function CustomThemePanel({ theme, onChange, onClose }: Props) {
               <button onClick={() => onChange({ ...theme, gradientType: 'linear' })}
                 style={{
                   padding: '4px 8px', borderRadius: 6, cursor: 'pointer', fontSize: 11,
-                  background: (theme.gradientType || 'linear') === 'linear' ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.08)',
-                  border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)',
+                  background: (theme.gradientType || 'linear') === 'linear' ? 'rgba(45,90,90,0.4)' : 'rgba(244,237,224,0.08)',
+                  border: '1px solid rgba(244,237,224,0.1)', color: 'rgba(244,237,224,0.7)',
                 }}>
                 线性
               </button>
               <button onClick={() => onChange({ ...theme, gradientType: 'radial' })}
                 style={{
                   padding: '4px 8px', borderRadius: 6, cursor: 'pointer', fontSize: 11,
-                  background: theme.gradientType === 'radial' ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.08)',
-                  border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)',
+                  background: theme.gradientType === 'radial' ? 'rgba(45,90,90,0.4)' : 'rgba(244,237,224,0.08)',
+                  border: '1px solid rgba(244,237,224,0.1)', color: 'rgba(244,237,224,0.7)',
                 }}>
                 径向
               </button>
             </div>
             {(theme.gradientType || 'linear') === 'linear' && (
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap' }}>角度</span>
+                <span style={{ fontSize: 11, color: 'rgba(244,237,224,0.5)', whiteSpace: 'nowrap' }}>角度</span>
                 <input
                   type="range" min={0} max={360} step={15} value={theme.gradientAngle ?? 135}
                   onChange={e => onChange({ ...theme, gradientAngle: Number(e.target.value) })}
-                  style={{ flex: 1, accentColor: '#6366f1', cursor: 'pointer' }}
+                  style={{ flex: 1, accentColor: '#2d5a5a', cursor: 'pointer' }}
                 />
-                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', minWidth: 28 }}>{theme.gradientAngle ?? 135}°</span>
+                <span style={{ fontSize: 11, color: 'rgba(244,237,224,0.5)', minWidth: 28 }}>{theme.gradientAngle ?? 135}°</span>
               </div>
             )}
           </div>
 
           {/* Preset selector */}
           <div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>预设</div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(244,237,224,0.5)', marginBottom: 6 }}>预设</div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {builtIn.map(p => (
                 <button key={p.label} onClick={() => applyPreset(p)}
                   style={{
                     padding: '4px 10px', borderRadius: 16, fontSize: 11, cursor: 'pointer',
-                    background: editingLabel === p.label ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.08)',
-                    border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)',
+                    background: editingLabel === p.label ? 'rgba(45,90,90,0.4)' : 'rgba(244,237,224,0.08)',
+                    border: '1px solid rgba(244,237,224,0.1)', color: 'rgba(244,237,224,0.7)',
                   }}>
                   {p.label}
                 </button>
@@ -205,8 +205,8 @@ export function CustomThemePanel({ theme, onChange, onClose }: Props) {
                   <button onClick={() => applyPreset(p)}
                     style={{
                       padding: '4px 10px', borderRadius: 16, fontSize: 11, cursor: 'pointer',
-                      background: editingLabel === p.label ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.08)',
-                      border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)',
+                      background: editingLabel === p.label ? 'rgba(45,90,90,0.4)' : 'rgba(244,237,224,0.08)',
+                      border: '1px solid rgba(244,237,224,0.1)', color: 'rgba(244,237,224,0.7)',
                     }}>
                     {p.label}
                   </button>
@@ -223,15 +223,15 @@ export function CustomThemePanel({ theme, onChange, onClose }: Props) {
           <div style={{
             height: 36, borderRadius: 8,
             background: previewGradient(),
-            border: '1px solid rgba(255,255,255,0.1)',
+            border: '1px solid rgba(244,237,224,0.1)',
           }} />
 
           {/* Color stops */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.5)' }}>色标</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(244,237,224,0.5)' }}>色标</span>
               <button onClick={addStop}
-                style={{ background: 'none', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: 11, padding: '2px 8px', borderRadius: 4 }}>
+                style={{ background: 'none', border: '1px solid rgba(244,237,224,0.15)', color: 'rgba(244,237,224,0.5)', cursor: 'pointer', fontSize: 11, padding: '2px 8px', borderRadius: 4 }}>
                 + 添加
               </button>
             </div>
@@ -250,9 +250,9 @@ export function CustomThemePanel({ theme, onChange, onClose }: Props) {
                   <input
                     type="range" min={0} max={100} value={stop.position}
                     onChange={e => updateStop(idx, { position: Number(e.target.value) })}
-                    style={{ flex: 1, accentColor: '#6366f1', cursor: 'pointer' }}
+                    style={{ flex: 1, accentColor: '#2d5a5a', cursor: 'pointer' }}
                   />
-                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', minWidth: 28 }}>{stop.position}%</span>
+                  <span style={{ fontSize: 11, color: 'rgba(244,237,224,0.4)', minWidth: 28 }}>{stop.position}%</span>
                   {((theme.gradientStops || []).length > 2) && (
                     <button onClick={() => removeStop(idx)}
                       style={{ background: 'none', border: 'none', color: 'rgba(255,100,100,0.6)', cursor: 'pointer', fontSize: 14, lineHeight: 1 }}>
@@ -276,12 +276,12 @@ export function CustomThemePanel({ theme, onChange, onClose }: Props) {
             onKeyDown={e => { if (e.key === 'Enter') saveAsPreset() }}
             style={{
               flex: 1, padding: '6px 10px', borderRadius: 8, fontSize: 12,
-              background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)',
-              color: 'rgba(255,255,255,0.85)', outline: 'none',
+              background: 'rgba(244,237,224,0.08)', border: '1px solid rgba(244,237,224,0.15)',
+              color: 'rgba(244,237,224,0.85)', outline: 'none',
             }}
           />
           <button onClick={saveAsPreset}
-            style={{ padding: '6px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 12, background: 'rgba(99,102,241,0.5)', border: '1px solid rgba(99,102,241,0.3)', color: 'rgba(255,255,255,0.85)' }}>
+            style={{ padding: '6px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 12, background: 'rgba(45,90,90,0.5)', border: '1px solid rgba(45,90,90,0.3)', color: 'rgba(244,237,224,0.85)' }}>
             保存
           </button>
         </div>
@@ -289,8 +289,8 @@ export function CustomThemePanel({ theme, onChange, onClose }: Props) {
         <button onClick={() => setShowPresetInput(true)}
           style={{
             padding: '6px 0', borderRadius: 8, cursor: 'pointer', fontSize: 12,
-            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
-            color: 'rgba(255,255,255,0.6)',
+            background: 'rgba(244,237,224,0.06)', border: '1px solid rgba(244,237,224,0.1)',
+            color: 'rgba(244,237,224,0.6)',
           }}>
           保存当前为预设
         </button>

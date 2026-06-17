@@ -104,17 +104,15 @@ export interface CustomBgConfig {
   imageFit?: 'cover'
 }
 
-export const defaultCustomBg: CustomBgConfig = { type: 'preset', presetKey: 'deepPurple' }
+export const defaultCustomBg: CustomBgConfig = { type: 'preset', presetKey: 'inkNight' }
 
 export const presetGradients: { label: string; stops: GradientStop[]; angle: number; type: GradientType }[] = [
-  { label: '碧海', stops: [{ color: 'rgba(59,130,246,0.85)', position: 0 }, { color: 'rgba(16,42,67,0.95)', position: 100 }], angle: 135, type: 'linear' },
-  { label: '极光', stops: [{ color: 'rgba(34,197,94,0.8)', position: 0 }, { color: 'rgba(6,78,59,0.9)', position: 100 }], angle: 135, type: 'linear' },
-  { label: '日出', stops: [{ color: 'rgba(255,183,77,0.9)', position: 0 }, { color: 'rgba(245,158,66,0.95)', position: 100 }], angle: 180, type: 'linear' },
-  { label: '极光紫', stops: [{ color: 'rgba(167,139,250,0.85)', position: 0 }, { color: 'rgba(109,40,217,0.9)', position: 100 }], angle: 120, type: 'linear' },
-  { label: '暗夜蓝', stops: [{ color: 'rgba(30,41,59,0.95)', position: 0 }, { color: 'rgba(15,23,42,0.98)', position: 100 }], angle: 0, type: 'radial' },
-  { label: '晨雾', stops: [{ color: 'rgba(241,245,249,0.9)', position: 0 }, { color: 'rgba(226,232,240,0.85)', position: 100 }], angle: 135, type: 'linear' },
-  { label: '森林', stops: [{ color: 'rgba(22,101,52,0.85)', position: 0 }, { color: 'rgba(5,46,22,0.95)', position: 100 }], angle: 135, type: 'linear' },
-  { label: '玫瑰', stops: [{ color: 'rgba(244,114,182,0.85)', position: 0 }, { color: 'rgba(157,39,105,0.9)', position: 100 }], angle: 135, type: 'linear' },
+  { label: '墨夜', stops: [{ color: 'rgba(26,26,31,0.95)', position: 0 }, { color: 'rgba(38,38,45,0.98)', position: 100 }], angle: 135, type: 'linear' },
+  { label: '墨青', stops: [{ color: 'rgba(20,31,31,0.95)', position: 0 }, { color: 'rgba(31,58,58,0.98)', position: 100 }], angle: 135, type: 'linear' },
+  { label: '琥珀', stops: [{ color: 'rgba(200,122,58,0.85)', position: 0 }, { color: 'rgba(184,138,90,0.9)', position: 100 }], angle: 180, type: 'linear' },
+  { label: '暖纸', stops: [{ color: 'rgba(247,244,237,0.95)', position: 0 }, { color: 'rgba(239,233,221,0.9)', position: 100 }], angle: 135, type: 'linear' },
+  { label: '森林', stops: [{ color: 'rgba(15,26,18,0.9)', position: 0 }, { color: 'rgba(5,20,10,0.95)', position: 100 }], angle: 135, type: 'linear' },
+  { label: '石板', stops: [{ color: 'rgba(22,23,28,0.95)', position: 0 }, { color: 'rgba(34,35,44,0.98)', position: 100 }], angle: 135, type: 'linear' },
 ]
 
 export const defaultCustomTheme: CustomTheme = {
@@ -126,7 +124,7 @@ export const defaultLayout: ReaderLayout = {
   fontSize: 100,
   fontFamily: 'system-ui',
   fontWeight: 400,
-  lineHeight: 1.6,
+  lineHeight: 1.8,
   margin: 20,
   flow: 'paginated',
   enableMediaKey: true,
@@ -185,6 +183,6 @@ export type Page = 'library' | 'reader'
 
 export const themeStyles = {
   light: 'body.light, body.light * { background: #ffffff !important; color: #000000 !important; } body.light { background: #ffffff !important; }',
-  dark: 'body.dark, body.dark * { background: #1a1a2e !important; color: #e0e0e0 !important; } body.dark { background: #1a1a2e !important; }',
+  dark: 'body.dark, body.dark * { background: #1a1a1f !important; color: #f4ede0 !important; } body.dark { background: #1a1a1f !important; }',
   sepia: 'body.sepia, body.sepia * { background: #f5e6c8 !important; color: #5b4636 !important; } body.sepia { background: #f5e6c8 !important; }',
 }

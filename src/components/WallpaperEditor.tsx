@@ -362,7 +362,7 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'rgba(20,15,50,0.92)',
     backdropFilter: 'blur(24px)',
     WebkitBackdropFilter: 'blur(24px)',
-    border: '1px solid rgba(255,255,255,0.12)',
+    border: '1px solid rgba(244,237,224,0.12)',
     borderRadius: 14,
     padding: '16px',
     display: 'flex',
@@ -382,7 +382,7 @@ const styles: Record<string, React.CSSProperties> = {
     border: 'none',
     borderRadius: 8,
     background: 'transparent',
-    color: 'rgba(255,255,255,0.55)',
+    color: 'rgba(244,237,224,0.55)',
     fontSize: 13,
     fontWeight: 500,
     cursor: 'pointer',
@@ -408,7 +408,7 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 10,
   },
   label: {
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(244,237,224,0.8)',
     fontSize: 13,
     minWidth: 48,
   },
@@ -433,10 +433,10 @@ const styles: Record<string, React.CSSProperties> = {
   slider: {
     flex: 1,
     height: 4,
-    accentColor: '#8b5cf6',
+    accentColor: '#2d5a5a',
   },
   alphaValue: {
-    color: 'rgba(255,255,255,0.6)',
+    color: 'rgba(244,237,224,0.6)',
     fontSize: 12,
     minWidth: 36,
     textAlign: 'right',
@@ -459,7 +459,7 @@ const styles: Record<string, React.CSSProperties> = {
     border: 'none',
     borderRadius: 6,
     background: 'transparent',
-    color: 'rgba(255,255,255,0.55)',
+    color: 'rgba(244,237,224,0.55)',
     fontSize: 12,
     cursor: 'pointer',
     transition: 'all 0.2s ease',
@@ -479,7 +479,7 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 8,
   },
   posValue: {
-    color: 'rgba(255,255,255,0.6)',
+    color: 'rgba(244,237,224,0.6)',
     fontSize: 11,
     minWidth: 30,
     textAlign: 'right',
@@ -499,16 +499,16 @@ const styles: Record<string, React.CSSProperties> = {
   },
   addStopBtn: {
     padding: '6px 12px',
-    border: '1px dashed rgba(255,255,255,0.2)',
+    border: '1px dashed rgba(244,237,224,0.2)',
     borderRadius: 8,
     background: 'transparent',
-    color: 'rgba(255,255,255,0.5)',
+    color: 'rgba(244,237,224,0.5)',
     fontSize: 12,
     cursor: 'pointer',
     alignSelf: 'flex-start',
   },
   presetLabel: {
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(244,237,224,0.8)',
     fontSize: 13,
   },
   presetRow: {
@@ -554,7 +554,7 @@ const styles: Record<string, React.CSSProperties> = {
     textAlign: 'center' as const,
   },
   placeholderText: {
-    color: 'rgba(255,255,255,0.4)',
+    color: 'rgba(244,237,224,0.4)',
     fontSize: 13,
   },
 }

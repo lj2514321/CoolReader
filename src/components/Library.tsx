@@ -28,12 +28,12 @@ export function Library({ uiTheme = 'glass', books, readingTime, onOpenBook, onI
   const [transition, setTransition] = useState<'idle' | 'out' | 'in'>('idle')
   const [direction, setDirection] = useState<'up' | 'down' | 'left' | 'right'>('up')
   const transRef = useRef<ReturnType<typeof setTimeout>>()
-  const [bgKey, setBgKey] = useState(() => uiTheme === 'flat' ? 'lightGray' : 'deepPurple')
+  const [bgKey, setBgKey] = useState(() => uiTheme === 'flat' ? 'warmPaper' : 'inkNight')
   const [settingsResetKey, setSettingsResetKey] = useState(0)
 
   useEffect(() => {
     const dbKey = uiTheme === 'flat' ? 'bgPreset-flat' : 'bgPreset'
-    const defaultKey = uiTheme === 'flat' ? 'lightGray' : 'deepPurple'
+    const defaultKey = uiTheme === 'flat' ? 'warmPaper' : 'inkNight'
     const defaultGrad = uiTheme === 'flat' ? flatDefGrad : defGrad
     const presets = getPresets(uiTheme)
     

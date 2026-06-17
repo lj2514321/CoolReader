@@ -5,9 +5,9 @@
   margin: 24px 0 24px 24px;
   padding: 28px 24px;
   width: 160px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(168,85,247,0.1) 100%);
-  border: 1px solid rgba(168,85,247,0.15);
+  border-radius: var(--r-panel);
+  background: var(--bg-elev-1);
+  border: 1px solid var(--ink-10);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -23,9 +23,9 @@
   margin: 24px 0 24px 24px;
   padding: 28px 24px;
   width: 160px;
-  border-radius: 4px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  border-radius: var(--r-btn);
+  background: var(--bg-elev-1);
+  border: 1px solid var(--ink-20);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -36,27 +36,27 @@
 
 /* ======================== [data-ui-theme="flat"] nav button overrides ======================== */
 [data-ui-theme="flat"] .nav-btn {
-  color: #111827;
-  background: #f3f4f6;
-  border-color: #e5e7eb;
+  color: var(--ink-100);
+  background: var(--bg-elev-2);
+  border-color: var(--ink-20);
 }
 
 [data-ui-theme="flat"] .nav-btn:hover {
-  background: #e5e7eb;
-  border-color: #d1d5db;
+  background: var(--ink-10);
+  border-color: var(--ink-40);
   box-shadow: none;
   transform: scale(1.04);
 }
 
 [data-ui-theme="flat"] .nav-btn.active {
-  background: #6366f1;
-  color: #ffffff;
-  border-color: #6366f1;
+  background: var(--accent);
+  color: var(--bg-base);
+  border-color: var(--accent);
 }
 
 [data-ui-theme="flat"] .nav-btn.active:hover {
-  background: #4f46e5;
-  border-color: #4f46e5;
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
   box-shadow: none;
   transform: scale(1.02);
 }
@@ -65,12 +65,12 @@
    Shared nav button styles
    ======================== */
 .nav-btn {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  color: #fff;
+  background: var(--glass-tint);
+  border: 1px solid var(--glass-border-top);
+  border-radius: var(--r-card);
+  color: var(--ink-100);
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--fs-body-ui);
   font-weight: 600;
   padding: 10px 24px;
   position: relative;
@@ -84,7 +84,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, transparent 0%, rgba(99, 102, 241, 0.15) 50%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, var(--accent-soft) 50%, transparent 100%);
   transform: translateX(-100%);
   transition: transform 0.4s ease;
   z-index: -1;
@@ -92,9 +92,9 @@
 
 .nav-btn:hover {
   transform: scale(1.08);
-  background: rgba(99, 102, 241, 0.35);
-  border-color: rgba(99, 102, 241, 0.6);
-  box-shadow: 0 0 20px rgba(99, 102, 241, 0.4), 0 0 40px rgba(99, 102, 241, 0.2);
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  box-shadow: 0 0 20px var(--accent-soft), 0 0 40px rgba(45, 90, 90, 0.1);
 }
 
 .nav-btn:hover::before {
@@ -102,15 +102,15 @@
 }
 
 .nav-btn.active {
-  background: rgba(99, 102, 241, 0.3);
-  border-color: rgba(99, 102, 241, 0.4);
+  background: var(--accent-soft);
+  border-color: var(--accent);
 }
 
 .nav-btn.active:hover {
   transform: scale(1.03);
-  background: rgba(99, 102, 241, 0.5);
-  border-color: rgba(99, 102, 241, 0.7);
-  box-shadow: 0 0 12px rgba(99, 102, 241, 0.3), 0 0 24px rgba(99, 102, 241, 0.15);
+  background: var(--accent-soft);
+  border-color: var(--accent-strong);
+  box-shadow: 0 0 12px var(--accent-soft), 0 0 24px rgba(45, 90, 90, 0.08);
 }
 
 .nav-btn:hover .nav-icon {
@@ -131,4 +131,3 @@
     transform: translateX(0);
   }
 }
-

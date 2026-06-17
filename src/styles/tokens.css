@@ -1,47 +1,235 @@
+/* ==========================================================================
+   CoolReader — Design Tokens
+   Direction: 暗夜书房 / 日间图书馆 (dual themes, single identity)
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Base spacing & radius scale (theme-independent)
+   -------------------------------------------------------------------------- */
+:root {
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  24px;
+  --space-6:  32px;
+  --space-7:  48px;
+  --space-8:  64px;
+
+  --r-book:  2px;   /* book spine / cover */
+  --r-btn:   6px;
+  --r-card:  10px;
+  --r-panel: 14px;
+  --r-modal: 18px;
+
+  --transition-theme: background 0.3s ease, border-color 0.3s ease,
+                      box-shadow 0.3s ease, color 0.3s ease, opacity 0.3s ease;
+  --transition-quick: 0.15s ease;
+  --transition-slow:  0.4s ease;
+}
+
+/* --------------------------------------------------------------------------
+   Typography — font families (system fallback chain)
+   -------------------------------------------------------------------------- */
+:root {
+  --font-serif: 'Iowan Old Style', 'Charter', 'Source Han Serif SC',
+                'Songti SC', 'STSong', Georgia, serif;
+  --font-sans:  system-ui, -apple-system, 'PingFang SC',
+                'Microsoft YaHei', sans-serif;
+  --font-mono:  'JetBrains Mono', ui-monospace, Menlo, monospace;
+
+  --fs-display:     32px;   /* page hero (shelf only) */
+  --fs-h1:          22px;   /* page title */
+  --fs-h2:          18px;
+  --fs-book-title:  15px;   /* bookshelf */
+  --fs-body-ui:     13px;   /* generic UI */
+  --fs-caption:     11px;   /* labels / counts */
+  --fs-reader-body: 18px;   /* reading body — most important */
+  --fs-reader-h1:   24px;   /* chapter title */
+  --fs-reader-quote:15px;
+
+  --lh-tight:   1.3;
+  --lh-normal:  1.5;
+  --lh-relaxed: 1.7;
+  --lh-reader:  1.8;        /* reading body line-height */
+  --lh-mono:    1.4;
+
+  --tracking-caps: 1.5px;   /* uppercase section labels */
+  --tracking-wide: 0.5px;
+  --tracking-reader: 0.2px;
+}
+
+/* ==========================================================================
+   THEME: 暗夜书房 (default — dark study room)
+   ========================================================================== */
 :root, [data-ui-theme="glass"] {
-  --radius-card: 14px;
-  --radius-btn: 10px;
-  --radius-panel: 16px;
-  --transition-theme: background 0.3s ease, border 0.3s ease, box-shadow 0.3s ease, color 0.3s ease, opacity 0.3s ease;
-  --nav-title-color: #ffffff;
-  --nav-subtitle-color: rgba(255, 255, 255, 0.35);
-  /* bookshelf text on dark/card backgrounds */
-  --book-title-color: rgba(255, 255, 255, 0.85);
-  --book-author-color: rgba(255, 255, 255, 0.35);
-  --book-chapter-color: rgba(255, 255, 255, 0.35);
-  --book-icon-color: rgba(255, 255, 255, 0.5);
-  --book-timer-color: rgba(255, 255, 255, 0.6);
-  --book-timestamp-color: rgba(255, 255, 255, 0.2);
-  --book-muted-color: rgba(255, 255, 255, 0.4);
-  --book-progress-bg: rgba(0, 0, 0, 0.3);
-  --book-section-title-color: rgba(255, 255, 255, 0.5);
-  --book-badge-bg: rgba(0, 0, 0, 0.6);
-  --book-badge-border: rgba(255, 255, 255, 0.2);
-  --book-card-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+  /* Surfaces */
+  --bg-base:    #1a1a1f;   /* warm-graphite canvas */
+  --bg-elev-1:  #1f1f25;   /* glass base layer */
+  --bg-elev-2:  #26262d;   /* glass top / hover */
+  --bg-overlay: rgba(10, 10, 14, 0.55);
+
+  /* Glass tints */
+  --glass-tint:        rgba(255, 255, 255, 0.06);
+  --glass-tint-strong: rgba(255, 255, 255, 0.10);
+  --glass-border-top:  rgba(255, 248, 231, 0.14);   /* warm light */
+  --glass-border-bot:  rgba(0, 0, 0, 0.35);
+  --glass-blur:        blur(16px) saturate(125%);
+
+  /* Halo (single source of light: paper-warm from top) */
+  --halo-paper:    #d4a574;
+  --halo-paper-2:  #b88a5a;
+  --halo-opacity:  0.06;
+
+  /* Ink (text) */
+  --ink-100: #f4ede0;   /* primary — paper-cream, not pure white */
+  --ink-80:  rgba(244, 237, 224, 0.80);
+  --ink-60:  rgba(244, 237, 224, 0.60);
+  --ink-40:  rgba(244, 237, 224, 0.40);
+  --ink-20:  rgba(244, 237, 224, 0.20);
+  --ink-10:  rgba(244, 237, 224, 0.10);
+
+  /* Accents */
+  --accent:        #2d5a5a;        /* ink-cyan, primary */
+  --accent-soft:   rgba(45, 90, 90, 0.20);
+  --accent-strong: #3d7a7a;
+  --warn:          #c87a3a;        /* dusk orange, for "achieved" or notice */
+  --danger:        #a8392e;        /* vermillion, for irreversible */
+
+  /* Progress / chart */
+  --progress-track: rgba(244, 237, 224, 0.10);
+  --progress-fill:  var(--accent);
+
+  /* Shadows (warm-tinted black for dark theme) */
+  --shadow-glass: 0 1px 0 var(--glass-border-top) inset,
+                  0 -1px 0 var(--glass-border-bot) inset,
+                  0 12px 32px rgba(0, 0, 0, 0.35),
+                  0 2px 6px rgba(0, 0, 0, 0.20);
+  --shadow-floating: 0 20px 60px rgba(0, 0, 0, 0.55),
+                     0 4px 12px rgba(0, 0, 0, 0.30);
+  --shadow-press: 0 1px 2px rgba(0, 0, 0, 0.30) inset;
+
+  /* Component-level tokens (bookshelf / sidebar / nav) */
+  --nav-title-color:        var(--ink-100);
+  --nav-subtitle-color:     var(--ink-60);
+  --book-title-color:       var(--ink-100);
+  --book-author-color:      var(--ink-60);
+  --book-chapter-color:     var(--ink-40);
+  --book-icon-color:        var(--ink-60);
+  --book-timer-color:       var(--ink-100);
+  --book-timestamp-color:   var(--ink-40);
+  --book-muted-color:       var(--ink-60);
+  --book-progress-bg:       var(--ink-10);
+  --book-section-title-color: var(--ink-40);
+  --book-badge-bg:          rgba(0, 0, 0, 0.55);
+  --book-badge-border:      var(--ink-20);
+  --book-card-shadow:       0 6px 18px rgba(0, 0, 0, 0.35);
+
+  /* AI panel — back-compat: ai-panel.css also declares these under [data-ui-theme="flat"] */
+  --ai-bg:                  var(--bg-elev-2);
+  --ai-fg:                  var(--ink-100);
+  --ai-user-bg:             transparent;
+  --ai-user-fg:             var(--ink-80);
+  --ai-border:              var(--ink-20);
+  --ai-input-bg:            var(--bg-elev-1);
+  --ai-muted:               var(--ink-40);
+  --ai-msg-user-bg:         var(--ink-10);
+  --ai-msg-assistant-bg:    transparent;
+  --ai-drag-bg:             var(--ink-10);
+  --ai-drag-bar:            var(--ink-20);
+
+  /* Spinner */
+  --spinner-track:   rgba(244, 237, 224, 0.15);
+  --spinner-head:    var(--accent);
 }
 
+/* ==========================================================================
+   THEME: 日间图书馆 (light — same identity, paper instead of night)
+   ========================================================================== */
 [data-ui-theme="flat"] {
-  --radius-card: 4px;
-  --radius-btn: 6px;
-  --radius-panel: 6px;
-  --transition-theme: background 0.3s ease, border 0.3s ease, box-shadow 0.3s ease, color 0.3s ease, opacity 0.3s ease;
-  --nav-title-color: #111827;
-  --nav-subtitle-color: rgba(0, 0, 0, 0.45);
-  /* bookshelf text on light/card backgrounds */
-  --book-title-color: #111827;
-  --book-author-color: rgba(0, 0, 0, 0.45);
-  --book-chapter-color: rgba(0, 0, 0, 0.45);
-  --book-icon-color: rgba(0, 0, 0, 0.5);
-  --book-timer-color: rgba(0, 0, 0, 0.6);
-  --book-timestamp-color: rgba(0, 0, 0, 0.3);
-  --book-muted-color: rgba(0, 0, 0, 0.4);
-  --book-progress-bg: rgba(0, 0, 0, 0.08);
-  --book-section-title-color: rgba(0, 0, 0, 0.5);
-  --book-badge-bg: rgba(99, 102, 241, 0.85);
-  --book-badge-border: rgba(99, 102, 241, 0.3);
-  --book-card-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  /* Surfaces */
+  --bg-base:    #f7f4ed;   /* paper-white */
+  --bg-elev-1:  #ffffff;
+  --bg-elev-2:  #fbf8f0;
+  --bg-overlay: rgba(28, 28, 30, 0.18);
+
+  /* Glass tints — in light theme, "glass" is barely there; lines do work */
+  --glass-tint:        rgba(255, 255, 255, 0.30);
+  --glass-tint-strong: rgba(255, 255, 255, 0.50);
+  --glass-border-top:  rgba(255, 248, 231, 0.50);
+  --glass-border-bot:  rgba(28, 28, 30, 0.06);
+  --glass-blur:        blur(8px) saturate(105%);
+
+  /* Halo */
+  --halo-paper:    #f0e4cc;
+  --halo-paper-2:  #e0d4b8;
+  --halo-opacity:  0.30;
+
+  /* Ink — dark text on paper */
+  --ink-100: #1c1c1e;
+  --ink-80:  rgba(28, 28, 30, 0.78);
+  --ink-60:  rgba(28, 28, 30, 0.55);
+  --ink-40:  rgba(28, 28, 30, 0.35);
+  --ink-20:  rgba(28, 28, 30, 0.12);
+  --ink-10:  rgba(28, 28, 30, 0.06);
+
+  /* Accents — same hue, slightly stronger for contrast on light bg */
+  --accent:        #1f4747;
+  --accent-soft:   rgba(31, 71, 71, 0.16);
+  --accent-strong: #163838;
+  --warn:          #b36628;
+  --danger:        #8e2f25;
+
+  /* Progress / chart */
+  --progress-track: rgba(28, 28, 30, 0.08);
+  --progress-fill:  var(--accent);
+
+  /* Shadows (warm low-concentration shadows for daylight) */
+  --shadow-glass: 0 1px 0 var(--glass-border-top) inset,
+                  0 -1px 0 var(--glass-border-bot) inset,
+                  0 2px 8px rgba(60, 50, 30, 0.08),
+                  0 1px 2px rgba(60, 50, 30, 0.04);
+  --shadow-floating: 0 10px 32px rgba(60, 50, 30, 0.14),
+                     0 2px 6px rgba(60, 50, 30, 0.06);
+  --shadow-press: 0 1px 2px rgba(60, 50, 30, 0.10) inset;
+
+  /* Component-level tokens */
+  --nav-title-color:          var(--ink-100);
+  --nav-subtitle-color:       var(--ink-60);
+  --book-title-color:         var(--ink-100);
+  --book-author-color:        var(--ink-60);
+  --book-chapter-color:       var(--ink-60);
+  --book-icon-color:          var(--ink-60);
+  --book-timer-color:         var(--ink-100);
+  --book-timestamp-color:     var(--ink-40);
+  --book-muted-color:         var(--ink-60);
+  --book-progress-bg:         var(--ink-10);
+  --book-section-title-color: var(--ink-40);
+  --book-badge-bg:            var(--accent);
+  --book-badge-border:        var(--accent);
+  --book-card-shadow:         0 1px 3px rgba(60, 50, 30, 0.08);
+
+  /* AI panel — overrides for light theme (ai-panel.css also declares these) */
+  --ai-bg:        var(--bg-elev-1);
+  --ai-fg:        var(--ink-100);
+  --ai-user-bg:   var(--bg-elev-2);
+  --ai-user-fg:   var(--ink-80);
+  --ai-border:    var(--ink-20);
+  --ai-input-bg:  var(--bg-elev-2);
+  --ai-muted:     var(--ink-60);
+  --ai-msg-user-bg:      var(--accent-soft);
+  --ai-msg-assistant-bg: var(--ink-10);
+  --ai-drag-bg:  var(--ink-10);
+  --ai-drag-bar: var(--ink-40);
+
+  /* Spinner */
+  --spinner-track: rgba(28, 28, 30, 0.10);
+  --spinner-head:  var(--accent);
 }
 
+/* --------------------------------------------------------------------------
+   Shared loading primitives
+   -------------------------------------------------------------------------- */
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -49,15 +237,10 @@
 .shared-spinner {
   width: 24px;
   height: 24px;
-  border: 2.5px solid rgba(255, 255, 255, 0.15);
-  border-top-color: rgba(99, 102, 241, 0.8);
+  border: 2.5px solid var(--spinner-track);
+  border-top-color: var(--spinner-head);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
-}
-
-[data-ui-theme="flat"] .shared-spinner {
-  border-color: rgba(0, 0, 0, 0.1);
-  border-top-color: #6366f1;
 }
 
 .shared-loading {
@@ -70,7 +253,9 @@
 }
 
 .shared-loading-text {
-  font-size: 13px;
+  font-size: var(--fs-caption);
   color: var(--book-muted-color);
   font-weight: 500;
+  font-family: var(--font-sans);
+  letter-spacing: var(--tracking-wide);
 }

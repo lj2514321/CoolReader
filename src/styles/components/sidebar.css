@@ -6,7 +6,7 @@
   --sidebar-bg: rgba(10, 10, 26, 0.85);
   --sidebar-fg: rgba(255, 255, 255, 0.7);
   --sidebar-muted: rgba(255, 255, 255, 0.5);
-  --sidebar-active: #a78bfa;
+  --sidebar-active: #3d7a7a;
   --sidebar-border: rgba(255, 255, 255, 0.05);
   --sidebar-hover-bg: rgba(255, 255, 255, 0.04);
 }
@@ -15,7 +15,7 @@
   --sidebar-bg: rgba(255, 255, 255, 0.85);
   --sidebar-fg: rgba(30, 30, 60, 0.7);
   --sidebar-muted: rgba(30, 30, 60, 0.5);
-  --sidebar-active: #7c3aed;
+  --sidebar-active: #1f4747;
   --sidebar-border: rgba(0, 0, 0, 0.06);
   --sidebar-hover-bg: rgba(0, 0, 0, 0.04);
 }
@@ -24,7 +24,7 @@
   --sidebar-bg: rgba(244, 236, 216, 0.9);
   --sidebar-fg: rgba(80, 50, 20, 0.7);
   --sidebar-muted: rgba(80, 50, 20, 0.5);
-  --sidebar-active: #a67c00;
+  --sidebar-active: #2d5a5a;
   --sidebar-border: rgba(80, 50, 20, 0.1);
   --sidebar-hover-bg: rgba(80, 50, 20, 0.04);
 }
@@ -121,42 +121,9 @@
 .sidebar-toc-btn-depth-4 { padding-left: 80px; }
 .sidebar-toc-btn-depth-5 { padding-left: 96px; }
 
-/* ======================== [data-ui-theme="flat"] ======================== */
-
+/* Flat ui-theme: no glass blur; thin border instead. Title-bar color etc.
+   already come from reading theme variables above. */
 [data-ui-theme="flat"] .sidebar-root {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
-  border-right: 1px solid #e5e7eb;
-}
-
-[data-ui-theme="flat"] .sidebar-header-title {
-  color: #111827;
-}
-
-[data-ui-theme="flat"] .sidebar-close-btn {
-  background: #f3f4f6;
-  color: #6b7280;
-}
-
-[data-ui-theme="flat"] .sidebar-close-btn:hover {
-  background: #e5e7eb;
-}
-
-[data-ui-theme="flat"] .sidebar-toc-btn {
-  color: #6b7280;
-}
-
-[data-ui-theme="flat"] .sidebar-toc-btn:hover {
-  background: #f3f4f6;
-  color: #374151;
-}
-
-[data-ui-theme="flat"] .sidebar-toc-btn-active {
-  color: #6366f1;
-  border-left-color: #6366f1;
-}
-
-[data-ui-theme="flat"] .sidebar-toc-btn-active:hover {
-  background: #f3f4f6;
-  color: #4f46e5;
 }

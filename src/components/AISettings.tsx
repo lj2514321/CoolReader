@@ -53,11 +53,11 @@ export function AISettings({ config, onConfigChange }: AISettingsProps) {
 
       <div className="form-actions">
         <button onClick={handleTest} disabled={testing || !apiUrl || !apiKey}
-          className="form-btn" style={{ background: 'rgba(99,102,241,0.3)' }}
+          className="form-btn" style={{ background: 'rgba(45,90,90,0.3)' }}
         >{testing ? '测试中...' : '测试连接'}</button>
 
         <button onClick={handleSave}
-          className="form-btn" style={{ background: 'rgba(168,85,247,0.3)' }}
+          className="form-btn" style={{ background: 'rgba(45,90,90,0.3)' }}
         >{saved ? '已保存' : '保存配置'}</button>
 
         {testMsg && (

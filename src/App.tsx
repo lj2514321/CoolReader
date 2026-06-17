@@ -201,7 +201,7 @@ export default function App() {
   const scale = phase === 'idle' ? 1 : phase === 'leaving' ? 0.97 : 1
   const activeTocSrc = sectionHrefRef.current
   // @ts-expect-error 'custom' theme is handled separately via customThemeRef, not in the base theme object
-  const readerBg = ({ light: '#ece8f4', sepia: '#f4ecd8', dark: '#0a0a1a' } satisfies Record<ThemeMode, string>)[theme]
+  const readerBg = ({ light: '#f7f4ed', sepia: '#f4ecd8', dark: '#1a1a1f' } satisfies Record<ThemeMode, string>)[theme]
   const appBg = useMemo(() => {
     if (customBgLoaded && customBgConfig && customBgConfig.type !== 'preset') {
       if (customBgConfig.type === 'color') {
@@ -337,7 +337,7 @@ export default function App() {
       {isDragging && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 9999,
-          background: 'rgba(99,102,241,0.15)',
+          background: 'rgba(45,90,90,0.15)',
           backdropFilter: 'blur(8px) saturate(120%)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           flexDirection: 'column', gap: 16,
