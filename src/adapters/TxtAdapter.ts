@@ -271,10 +271,14 @@ export class TxtAdapter implements BookAdapter {
     content.style.fontWeight = String(l.fontWeight ?? 400)
     content.style.lineHeight = String(l.lineHeight)
     content.style.padding = `24px ${l.margin}px`
+    content.style.overflowY = l.flow === 'scrolled-doc' ? 'auto' : 'hidden'
+    content.style.scrollbarWidth = l.flow === 'scrolled-doc' ? 'thin' : 'none'
   }
 
-  flow(_mode: 'paginated' | 'scrolled-doc'): void {
-    // TXT adapter uses scroll-based rendering; flow mode is not applicable.
+  flow(mode: 'paginated' | 'scrolled-doc'): void {
+    this.layout = { ...this.layout, flow: mode }
+    this.applyLayout()
+    this.injectThemeStyles(this.theme, null)
   }
 
   resize(): void {
@@ -329,7 +333,9 @@ export class TxtAdapter implements BookAdapter {
       line-height: ${this.layout.lineHeight};
       max-width: 100%;
       box-sizing: border-box;
-      overflow-y: auto;
+      overflow-y: ${this.layout.flow === 'scrolled-doc' ? 'auto' : 'hidden'};
+      scrollbar-width: ${this.layout.flow === 'scrolled-doc' ? 'thin' : 'none'};
+      scrollbar-color: rgba(90, 82, 70, 0.36) transparent;
       height: 100%;
     `
     pre.textContent = chapter
@@ -446,7 +452,22 @@ export class TxtAdapter implements BookAdapter {
     else if (theme === 'custom' && customCss) css = customCss
     else if (theme === 'custom' && this.customTheme) css = generateCustomThemeCSS(this.customTheme)
     // Scope to the txt content div
-    styleEl.textContent = `[data-txt-content] { ${css} }`
+    styleEl.textContent = `
+      [data-txt-content] { ${css} }
+      [data-txt-content]::-webkit-scrollbar {
+        width: ${this.layout.flow === 'scrolled-doc' ? '8px' : '0'};
+        height: ${this.layout.flow === 'scrolled-doc' ? '8px' : '0'};
+      }
+      [data-txt-content]::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      [data-txt-content]::-webkit-scrollbar-thumb {
+        background: rgba(90, 82, 70, 0.32);
+        border: 2px solid transparent;
+        border-radius: 999px;
+        background-clip: content-box;
+      }
+    `
   }
 
   private visibleCharsPerPage(): number {

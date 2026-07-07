@@ -104,6 +104,50 @@
   transition: all 0.15s ease;
 }
 
+/* ======================== Viewer Scrollbars ======================== */
+.reader-viewer {
+  overflow: hidden;
+}
+
+.reader-viewer[data-flow="paginated"],
+.reader-viewer[data-flow="paginated"] * {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.reader-viewer[data-flow="paginated"]::-webkit-scrollbar,
+.reader-viewer[data-flow="paginated"] *::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+.reader-viewer[data-flow="scrolled-doc"] {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--reader-fg) 32%, transparent) transparent;
+}
+
+.reader-viewer[data-flow="scrolled-doc"]::-webkit-scrollbar {
+  width: 8px;
+}
+
+.reader-viewer[data-flow="scrolled-doc"]::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.reader-viewer[data-flow="scrolled-doc"]::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--reader-fg) 28%, transparent);
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: content-box;
+}
+
+.reader-viewer[data-flow="scrolled-doc"]::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--reader-fg) 42%, transparent);
+  background-clip: content-box;
+}
+
 /* ======================== Top Bar ======================== */
 .reader-top-bar {
   position: absolute;
@@ -111,7 +155,7 @@
   left: 0;
   right: 0;
   z-index: 50;
-  padding: 12px 16px;
+  padding: 0;
 }
 
 .reader-top-bar-inner {
@@ -121,9 +165,11 @@
   background: var(--reader-glass-bg);
   backdrop-filter: blur(20px) saturate(140%);
   -webkit-backdrop-filter: blur(20px) saturate(140%);
-  border-radius: var(--radius-panel);
-  border: 1px solid var(--reader-panel-border);
-  padding: 6px 10px;
+  border-bottom: 1px solid var(--reader-panel-border);
+  padding: 10px 16px;
+  min-height: 48px;
+  box-sizing: border-box;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.08);
 }
 
 /* ======================== Bottom Bar ======================== */
@@ -136,6 +182,14 @@
   padding: 12px 16px;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .reader-top-bar,
+  .reader-bottom-bar {
+    transform: none !important;
+    transition: opacity 0.12s ease !important;
+  }
+}
+
 .reader-bottom-bar-inner {
   display: flex;
   align-items: center;
@@ -146,6 +200,14 @@
   border-radius: var(--radius-panel);
   border: 1px solid var(--reader-panel-border);
   padding: 6px 10px;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.10);
+}
+
+.reader-bottom-divider {
+  width: 1px;
+  height: 22px;
+  background: var(--reader-panel-border);
+  flex-shrink: 0;
 }
 
 /* ======================== Progress ======================== */

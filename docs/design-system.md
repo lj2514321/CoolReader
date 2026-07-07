@@ -295,3 +295,16 @@
 - `rgba(15,12,41,...)`（旧紫蓝玻璃）
 
 替换为墨青 (`#2d5a5a`) / 暖灰 (`#3a3530`) / 暖纸 (`#f7f4ed`) 色系。
+
+---
+
+## 2026-07 UI Refinement Notes
+
+CoolReader now favors a line-led interface over heavy card surfaces. Home and reader UI should keep custom background colors visible through primary surfaces.
+
+- Use transparent surfaces plus `1px` token borders for bookshelf cards, continue-reading items, and navigation containers.
+- Avoid fixed elevated backgrounds such as `--bg-elev-1` for large persistent home-page panels unless the component must visually float above content.
+- Keep navigation buttons borderless; use a subtle background tint and a left accent line for hover/active states.
+- Reader chrome uses full-width top and bottom bars with directional shadows, slide/fade wake animations, and no mouse-move wake behavior.
+- Reader sidebars should animate with `transform`, not width changes, so the reading viewport does not reflow during transitions.
+- In paginated reading mode, hide content scrollbars. In scroll mode, show thin themed scrollbars only.

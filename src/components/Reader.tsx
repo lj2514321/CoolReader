@@ -1,14 +1,10 @@
 import { memo, useEffect, useRef, useState } from 'react'
 import {
   Sun, Moon, Contrast,
-  Bookmark as BookmarkIcon, Search, List, Maximize2,
-  ChevronLeft, ChevronRight,
   SlidersHorizontal,
-  BookmarkCheck, Highlighter, Trash2,
-  ArrowLeft, LayoutList, Send, X,
-  BookOpen, Library, BarChart3, Settings,
-  CheckCircle2, Sparkles, Timer, FolderOpen,
-  MoreVertical, FileText, ScrollText,
+  Trash2,
+  Send, X,
+  FileText, ScrollText,
 } from 'lucide-react'
 import { BookMeta, ThemeMode, AIConfig, ReaderLayout, fontFamilies, defaultLayout, Highlight, highlightColors, SearchResult, CustomTheme, defaultCustomTheme, AnimationMode } from '../types'
 import { useReaderKeyboard } from '../hooks/useReaderKeyboard'
@@ -17,6 +13,7 @@ import { UI_AUTO_HIDE_DELAY, WHEEL_THROTTLE_DELAY, SEARCH_DEBOUNCE_DELAY, CLICK_
 import { AIPanel } from './AIPanel'
 import { ReaderSearchPanel } from './ReaderSearchPanel'
 import { ReaderMarkersPanel } from './ReaderMarkersPanel'
+import { ReaderBottomBar, ReaderMoreMenu, ReaderTopBar } from './ReaderChrome'
 import '../styles/components/reader.css'
 
 interface ReaderProps {
@@ -112,9 +109,16 @@ export const Reader = memo(function Reader({
   useEffect(() => {
     const el = containerRef.current
     if (!el || !onResize) return
-    const ro = new ResizeObserver(() => onResize())
+    let resizeTimer: ReturnType<typeof setTimeout> | undefined
+    const ro = new ResizeObserver(() => {
+      clearTimeout(resizeTimer)
+      resizeTimer = setTimeout(() => onResize(), 260)
+    })
     ro.observe(el)
-    return () => ro.disconnect()
+    return () => {
+      ro.disconnect()
+      clearTimeout(resizeTimer)
+    }
   }, [onResize])
 
   const [showUI, setShowUI] = useState(true)
@@ -170,23 +174,6 @@ export const Reader = memo(function Reader({
   useEffect(() => {
     showControls()
     return () => clearTimeout(hideTimer.current)
-  }, [])
-
-  // Mouse-driven UI reveal — debounced, only on significant movement
-  useEffect(() => {
-    let lastX = 0, lastY = 0
-    let moveTimer: ReturnType<typeof setTimeout> | undefined
-    const handler = (e: MouseEvent) => {
-      const dx = Math.abs(e.clientX - lastX)
-      const dy = Math.abs(e.clientY - lastY)
-      if (dx + dy < 12) return  // ignore sub-12px jitter
-      lastX = e.clientX
-      lastY = e.clientY
-      clearTimeout(moveTimer)
-      moveTimer = setTimeout(() => showControls(), 200)
-    }
-    window.addEventListener('mousemove', handler, { passive: true })
-    return () => { window.removeEventListener('mousemove', handler); clearTimeout(moveTimer) }
   }, [])
 
   useEffect(() => {
@@ -295,7 +282,7 @@ export const Reader = memo(function Reader({
 
   return (
     <div ref={containerRef} data-theme={dataTheme} style={{ height: '100%', background: readerBg, overflow: 'hidden', position: 'relative' }}>
-      <div id="viewer" style={{ position: 'absolute', inset: 0 }} />
+      <div id="viewer" className="reader-viewer" data-flow={layout.flow} style={{ position: 'absolute', inset: 0 }} />
       <div
         onClick={handleViewerClick}
         onKeyDown={e => {
@@ -312,50 +299,33 @@ export const Reader = memo(function Reader({
         }}
       />
 
-      {/* top bar */}
-      <div className="reader-top-bar"
-        style={{
-          opacity: showUI || showLayout || showMarkers || showMore ? 1 : 0,
-          pointerEvents: showUI || showLayout || showMarkers || showMore ? 'auto' : 'none',
-          transition: 'opacity 0.3s ease',
-          zIndex: showLayout ? 60 : 2,
-        }}>
-        <div className="reader-top-bar-inner reader-glass">
-          <button onClick={onBack} className="reader-btn"><ArrowLeft size={16} />&ensp;返回</button>
-          <span style={{ flex: 1, fontWeight: 600, fontSize: 14, color: 'var(--reader-fg)' }} className="reader-text-ellipsis">
-            {meta?.title || ''}
-          </span>
-          <button onClick={(e) => { e.stopPropagation(); setShowLayout(v => !v); setShowMarkers(false); setShowAI(false); setShowMore(false) }}
-            className={`reader-btn${showLayout ? ' reader-btn-active' : ''}`}
-            style={{ padding: '7px 12px', opacity: 1 }}
-          >Aa</button>
-          <button onClick={(e) => { e.stopPropagation(); onToggleBookmark() }}
-            className={`reader-btn${isBookmarked ? ' reader-btn-active' : ''}`}
-            style={{ padding: '7px 12px', opacity: 1 }}
-          ><BookmarkIcon size={15} /></button>
-          <button onClick={(e) => { e.stopPropagation(); setShowMore(v => !v); setShowLayout(false); setShowMarkers(false); setShowAI(false) }}
-            className={`reader-btn${showMore ? ' reader-btn-active' : ''}`}
-            style={{ padding: '7px 12px', opacity: 1 }}
-          ><MoreVertical size={15} /></button>
-        </div>
-      </div>
+      <ReaderTopBar
+        meta={meta}
+        showUI={showUI}
+        showLayout={showLayout}
+        showMarkers={showMarkers}
+        showMore={showMore}
+        isBookmarked={isBookmarked}
+        onBack={onBack}
+        onToggleBookmark={onToggleBookmark}
+        onToggleLayout={() => {
+          setShowLayout(v => !v)
+          setShowMarkers(false)
+          setShowAI(false)
+          setShowMore(false)
+        }}
+        onToggleMore={() => {
+          setShowMore(v => !v)
+          setShowLayout(false)
+          setShowMarkers(false)
+          setShowAI(false)
+        }}
+      />
 
-      {/* more menu dropdown */}
-      {showMore && (
-        <div className="reader-more-menu reader-glass" onClick={e => e.stopPropagation()}>
-          <button onClick={() => { onToggleSidebar(); setShowMore(false) }} className="reader-more-item"><List size={14} />&ensp;目录</button>
-          <button onClick={() => { setShowSearch(true); setShowMore(false) }} className="reader-more-item"><Search size={14} />&ensp;搜索</button>
-          <div className="reader-more-divider" />
-          {themes.map(t => (
-            <button key={t.key} onClick={() => { onThemeChange(t.key); setShowMore(false) }}
-              className={`reader-more-item${theme === t.key ? ' reader-more-item-active' : ''}`}
-            >{t.icon}&ensp;{t.key === 'light' ? '浅色' : t.key === 'sepia' ? '护眼' : '暗色'}</button>
-          ))}
-          <div className="reader-more-divider" />
-          <button onClick={() => { setShowAI(true); setShowMore(false) }} className="reader-more-item"><Sparkles size={14} />&ensp;AI 助手</button>
-          <button onClick={() => { window.electronAPI?.toggleFullscreen(); setShowMore(false) }} className="reader-more-item"><Maximize2 size={14} />&ensp;全屏</button>
-        </div>
-      )}
+      <ReaderMoreMenu
+        visible={showMore}
+        onToggleFullscreen={() => { window.electronAPI?.toggleFullscreen(); setShowMore(false) }}
+      />
 
       {showLayout && (
         <>
@@ -378,7 +348,7 @@ export const Reader = memo(function Reader({
             <div className="reader-section-label">字号</div>
             <div className="reader-layout-row">
               <button onClick={() => onLayoutChange({ fontSize: Math.max(FONT_SIZE_MIN, layout.fontSize - 10) })}
-                className="reader-btn">A−</button>
+                className="reader-btn">A-</button>
               <input type="range" min={FONT_SIZE_MIN} max={FONT_SIZE_MAX} value={layout.fontSize}
                 onChange={e => onLayoutChange({ fontSize: Number(e.target.value) })}
                 className="reader-range-input" />
@@ -391,7 +361,7 @@ export const Reader = memo(function Reader({
             <div className="reader-section-label">行距</div>
             <div className="reader-layout-row">
               <button onClick={() => onLayoutChange({ lineHeight: Math.max(1, +(layout.lineHeight - LINE_HEIGHT_STEP).toFixed(1)) })}
-                className="reader-btn">−</button>
+                className="reader-btn">-</button>
               <input type="range" min={LINE_HEIGHT_MIN} max={LINE_HEIGHT_MAX} value={Math.round(layout.lineHeight * 10)}
                 onChange={e => onLayoutChange({ lineHeight: Number(e.target.value) / 10 })}
                 className="reader-range-input" />
@@ -423,7 +393,7 @@ export const Reader = memo(function Reader({
                 <div className="reader-section-label">字重</div>
                 <div className="reader-layout-row">
                   <button onClick={() => onLayoutChange({ fontWeight: Math.max(FONT_WEIGHT_MIN, (layout.fontWeight || 400) - FONT_WEIGHT_STEP) })}
-                    className="reader-btn">−</button>
+                    className="reader-btn">-</button>
                   <input type="range" min={FONT_WEIGHT_MIN} max={FONT_WEIGHT_MAX} step={FONT_WEIGHT_STEP} value={layout.fontWeight || 400}
                     onChange={e => onLayoutChange({ fontWeight: Number(e.target.value) })}
                     className="reader-range-input" />
@@ -437,7 +407,7 @@ export const Reader = memo(function Reader({
                 <div className="reader-section-label">边距</div>
                 <div className="reader-layout-row">
                   <button onClick={() => onLayoutChange({ margin: Math.max(MARGIN_MIN, layout.margin - 5) })}
-                    className="reader-btn">−</button>
+                    className="reader-btn">-</button>
                   <input type="range" min={MARGIN_MIN} max={MARGIN_MAX} value={layout.margin}
                     onChange={e => onLayoutChange({ margin: Number(e.target.value) })}
                     className="reader-range-input" />
@@ -575,35 +545,30 @@ export const Reader = memo(function Reader({
       />
 
       {/* bottom bar */}
-      <div className="reader-bottom-bar"
-        style={{
-          opacity: showUI ? 1 : 0,
-          pointerEvents: showUI ? 'auto' : 'none',
-          transition: 'opacity 0.3s ease',
-          zIndex: 2,
-        }}>
-        <div className="reader-bottom-bar-inner reader-glass">
-          <button onClick={onPrev} className="reader-btn"><ChevronLeft size={16} />&ensp;上一页</button>
-
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div
-              onClick={e => {
-                const r = e.currentTarget.getBoundingClientRect()
-                onSeek(Math.round(((e.clientX - r.left) / r.width) * 100))
-              }}
-              className="reader-progress-track"
-            >
-              <div
-                className="reader-progress-fill"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--reader-fg)', opacity: 0.5, minWidth: 32, textAlign: 'right' }}>{progress}%</span>
-          </div>
-
-          <button onClick={onNext} className="reader-btn">下一页&ensp;<ChevronRight size={16} /></button>
-        </div>
-      </div>
+      <ReaderBottomBar
+        showUI={showUI}
+        progress={progress}
+        onPrev={onPrev}
+        onNext={onNext}
+        onSeek={onSeek}
+        onToggleSidebar={onToggleSidebar}
+        onOpenSearch={() => {
+          setShowSearch(v => !v)
+          setShowLayout(false)
+          setShowMarkers(false)
+          setShowAI(false)
+          setShowMore(false)
+        }}
+        onOpenAI={() => {
+          setShowAI(v => !v)
+          setShowLayout(false)
+          setShowMarkers(false)
+          setShowSearch(false)
+          setShowMore(false)
+        }}
+        showSearch={showSearch}
+        showAI={showAI}
+      />
 
       {/* selection toolbar */}
       {selectionInfo && (

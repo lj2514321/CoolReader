@@ -310,10 +310,14 @@ export class MobiAdapter implements BookAdapter {
     body.style.fontWeight = String(l.fontWeight ?? 400)
     body.style.lineHeight = String(l.lineHeight)
     body.style.padding = `24px ${l.margin}px`
+    body.style.overflowY = l.flow === 'scrolled-doc' ? 'auto' : 'hidden'
+    body.style.scrollbarWidth = l.flow === 'scrolled-doc' ? 'thin' : 'none'
   }
 
-  flow(_mode: 'paginated' | 'scrolled-doc'): void {
-    // MOBI adapter uses iframe rendering; flow mode is not applicable.
+  flow(mode: 'paginated' | 'scrolled-doc'): void {
+    this.layout = { ...this.layout, flow: mode }
+    this.applyLayout()
+    this.injectThemeStyles(this.theme, null)
   }
 
   resize(): void {
@@ -368,7 +372,22 @@ export class MobiAdapter implements BookAdapter {
         font-weight: ${this.layout.fontWeight ?? 400};
         line-height: ${this.layout.lineHeight};
         word-wrap: break-word;
-        overflow-y: auto;
+        overflow-y: ${this.layout.flow === 'scrolled-doc' ? 'auto' : 'hidden'};
+        scrollbar-width: ${this.layout.flow === 'scrolled-doc' ? 'thin' : 'none'};
+        scrollbar-color: rgba(90, 82, 70, 0.36) transparent;
+      }
+      body::-webkit-scrollbar {
+        width: ${this.layout.flow === 'scrolled-doc' ? '8px' : '0'};
+        height: ${this.layout.flow === 'scrolled-doc' ? '8px' : '0'};
+      }
+      body::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      body::-webkit-scrollbar-thumb {
+        background: rgba(90, 82, 70, 0.32);
+        border: 2px solid transparent;
+        border-radius: 999px;
+        background-clip: content-box;
       }
       img { max-width: 100%; height: auto; }
     </style></head><body>${html}</body></html>`)
@@ -445,7 +464,22 @@ export class MobiAdapter implements BookAdapter {
     else if (theme === 'sepia') css = themeStyles.sepia
     else if (theme === 'custom' && customCss) css = customCss
     else if (theme === 'custom' && this.customTheme) css = generateCustomThemeCSS(this.customTheme)
-    styleEl.textContent = css
+    styleEl.textContent = `
+      ${css}
+      body::-webkit-scrollbar {
+        width: ${this.layout.flow === 'scrolled-doc' ? '8px' : '0'};
+        height: ${this.layout.flow === 'scrolled-doc' ? '8px' : '0'};
+      }
+      body::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      body::-webkit-scrollbar-thumb {
+        background: rgba(90, 82, 70, 0.32);
+        border: 2px solid transparent;
+        border-radius: 999px;
+        background-clip: content-box;
+      }
+    `
   }
 
   private mapToc(items: any[]): Array<{ label: string; href: string; subitems?: any[] }> {

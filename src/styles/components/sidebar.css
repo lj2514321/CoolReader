@@ -3,45 +3,85 @@
 /* ======================== Theme Variables ======================== */
 
 [data-theme="dark"] {
-  --sidebar-bg: rgba(10, 10, 26, 0.85);
-  --sidebar-fg: rgba(255, 255, 255, 0.7);
-  --sidebar-muted: rgba(255, 255, 255, 0.5);
-  --sidebar-active: #3d7a7a;
-  --sidebar-border: rgba(255, 255, 255, 0.05);
-  --sidebar-hover-bg: rgba(255, 255, 255, 0.04);
+  --sidebar-bg: var(--reader-glass-bg, rgba(26, 26, 31, 0.86));
+  --sidebar-fg: var(--reader-fg, #d4cabb);
+  --sidebar-muted: var(--reader-panel-muted, rgba(244, 237, 224, 0.5));
+  --sidebar-active: var(--reader-fg, #d4cabb);
+  --sidebar-border: var(--reader-panel-border, rgba(244, 237, 224, 0.08));
+  --sidebar-hover-bg: var(--reader-panel-hover-bg, rgba(244, 237, 224, 0.1));
 }
 
 [data-theme="light"] {
-  --sidebar-bg: rgba(255, 255, 255, 0.85);
-  --sidebar-fg: rgba(30, 30, 60, 0.7);
-  --sidebar-muted: rgba(30, 30, 60, 0.5);
-  --sidebar-active: #1f4747;
-  --sidebar-border: rgba(0, 0, 0, 0.06);
-  --sidebar-hover-bg: rgba(0, 0, 0, 0.04);
+  --sidebar-bg: var(--reader-glass-bg, rgba(247, 244, 237, 0.86));
+  --sidebar-fg: var(--reader-fg, #3a3530);
+  --sidebar-muted: var(--reader-panel-muted, rgba(0, 0, 0, 0.45));
+  --sidebar-active: var(--reader-fg, #3a3530);
+  --sidebar-border: var(--reader-panel-border, rgba(0, 0, 0, 0.08));
+  --sidebar-hover-bg: var(--reader-panel-hover-bg, rgba(0, 0, 0, 0.08));
 }
 
 [data-theme="sepia"] {
-  --sidebar-bg: rgba(244, 236, 216, 0.9);
-  --sidebar-fg: rgba(80, 50, 20, 0.7);
-  --sidebar-muted: rgba(80, 50, 20, 0.5);
-  --sidebar-active: #2d5a5a;
-  --sidebar-border: rgba(80, 50, 20, 0.1);
-  --sidebar-hover-bg: rgba(80, 50, 20, 0.04);
+  --sidebar-bg: var(--reader-glass-bg, rgba(244, 236, 216, 0.9));
+  --sidebar-fg: var(--reader-fg, #4a3f30);
+  --sidebar-muted: var(--reader-panel-muted, rgba(0, 0, 0, 0.45));
+  --sidebar-active: var(--reader-fg, #4a3f30);
+  --sidebar-border: var(--reader-panel-border, rgba(0, 0, 0, 0.08));
+  --sidebar-hover-bg: var(--reader-panel-hover-bg, rgba(0, 0, 0, 0.08));
 }
 
 /* ======================== Base Classes ======================== */
 
+.sidebar-shell {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 280px;
+  overflow: hidden;
+  transform: translateX(-100%);
+  transition: transform 0.24s ease;
+  pointer-events: none;
+  z-index: 20;
+  will-change: transform;
+}
+
+.sidebar-shell-open {
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.reader-stage {
+  min-width: 0;
+  transform: translateX(0);
+  transition: transform 0.24s ease;
+  will-change: transform;
+}
+
+.reader-stage-shifted {
+  transform: translateX(280px);
+}
+
 .sidebar-root {
   width: 280px;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   background: var(--sidebar-bg);
   backdrop-filter: blur(32px) saturate(140%);
   -webkit-backdrop-filter: blur(32px) saturate(140%);
   border-right: 1px solid var(--sidebar-border);
+  box-shadow: 8px 0 28px rgba(0, 0, 0, 0.08);
   z-index: 10;
   align-self: stretch;
   min-height: 0;
+  opacity: 0;
+  transform: none;
+  transition: opacity 0.24s ease;
+  will-change: opacity;
+}
+
+.sidebar-root-open {
+  opacity: 1;
 }
 
 .sidebar-header {
@@ -59,7 +99,7 @@
 }
 
 .sidebar-close-btn {
-  background: var(--sidebar-hover-bg);
+  background: transparent;
   border: none;
   cursor: pointer;
   border-radius: 8px;
@@ -105,7 +145,8 @@
 .sidebar-toc-btn-active {
   color: var(--sidebar-active);
   font-weight: 600;
-  border-left: 3px solid var(--sidebar-active);
+  border-left: 3px solid currentColor;
+  background: var(--sidebar-hover-bg);
 }
 
 .sidebar-toc-btn-active:hover {
@@ -126,4 +167,19 @@
 [data-ui-theme="flat"] .sidebar-root {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-shell {
+    transition: none;
+  }
+
+  .reader-stage {
+    transition: none;
+  }
+
+  .sidebar-root {
+    transform: none;
+    transition: none;
+  }
 }

@@ -421,7 +421,7 @@ export function useBookEngine(shared: SharedRefs, opts: {
     })
     renditionRef.current = rendition
 
-    if (layoutRef.current.flow !== 'scrolled') {
+    if (layoutRef.current.flow !== 'scrolled-doc') {
       enableSmoothScroll(rendition)
     }
 
@@ -438,6 +438,24 @@ export function useBookEngine(shared: SharedRefs, opts: {
           doc.head.appendChild(style)
         }
         style.textContent = `
+          html {
+            overflow-y: ${l.flow === 'scrolled-doc' ? 'auto' : 'hidden'} !important;
+            scrollbar-width: ${l.flow === 'scrolled-doc' ? 'thin' : 'none'} !important;
+            scrollbar-color: rgba(90, 82, 70, 0.36) transparent !important;
+          }
+          html::-webkit-scrollbar {
+            width: ${l.flow === 'scrolled-doc' ? '8px' : '0'} !important;
+            height: ${l.flow === 'scrolled-doc' ? '8px' : '0'} !important;
+          }
+          html::-webkit-scrollbar-track {
+            background: transparent !important;
+          }
+          html::-webkit-scrollbar-thumb {
+            background: rgba(90, 82, 70, 0.32) !important;
+            border: 2px solid transparent !important;
+            border-radius: 999px !important;
+            background-clip: content-box !important;
+          }
           body {
             font-size: ${l.fontSize}% !important;
             font-family: ${l.fontFamily} !important;
@@ -445,6 +463,22 @@ export function useBookEngine(shared: SharedRefs, opts: {
             line-height: ${l.lineHeight} !important;
             padding: 0 ${l.margin}px !important;
             max-width: 100% !important;
+            overflow-y: ${l.flow === 'scrolled-doc' ? 'auto' : 'hidden'} !important;
+            scrollbar-width: ${l.flow === 'scrolled-doc' ? 'thin' : 'none'} !important;
+            scrollbar-color: rgba(90, 82, 70, 0.36) transparent !important;
+          }
+          body::-webkit-scrollbar {
+            width: ${l.flow === 'scrolled-doc' ? '8px' : '0'} !important;
+            height: ${l.flow === 'scrolled-doc' ? '8px' : '0'} !important;
+          }
+          body::-webkit-scrollbar-track {
+            background: transparent !important;
+          }
+          body::-webkit-scrollbar-thumb {
+            background: rgba(90, 82, 70, 0.32) !important;
+            border: 2px solid transparent !important;
+            border-radius: 999px !important;
+            background-clip: content-box !important;
           }
           body *:not(h1):not(h2):not(h3):not(h4):not(h5):not(h6):not(code):not(pre) {
             font-family: ${l.fontFamily} !important;

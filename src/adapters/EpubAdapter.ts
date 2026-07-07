@@ -82,6 +82,24 @@ export class EpubAdapter implements BookAdapter {
         doc.head.appendChild(style!)
       }
       style!.textContent = `
+        html {
+          overflow-y: ${l.flow === 'scrolled-doc' ? 'auto' : 'hidden'} !important;
+          scrollbar-width: ${l.flow === 'scrolled-doc' ? 'thin' : 'none'} !important;
+          scrollbar-color: rgba(90, 82, 70, 0.36) transparent !important;
+        }
+        html::-webkit-scrollbar {
+          width: ${l.flow === 'scrolled-doc' ? '8px' : '0'} !important;
+          height: ${l.flow === 'scrolled-doc' ? '8px' : '0'} !important;
+        }
+        html::-webkit-scrollbar-track {
+          background: transparent !important;
+        }
+        html::-webkit-scrollbar-thumb {
+          background: rgba(90, 82, 70, 0.32) !important;
+          border: 2px solid transparent !important;
+          border-radius: 999px !important;
+          background-clip: content-box !important;
+        }
         body {
           font-size: ${l.fontSize}% !important;
           font-family: ${l.fontFamily} !important;
@@ -89,6 +107,22 @@ export class EpubAdapter implements BookAdapter {
           line-height: ${l.lineHeight} !important;
           padding: 0 ${l.margin}px !important;
           max-width: 100% !important;
+          overflow-y: ${l.flow === 'scrolled-doc' ? 'auto' : 'hidden'} !important;
+          scrollbar-width: ${l.flow === 'scrolled-doc' ? 'thin' : 'none'} !important;
+          scrollbar-color: rgba(90, 82, 70, 0.36) transparent !important;
+        }
+        body::-webkit-scrollbar {
+          width: ${l.flow === 'scrolled-doc' ? '8px' : '0'} !important;
+          height: ${l.flow === 'scrolled-doc' ? '8px' : '0'} !important;
+        }
+        body::-webkit-scrollbar-track {
+          background: transparent !important;
+        }
+        body::-webkit-scrollbar-thumb {
+          background: rgba(90, 82, 70, 0.32) !important;
+          border: 2px solid transparent !important;
+          border-radius: 999px !important;
+          background-clip: content-box !important;
         }
         body p {
           margin: 0 0 1.4em 0 !important;
@@ -363,6 +397,24 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
     if (iframe?.contentDocument) {
       const l = this.layout
       const css = `
+        html {
+          overflow-y: ${l.flow === 'scrolled-doc' ? 'auto' : 'hidden'} !important;
+          scrollbar-width: ${l.flow === 'scrolled-doc' ? 'thin' : 'none'} !important;
+          scrollbar-color: rgba(90, 82, 70, 0.36) transparent !important;
+        }
+        html::-webkit-scrollbar {
+          width: ${l.flow === 'scrolled-doc' ? '8px' : '0'} !important;
+          height: ${l.flow === 'scrolled-doc' ? '8px' : '0'} !important;
+        }
+        html::-webkit-scrollbar-track {
+          background: transparent !important;
+        }
+        html::-webkit-scrollbar-thumb {
+          background: rgba(90, 82, 70, 0.32) !important;
+          border: 2px solid transparent !important;
+          border-radius: 999px !important;
+          background-clip: content-box !important;
+        }
         body {
           font-size: ${l.fontSize}% !important;
           font-family: ${l.fontFamily} !important;
@@ -370,6 +422,22 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
           line-height: ${l.lineHeight} !important;
           padding: 0 ${l.margin}px !important;
           max-width: 100% !important;
+          overflow-y: ${l.flow === 'scrolled-doc' ? 'auto' : 'hidden'} !important;
+          scrollbar-width: ${l.flow === 'scrolled-doc' ? 'thin' : 'none'} !important;
+          scrollbar-color: rgba(90, 82, 70, 0.36) transparent !important;
+        }
+        body::-webkit-scrollbar {
+          width: ${l.flow === 'scrolled-doc' ? '8px' : '0'} !important;
+          height: ${l.flow === 'scrolled-doc' ? '8px' : '0'} !important;
+        }
+        body::-webkit-scrollbar-track {
+          background: transparent !important;
+        }
+        body::-webkit-scrollbar-thumb {
+          background: rgba(90, 82, 70, 0.32) !important;
+          border: 2px solid transparent !important;
+          border-radius: 999px !important;
+          background-clip: content-box !important;
         }
         body *:not(h1):not(h2):not(h3):not(h4):not(h5):not(h6):not(code):not(pre) {
           font-family: ${l.fontFamily} !important;
@@ -387,7 +455,9 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
 
   flow(mode: 'paginated' | 'scrolled-doc'): void {
     try {
+      this.layout = { ...this.layout, flow: mode }
       this.rendition?.flow(mode)
+      this.applyLayout()
     } catch (e) {
       logger.warn('[EpubAdapter flow]', e)
     }

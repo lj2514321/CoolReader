@@ -268,7 +268,7 @@ export default function App() {
           pointerEvents: !isLibrary ? 'auto' : 'none',
         }}>
           <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
-            {sidebarOpen && (
+            <div className={`sidebar-shell${sidebarOpen ? ' sidebar-shell-open' : ''}`}>
               <Sidebar
                 toc={toc}
                 activeHref={activeTocSrc}
@@ -278,9 +278,10 @@ export default function App() {
                 }}
                 onClose={() => setSidebarOpen(false)}
                 theme={theme}
+                open={sidebarOpen}
               />
-            )}
-            <div style={{ flex: 1, overflow: 'hidden' }}>
+            </div>
+            <div className={`reader-stage${sidebarOpen ? ' reader-stage-shifted' : ''}`} style={{ flex: 1, overflow: 'hidden' }}>
               <Reader
                 filePath={currentBook}
                 meta={meta}

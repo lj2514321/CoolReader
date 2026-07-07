@@ -9,6 +9,7 @@ interface SidebarProps {
   onNavigate: (href: string) => void
   onClose: () => void
   theme?: ThemeMode
+  open?: boolean
 }
 
 function TocList({ items, onNavigate, activeHref, depth = 0, btnRefs }: {
@@ -43,7 +44,7 @@ function TocList({ items, onNavigate, activeHref, depth = 0, btnRefs }: {
   )
 }
 
-export function Sidebar({ toc, activeHref, onNavigate, onClose, theme = 'dark' }: SidebarProps) {
+export function Sidebar({ toc, activeHref, onNavigate, onClose, theme = 'dark', open = true }: SidebarProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const btnRefsRef = useRef(new Map<string, HTMLElement>())
   const btnRefs = btnRefsRef.current
@@ -72,7 +73,7 @@ export function Sidebar({ toc, activeHref, onNavigate, onClose, theme = 'dark' }
   }, [activeHref])
 
   return (
-    <div data-theme={theme === 'custom' ? 'light' : theme} className="sidebar-root">
+    <div data-theme={theme === 'custom' ? 'light' : theme} className={`sidebar-root${open ? ' sidebar-root-open' : ''}`}>
       <div className="sidebar-header">
         <span className="sidebar-header-title">目录</span>
         <button onClick={onClose} className="sidebar-close-btn"><X size={16} /></button>
