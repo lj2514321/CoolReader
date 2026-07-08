@@ -44,6 +44,8 @@ export default function App() {
   useEffect(() => { uiThemeRef.current = uiTheme }, [uiTheme])
   const [customBgConfig, setCustomBgConfig] = useState<CustomBgConfig | null>(null)
   const [customBgLoaded, setCustomBgLoaded] = useState(false)
+  const [startupLoading, setStartupLoading] = useState(true)
+  const [startupLoadingMessage, setStartupLoadingMessage] = useState('正在加载书架…')
   useEffect(() => {
     loadSetting('customBg').then(v => {
       if (v) {
@@ -113,6 +115,8 @@ export default function App() {
     onWebDAVConfig: setWebdavConfig,
     onAIConfig: setAiConfig,
     onAutoOpenBook: handleOpenBook,
+    onLoadingMessage: setStartupLoadingMessage,
+    onLoaded: () => setStartupLoading(false),
   })
 
   useProgressTimer({
@@ -333,6 +337,16 @@ export default function App() {
         }}>
           <span>{error ? `错误: ${error}` : toast}</span>
           {error && <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', padding: 0 }}><X size={14} /></button>}
+        </div>
+      )}
+      {startupLoading && (
+        <div className="startup-loading-overlay">
+          <div className="startup-loading-card">
+            <div className="startup-loading-mark"><BookOpen size={28} /></div>
+            <div className="startup-loading-title">CoolReader</div>
+            <div className="startup-loading-message">{startupLoadingMessage}</div>
+            <div className="startup-loading-bar" aria-hidden="true"><span /></div>
+          </div>
         </div>
       )}
       {isDragging && (

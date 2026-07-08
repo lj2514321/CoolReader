@@ -8,10 +8,29 @@
       *{margin:0;padding:0;box-sizing:border-box}
       html,body,#root{width:100%;height:100%;overflow:hidden}
       body{background:#0f0c29}
+      .startup-fallback{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 20%, rgba(212,165,116,.16), transparent 42%),rgba(10,10,14,.92);color:#f4ede0;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+      .startup-fallback-card{width:min(320px,calc(100vw - 56px));padding:30px 28px 26px;border-radius:24px;background:rgba(33,30,35,.72);border:1px solid rgba(255,255,255,.12);box-shadow:0 24px 80px rgba(0,0,0,.34);display:flex;flex-direction:column;align-items:center;gap:10px;backdrop-filter:blur(18px) saturate(120%);-webkit-backdrop-filter:blur(18px) saturate(120%)}
+      .startup-fallback-mark{width:56px;height:56px;border-radius:18px;display:flex;align-items:center;justify-content:center;background:rgba(212,165,116,.16);box-shadow:0 0 32px rgba(212,165,116,.16)}
+      .startup-fallback-title{margin-top:6px;font-family:Georgia,"Times New Roman",serif;font-size:24px;font-weight:700;letter-spacing:.02em}
+      .startup-fallback-message{min-height:20px;color:rgba(244,237,224,.62);font-size:13px}
+      .startup-fallback-bar{width:168px;height:3px;margin-top:10px;border-radius:999px;overflow:hidden;background:rgba(244,237,224,.14)}
+      .startup-fallback-bar span{display:block;width:42%;height:100%;border-radius:inherit;background:#d4a574;animation:startupFallbackBar 1.15s ease-in-out infinite}
+      @keyframes startupFallbackBar{0%{transform:translateX(-115%)}50%{transform:translateX(65%)}100%{transform:translateX(240%)}}
     </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="startup-fallback">
+        <div class="startup-fallback-card">
+          <div class="startup-fallback-mark">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+          </div>
+          <div class="startup-fallback-title">CoolReader</div>
+          <div class="startup-fallback-message">正在加载书架…</div>
+          <div class="startup-fallback-bar" aria-hidden="true"><span></span></div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

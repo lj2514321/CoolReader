@@ -3,3 +3,93 @@
 @import './components/ai-panel.css';
 @import './components/reader.css';
 @import './components/sidebar.css';
+
+.startup-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at 50% 20%, rgba(212, 165, 116, 0.14), transparent 42%),
+    rgba(10, 10, 14, 0.42);
+  backdrop-filter: blur(18px) saturate(120%);
+  -webkit-backdrop-filter: blur(18px) saturate(120%);
+  animation: startupOverlayIn 0.24s ease;
+}
+
+.startup-loading-card {
+  width: min(320px, calc(100vw - 56px));
+  padding: 30px 28px 26px;
+  border-radius: var(--r-modal);
+  background: var(--glass-tint);
+  box-shadow: var(--shadow-floating);
+  border: 1px solid var(--glass-border-top);
+  color: var(--ink-100);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.startup-loading-mark {
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-100);
+  background: var(--accent-soft);
+  box-shadow: 0 0 32px rgba(212, 165, 116, 0.16);
+}
+
+.startup-loading-title {
+  margin-top: 6px;
+  font-family: var(--font-serif);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: var(--tracking-wide);
+}
+
+.startup-loading-message {
+  min-height: 20px;
+  color: var(--ink-60);
+  font-size: var(--fs-body-ui);
+}
+
+.startup-loading-bar {
+  width: 168px;
+  height: 3px;
+  margin-top: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--progress-track);
+}
+
+.startup-loading-bar span {
+  display: block;
+  width: 42%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  animation: startupLoadingBar 1.15s ease-in-out infinite;
+}
+
+[data-ui-theme="flat"] .startup-loading-overlay {
+  background:
+    radial-gradient(circle at 50% 20%, rgba(240, 228, 204, 0.7), transparent 48%),
+    rgba(247, 244, 237, 0.58);
+}
+
+@keyframes startupOverlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes startupLoadingBar {
+  0% { transform: translateX(-115%); }
+  50% { transform: translateX(65%); }
+  100% { transform: translateX(240%); }
+}
