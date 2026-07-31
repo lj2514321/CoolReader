@@ -14,7 +14,12 @@
       "Bash(npx cap *)",
       "Bash(git add *)",
       "Bash(git commit *)",
-      "Bash(git reset *)"
+      "Bash(git reset *)",
+      "Bash(powershell.exe *)",
+      "Bash(taskkill /F /IM electron.exe)",
+      "Bash(taskkill /F /IM node.exe /FI \"WINDOWTITLE eq *electron-vite*\")",
+      "Bash(exit 0)",
+      "Bash(gh run *)"
     ]
   }
 }

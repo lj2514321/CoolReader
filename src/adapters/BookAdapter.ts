@@ -1,4 +1,4 @@
-import type { BookFormat, ThemeMode, CustomTheme } from '../types'
+import type { BookFormat, ThemeMode, CustomTheme, ReaderLayout } from '../types'
 
 /** Universal location returned by adapters. For epub: CFI string. For txt/mobi: 'chapterIdx:charOffset' */
 export interface BookLocation {
@@ -27,6 +27,11 @@ export interface SearchResult {
   label: string
   /** Surrounding context for display */
   excerpt: string
+  /** Explicit section index for locations such as EPUB CFIs that cannot be parsed. */
+  chapterIdx?: number
+  contextBefore?: string
+  matchText?: string
+  contextAfter?: string
 }
 
 export interface HighlightSpec {
@@ -105,7 +110,7 @@ export interface BookAdapter {
   // ---- Layout ----
 
   /** Re-apply layout CSS (font size, family, line-height, margin). Called on layout change. */
-  applyLayout(): void
+  applyLayout(layout?: ReaderLayout): void
   /** Change flow mode ('paginated' | 'scrolled-doc'). Only meaningful for epub. */
   flow(mode: 'paginated' | 'scrolled-doc'): void
   /** Notify adapter of viewport resize. */

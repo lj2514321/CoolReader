@@ -18,14 +18,25 @@
 
   --r-book:  2px;   /* book spine / cover */
   --r-btn:   6px;
-  --r-card:  10px;
-  --r-panel: 14px;
-  --r-modal: 18px;
+  --r-card:  8px;
+  --r-panel: 8px;
+  --r-modal: 8px;
 
   --transition-theme: background 0.3s ease, border-color 0.3s ease,
                       box-shadow 0.3s ease, color 0.3s ease, opacity 0.3s ease;
   --transition-quick: 0.15s ease;
   --transition-slow:  0.4s ease;
+
+  --z-content: 1;
+  --z-sidebar: 20;
+  --z-reader-error: 40;
+  --z-reader-chrome: 50;
+  --z-overlay: 55;
+  --z-popover: 60;
+  --z-selection: 70;
+  --z-context-menu: 80;
+  --z-modal: 100;
+  --z-loading: 120;
 }
 
 /* --------------------------------------------------------------------------
@@ -43,7 +54,7 @@
   --fs-h2:          18px;
   --fs-book-title:  15px;   /* bookshelf */
   --fs-body-ui:     13px;   /* generic UI */
-  --fs-caption:     11px;   /* labels / counts */
+  --fs-caption:     12px;   /* labels / counts */
   --fs-reader-body: 18px;   /* reading body — most important */
   --fs-reader-h1:   24px;   /* chapter title */
   --fs-reader-quote:15px;
@@ -67,7 +78,7 @@
   --bg-base:    #1a1a1f;   /* warm-graphite canvas */
   --bg-elev-1:  #1f1f25;   /* glass base layer */
   --bg-elev-2:  #26262d;   /* glass top / hover */
-  --bg-overlay: rgba(10, 10, 14, 0.55);
+  --bg-overlay: rgba(10, 10, 14, 0.60);
 
   /* Glass tints */
   --glass-tint:        rgba(255, 255, 255, 0.06);
@@ -84,17 +95,19 @@
   /* Ink (text) */
   --ink-100: #f4ede0;   /* primary — paper-cream, not pure white */
   --ink-80:  rgba(244, 237, 224, 0.80);
-  --ink-60:  rgba(244, 237, 224, 0.60);
-  --ink-40:  rgba(244, 237, 224, 0.40);
+  --ink-60:  rgba(244, 237, 224, 0.70);
+  --ink-40:  rgba(244, 237, 224, 0.52);
   --ink-20:  rgba(244, 237, 224, 0.20);
   --ink-10:  rgba(244, 237, 224, 0.10);
 
   /* Accents */
-  --accent:        #2d5a5a;        /* ink-cyan, primary */
-  --accent-soft:   rgba(45, 90, 90, 0.20);
-  --accent-strong: #3d7a7a;
+  --accent:        #4f8f8f;        /* ink-cyan, primary */
+  --accent-soft:   rgba(79, 143, 143, 0.22);
+  --accent-strong: #69aaaa;
   --warn:          #c87a3a;        /* dusk orange, for "achieved" or notice */
-  --danger:        #a8392e;        /* vermillion, for irreversible */
+  --danger:        #d36358;        /* readable destructive text */
+  --danger-surface:#b84b40;        /* destructive button surface */
+  --on-danger:     #ffffff;
 
   /* Progress / chart */
   --progress-track: rgba(244, 237, 224, 0.10);
@@ -151,7 +164,7 @@
   --bg-base:    #f7f4ed;   /* paper-white */
   --bg-elev-1:  #ffffff;
   --bg-elev-2:  #fbf8f0;
-  --bg-overlay: rgba(28, 28, 30, 0.18);
+  --bg-overlay: rgba(28, 28, 30, 0.42);
 
   /* Glass tints — in light theme, "glass" is barely there; lines do work */
   --glass-tint:        rgba(255, 255, 255, 0.30);
@@ -168,8 +181,8 @@
   /* Ink — dark text on paper */
   --ink-100: #1c1c1e;
   --ink-80:  rgba(28, 28, 30, 0.78);
-  --ink-60:  rgba(28, 28, 30, 0.55);
-  --ink-40:  rgba(28, 28, 30, 0.35);
+  --ink-60:  rgba(28, 28, 30, 0.70);
+  --ink-40:  rgba(28, 28, 30, 0.62);
   --ink-20:  rgba(28, 28, 30, 0.12);
   --ink-10:  rgba(28, 28, 30, 0.06);
 
@@ -179,6 +192,8 @@
   --accent-strong: #163838;
   --warn:          #b36628;
   --danger:        #8e2f25;
+  --danger-surface:#8e2f25;
+  --on-danger:     #ffffff;
 
   /* Progress / chart */
   --progress-track: rgba(28, 28, 30, 0.08);

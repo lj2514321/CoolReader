@@ -38,6 +38,7 @@ export function useEpub() {
   const controls = useReaderControls(shared)
   const bookEngine = useBookEngine(shared, {
     applyLayout: controls.applyLayout,
+    saveReadingTime: controls.saveReadingTime,
     saveBookReadingTime: controls.saveBookReadingTime,
     setCurrentCfi: annotations.setCurrentCfi,
     setBookmarks: annotations.setBookmarks,
@@ -50,13 +51,13 @@ export function useEpub() {
     meta: bookEngine.meta,
     toc: bookEngine.toc,
     theme: bookEngine.theme,
+    customTheme: bookEngine.customTheme,
     progress: bookEngine.progress,
     layout: bookEngine.layout,
     bookmarks: annotations.bookmarks,
     highlights: annotations.highlights,
     selectionInfo: annotations.selectionInfo,
     currentCfi: annotations.currentCfi,
-    customThemeRef: shared.customThemeRef,
 
     // Refs
     progressRef: shared.progressRef,

@@ -47,7 +47,7 @@ export function getGradientLuminance(stops: GradientStop[]): number {
   return weightedLum / totalWeight
 }
 
-function getAutoTextColor(theme: CustomTheme): string {
+export function isCustomThemeDark(theme: CustomTheme): boolean {
   let lum: number
   if (theme.type === 'solid') {
     lum = getLuminance(theme.color || 'rgba(255,255,255,1)')
@@ -55,8 +55,21 @@ function getAutoTextColor(theme: CustomTheme): string {
     lum = getGradientLuminance(theme.gradientStops || [])
   }
   return lum < 0.4
-    ? (theme.textColorDark || 'rgba(255,255,255,0.87)')
-    : (theme.textColorLight || 'rgba(15,23,42,0.88)')
+}
+
+function getAutoTextColor(theme: CustomTheme): string {
+  return isCustomThemeDark(theme)
+    ? (theme.textColorDark || 'rgba(255,255,255,0.92)')
+    : (theme.textColorLight || 'rgba(20,20,20,0.92)')
+}
+
+export function getCustomThemeBackground(theme: CustomTheme): string {
+  if (theme.type === 'solid') return theme.color || 'rgba(255,255,255,1)'
+  const stops = (theme.gradientStops || []).map(stop => `${stop.color} ${stop.position}%`).join(', ')
+  if (!stops) return '#f7f4ed'
+  return theme.gradientType === 'radial'
+    ? `radial-gradient(ellipse at center, ${stops})`
+    : `linear-gradient(${theme.gradientAngle ?? 135}deg, ${stops})`
 }
 
 export function generateCustomThemeCSS(theme: CustomTheme): string {
@@ -74,7 +87,13 @@ export function generateCustomThemeCSS(theme: CustomTheme): string {
     }
   }
 
-  return `body.custom, body.custom * { background: ${bg} !important; color: ${textColor} !important; } body.custom { background: ${bg} !important; }`
+  return `
+    body.custom, [data-reader-content].custom {
+      background: ${bg} !important;
+      color: ${textColor} !important;
+    }
+    body.custom *, [data-reader-content].custom * { color: ${textColor} !important; }
+  `
 }
 
 export function applyColorAlpha(color: string, alpha: number): string {

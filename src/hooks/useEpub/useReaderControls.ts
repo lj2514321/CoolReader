@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useRef } from 'react'
 import { ThemeMode, ReaderLayout } from '../../types'
 import { saveSetting, saveReadingTime as persistReadingTimeToDB, saveBookReadingTime as persistBookReadingTime } from '../../utils/db'
 import type { SharedRefs } from './useBookEngine'
@@ -8,6 +8,7 @@ import { logger } from '../../utils/logger'
 
 export function useReaderControls(shared: SharedRefs) {
   const { bookRef, renditionRef, syncRef, navigatingRef, indexRef, cfiRef, progressRef, themeRef, layoutRef, setLayoutStateRef, totalSectionsRef, sessionStartRef, todaySecondsRef, bookTodayRef, bookSessionStartRef, bookPathRef, adapterRef } = shared
+  const pageTurnSequenceRef = useRef(0)
 
   const setTheme = useCallback((t: ThemeMode) => {
     themeRef.current = t
@@ -24,10 +25,10 @@ export function useReaderControls(shared: SharedRefs) {
     }
   }, [])
 
-  const applyLayout = useCallback(() => {
+  const applyLayout = useCallback((layout = layoutRef.current) => {
     const adapter = adapterRef.current
     if (adapter) {
-      try { adapter.applyLayout() } catch (e) { logger.warn('[applyLayout] adapter failed:', e) }
+      try { adapter.applyLayout(layout) } catch (e) { logger.warn('[applyLayout] adapter failed:', e) }
       return
     }
     // Fallback: legacy epub iframe injection
@@ -42,6 +43,10 @@ export function useReaderControls(shared: SharedRefs) {
     }
     style.textContent = `
       html {
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        box-sizing: border-box !important;
         overflow-y: ${l.flow === 'scrolled-doc' ? 'auto' : 'hidden'} !important;
         scrollbar-width: ${l.flow === 'scrolled-doc' ? 'thin' : 'none'} !important;
         scrollbar-color: rgba(90, 82, 70, 0.36) transparent !important;
@@ -60,12 +65,17 @@ export function useReaderControls(shared: SharedRefs) {
         background-clip: content-box !important;
       }
       body {
+        width: 100% !important;
+        min-height: 100% !important;
         font-size: ${l.fontSize}% !important;
         font-family: ${l.fontFamily} !important;
         font-weight: ${l.fontWeight} !important;
         line-height: ${l.lineHeight} !important;
         padding: 0 ${l.margin}px !important;
-        max-width: 100% !important;
+        max-width: ${l.flow === 'scrolled-doc' ? '72ch' : '100%'} !important;
+        box-sizing: border-box !important;
+        margin: ${l.flow === 'scrolled-doc' ? '0 auto' : '0'} !important;
+        border: 0 !important;
         overflow-y: ${l.flow === 'scrolled-doc' ? 'auto' : 'hidden'} !important;
         scrollbar-width: ${l.flow === 'scrolled-doc' ? 'thin' : 'none'} !important;
         scrollbar-color: rgba(90, 82, 70, 0.36) transparent !important;
@@ -102,7 +112,10 @@ export function useReaderControls(shared: SharedRefs) {
         try {
           renditionRef.current?.flow(next.flow)
           if (next.flow !== 'scrolled-doc') {
-            requestAnimationFrame(() => enableSmoothScroll(renditionRef.current))
+            requestAnimationFrame(() => {
+              const activeRendition = renditionRef.current
+              if (activeRendition) enableSmoothScroll(activeRendition)
+            })
           }
           requestAnimationFrame(() => {
             try { renditionRef.current?.themes.select(themeRef.current) } catch (e) { logger.warn('[updateLayout] re-select theme failed', e) }
@@ -112,62 +125,43 @@ export function useReaderControls(shared: SharedRefs) {
         }
       }
     }
-    applyLayout()
+    applyLayout(next)
   }, [applyLayout])
 
-  const goNext = useCallback(async () => {
+  const turnPage = useCallback(async (direction: 'next' | 'prev') => {
+    const turnId = ++pageTurnSequenceRef.current
     navigatingRef.current = true
     const adapter = adapterRef.current
-    // Non-epub adapters (txt/mobi): no animation, just navigate
-    if (adapter && adapter.format !== 'epub') {
-      await adapter.next()
-      navigatingRef.current = false
+    try {
+      if (adapter) {
+        await (direction === 'next' ? adapter.next() : adapter.prev())
+      } else if (renditionRef.current) {
+        await (direction === 'next' ? renditionRef.current.next() : renditionRef.current.prev())
+      } else {
+        navigatingRef.current = false
+        return
+      }
+
+      // A newer turn has already moved the rendition again; only that turn should animate and unlock resize.
+      if (turnId !== pageTurnSequenceRef.current) return
+
+      const animMode = layoutRef.current.animationMode || 'slide'
+      const reducedMotion = layoutRef.current.reducedMotion || false
+      const activeRendition = adapter?.format === 'epub' ? renditionRef.current : adapter ? null : renditionRef.current
+      applyPageAnimation(activeRendition, direction, animMode, reducedMotion, () => {
+        if (turnId === pageTurnSequenceRef.current) navigatingRef.current = false
+        requestAnimationFrame(syncRef.current)
+      })
+    } catch (e) {
+      logger.warn(`[turnPage] ${direction} failed:`, e)
+      if (turnId === pageTurnSequenceRef.current) navigatingRef.current = false
       requestAnimationFrame(syncRef.current)
-      return
     }
-    // EPUB path (adapter or legacy): navigate + animation
-    if (adapter) await adapter.next()
-    else await renditionRef.current?.next()
-    const animMode = layoutRef.current.animationMode || 'slide'
-    const reducedMotion = layoutRef.current.reducedMotion || false
-    // @ts-expect-error '3d' is supported at runtime but missing from AnimationMode type
-    if (animMode === '3d') {
-      navigatingRef.current = false
-      requestAnimationFrame(syncRef.current)
-      return
-    }
-    applyPageAnimation(renditionRef.current, 'next', animMode, reducedMotion, () => {
-      navigatingRef.current = false
-      requestAnimationFrame(syncRef.current)
-    })
   }, [])
 
-  const goPrev = useCallback(async () => {
-    navigatingRef.current = true
-    const adapter = adapterRef.current
-    // Non-epub adapters (txt/mobi): no animation, just navigate
-    if (adapter && adapter.format !== 'epub') {
-      await adapter.prev()
-      navigatingRef.current = false
-      requestAnimationFrame(syncRef.current)
-      return
-    }
-    // EPUB path (adapter or legacy): navigate + animation
-    if (adapter) await adapter.prev()
-    else await renditionRef.current?.prev()
-    const animMode = layoutRef.current.animationMode || 'slide'
-    const reducedMotion = layoutRef.current.reducedMotion || false
-    // @ts-expect-error '3d' is supported at runtime but missing from AnimationMode type
-    if (animMode === '3d') {
-      navigatingRef.current = false
-      requestAnimationFrame(syncRef.current)
-      return
-    }
-    applyPageAnimation(renditionRef.current, 'prev', animMode, reducedMotion, () => {
-      navigatingRef.current = false
-      requestAnimationFrame(syncRef.current)
-    })
-  }, [])
+  const goNext = useCallback(() => turnPage('next'), [turnPage])
+
+  const goPrev = useCallback(() => turnPage('prev'), [turnPage])
 
   const goToHref = useCallback(async (href: string) => {
     navigatingRef.current = true
@@ -205,7 +199,7 @@ export function useReaderControls(shared: SharedRefs) {
       // swallow — epub.js error
     }
     const section = book.spine.get(href)
-    if (section) {
+    if (section && section.index !== undefined) {
       try {
         await Promise.race([
           rendition.display(section.index),
@@ -319,7 +313,7 @@ export function useReaderControls(shared: SharedRefs) {
       const spine = book.spine
       const item = spine.get(idx)
       if (!item?.href) return ''
-      const html = await book.archive.getText(item.url)
+      const html = await book.archive.getText(item.url || item.href)
       const text = html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
       return text.slice(0, 4000)
     } catch {
@@ -337,12 +331,12 @@ export function useReaderControls(shared: SharedRefs) {
     if (!book) return ''
     try {
       const spine = book.spine
-      const items = spine?.items || []
+      const items = (spine?.items || []) as Array<{ href?: string; url?: string }>
       let allText = ''
       for (const item of items) {
         if (!item.href) continue
         try {
-          const html = await book.archive.getText(item.url)
+          const html = await book.archive.getText(item.url || item.href)
           const text = html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
           allText += text + '\n'
           if (allText.length > 8000) break

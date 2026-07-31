@@ -4,8 +4,6 @@ import { loadReadingTimeRange, loadBookReadingTimeRange, loadSetting, BookReadin
 import { BarChart3, BookOpen, CheckCircle2 } from 'lucide-react'
 import '../styles/components/reading-stats.css'
 
-const statCardBg = 'linear-gradient(135deg, rgba(45,90,90,0.12) 0%, rgba(61,122,122,0.08) 100%)'
-
 interface ReadingStatsProps {
   books: BookEntry[]
 }
@@ -14,7 +12,7 @@ function GoalBar({ secs, goalMin }: { secs: number; goalMin: number }) {
   const pct = Math.min(100, Math.round((secs / 60 / goalMin) * 100))
   return (
     <div className="stat-goal-bar">
-      <div className="stat-goal-fill">
+      <div className="stat-goal-fill" role="progressbar" aria-label="今日阅读目标进度" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
         <div
           className={`stat-goal-progress ${pct >= 100 ? 'achieved' : 'active'}`}
           style={{ width: `${pct}%` }}
@@ -118,6 +116,8 @@ export function ReadingStats({ books }: ReadingStatsProps) {
     return data
   }, [dailyData])
   const maxSecs = useMemo(() => Math.max(...chartData.map(d => d.seconds), 1), [chartData])
+  const chartTotal = useMemo(() => chartData.reduce((sum, item) => sum + item.seconds, 0), [chartData])
+  const chartPeak = useMemo(() => chartData.reduce((peak, item) => item.seconds > peak.seconds ? item : peak, chartData[0]), [chartData])
 
   // per-book totals
   const bookTotals: { filePath: string; seconds: number }[] = []
@@ -164,31 +164,34 @@ export function ReadingStats({ books }: ReadingStatsProps) {
           </div>
 
           {/* bar chart */}
-          <div className="chart-container">
-            <div className="chart-title">
+          <section className="chart-container" aria-labelledby="reading-trend-title">
+            <div className="chart-title" id="reading-trend-title">
               近 14 天阅读趋势
             </div>
-            <div className="chart-bars">
+            <div className="chart-summary">累计 {formatDuration(chartTotal)}，最高 {chartPeak.date.slice(5)} · {formatDuration(chartPeak.seconds)}</div>
+            <div className="chart-bars" role="list">
               {chartData.map((d) => {
                 const pct = (d.seconds / maxSecs) * 100
+                const isToday = d.date === todayStr
                 return (
-                  <div key={d.date} className="chart-bar-wrapper">
-                    <div
-                      className="chart-bar"
-                      style={{
-                        height: `${Math.max(pct, 1)}%`,
-                        minHeight: d.seconds > 0 ? undefined : 2,
-                      }}
-                      title={`${d.date}: ${formatDuration(d.seconds)}`}
-                    />
+                  <div key={d.date} className="chart-bar-wrapper" role="listitem">
+                    <div className="chart-bar-hit" tabIndex={0} role="img" aria-label={`${d.date}${isToday ? '，今天' : ''}：${formatDuration(d.seconds)}`} data-tooltip={`${d.date.slice(5)} · ${formatDuration(d.seconds)}`}>
+                      <span
+                        className={`chart-bar${isToday ? ' today' : ''}`}
+                        style={{
+                          height: `${Math.max(pct, 1)}%`,
+                          minHeight: d.seconds > 0 ? undefined : 2,
+                        }}
+                      />
+                    </div>
                     <div className="chart-bar-label">
-                      {d.date.slice(8)}
+                      {isToday ? '今天' : d.date.slice(8)}
                     </div>
                   </div>
                 )
               })}
             </div>
-          </div>
+          </section>
 
           {/* per-book */}
           {bookTotals.length > 0 && (

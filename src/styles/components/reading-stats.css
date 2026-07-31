@@ -4,8 +4,8 @@
   padding: 28px 36px 32px 24px;
   height: 100%;
   overflow-y: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ink-20) transparent;
 }
 
 .stats-title {
@@ -108,9 +108,15 @@
   letter-spacing: var(--tracking-caps);
 }
 
+.chart-summary {
+  margin: -8px 0 14px;
+  color: var(--ink-60);
+  font-size: 12px;
+}
+
 .chart-bars {
   display: flex;
-  height: 100px;
+  height: 120px;
   gap: 6px;
   align-items: flex-end;
 }
@@ -125,8 +131,46 @@
   height: 100%;
 }
 
+.chart-bar-hit {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  height: 96px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+
+.chart-bar-hit::after {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  z-index: 2;
+  padding: 4px 6px;
+  color: var(--ink-100);
+  background: var(--bg-elev-2);
+  border: 1px solid var(--ink-20);
+  border-radius: var(--r-btn);
+  content: attr(data-tooltip);
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 2px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.chart-bar-hit:hover::after,
+.chart-bar-hit:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
 .chart-bar {
-  width: 1px;
+  display: block;
+  width: 6px;
   border-radius: 0;
   background: var(--ink-60);
   transition: height 0.3s ease;
@@ -137,15 +181,51 @@
 /* Today: emphasize with accent and slight thickening */
 .chart-bar.today {
   background: var(--accent);
-  width: 2px;
+  width: 8px;
 }
 
 .chart-bar-label {
   font-family: var(--font-sans);
-  font-size: 9px;
+  min-width: 24px;
+  font-size: 12px;
   color: var(--ink-40);
   text-align: center;
   letter-spacing: 0.3px;
+}
+
+.stats-container::-webkit-scrollbar {
+  width: 7px;
+}
+
+.stats-container::-webkit-scrollbar-thumb {
+  background: var(--ink-20);
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: content-box;
+}
+
+@media (max-width: 980px) {
+  .stats-container {
+    padding: 24px 20px 28px 16px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .stat-value {
+    font-size: 26px;
+  }
+
+  .chart-bars {
+    gap: 2px;
+  }
+
+  .chart-bar-label {
+    font-size: 12px;
+  }
 }
 
 .stats-book-list {

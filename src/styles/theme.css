@@ -4,18 +4,22 @@
 @import './components/reader.css';
 @import './components/sidebar.css';
 
+[data-ui-theme="glass"] { color-scheme: dark; }
+[data-ui-theme="flat"] { color-scheme: light; }
+
+:where(button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent-strong) !important;
+  outline-offset: 2px;
+}
+
 .startup-loading-overlay {
   position: fixed;
   inset: 0;
-  z-index: 12000;
+  z-index: var(--z-loading);
   display: flex;
   align-items: center;
   justify-content: center;
-  background:
-    radial-gradient(circle at 50% 20%, rgba(212, 165, 116, 0.14), transparent 42%),
-    rgba(10, 10, 14, 0.42);
-  backdrop-filter: blur(18px) saturate(120%);
-  -webkit-backdrop-filter: blur(18px) saturate(120%);
+  background: rgba(10, 10, 14, 0.68);
   animation: startupOverlayIn 0.24s ease;
 }
 
@@ -23,7 +27,7 @@
   width: min(320px, calc(100vw - 56px));
   padding: 30px 28px 26px;
   border-radius: var(--r-modal);
-  background: var(--glass-tint);
+  background: var(--bg-elev-1);
   box-shadow: var(--shadow-floating);
   border: 1px solid var(--glass-border-top);
   color: var(--ink-100);
@@ -36,13 +40,13 @@
 .startup-loading-mark {
   width: 56px;
   height: 56px;
-  border-radius: 18px;
+  border-radius: var(--r-panel);
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--ink-100);
   background: var(--accent-soft);
-  box-shadow: 0 0 32px rgba(212, 165, 116, 0.16);
+  box-shadow: none;
 }
 
 .startup-loading-title {
@@ -78,9 +82,7 @@
 }
 
 [data-ui-theme="flat"] .startup-loading-overlay {
-  background:
-    radial-gradient(circle at 50% 20%, rgba(240, 228, 204, 0.7), transparent 48%),
-    rgba(247, 244, 237, 0.58);
+  background: rgba(247, 244, 237, 0.84);
 }
 
 @keyframes startupOverlayIn {
@@ -92,4 +94,15 @@
   0% { transform: translateX(-115%); }
   50% { transform: translateX(65%); }
   100% { transform: translateX(240%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -8,13 +8,15 @@ import type {
   HighlightSpec,
   SelectionInfo,
 } from './BookAdapter'
-import type { ThemeMode, CustomTheme } from '../types'
+import type { ThemeMode, CustomTheme, ReaderLayout } from '../types'
 import { themeStyles } from '../types'
 import { generateCustomThemeCSS } from '../utils/customTheme'
 import { logger } from '../utils/logger'
+import { bindReaderDocumentEvents } from '../utils/readerContentEvents'
+import { calculateSectionProgress } from '../utils/readerProgress'
 
 interface EpubAdapterOptions {
-  layout: { fontSize: number; fontFamily: string; fontWeight?: number; lineHeight: number; margin: number; flow: 'paginated' | 'scrolled-doc' }
+  layout: ReaderLayout
   customTheme: CustomTheme
   theme: ThemeMode
   onLocationChange?: (loc: BookLocation) => void
@@ -66,7 +68,7 @@ export class EpubAdapter implements BookAdapter {
       width: '100%',
       height: '100%',
       spread: 'none',
-      allowScriptedContent: true,
+      allowScriptedContent: false,
       flow: this.layout.flow || 'paginated',
     })
     this.rendition = rendition
@@ -83,6 +85,10 @@ export class EpubAdapter implements BookAdapter {
       }
       style!.textContent = `
         html {
+          margin: 0 !important;
+          padding: 0 !important;
+          border: 0 !important;
+          box-sizing: border-box !important;
           overflow-y: ${l.flow === 'scrolled-doc' ? 'auto' : 'hidden'} !important;
           scrollbar-width: ${l.flow === 'scrolled-doc' ? 'thin' : 'none'} !important;
           scrollbar-color: rgba(90, 82, 70, 0.36) transparent !important;
@@ -101,12 +107,17 @@ export class EpubAdapter implements BookAdapter {
           background-clip: content-box !important;
         }
         body {
+          width: 100% !important;
+          min-height: 100% !important;
           font-size: ${l.fontSize}% !important;
           font-family: ${l.fontFamily} !important;
           font-weight: ${l.fontWeight ?? 400} !important;
           line-height: ${l.lineHeight} !important;
           padding: 0 ${l.margin}px !important;
-          max-width: 100% !important;
+          max-width: ${l.flow === 'scrolled-doc' ? '72ch' : '100%'} !important;
+          box-sizing: border-box !important;
+          margin: ${l.flow === 'scrolled-doc' ? '0 auto' : '0'} !important;
+          border: 0 !important;
           overflow-y: ${l.flow === 'scrolled-doc' ? 'auto' : 'hidden'} !important;
           scrollbar-width: ${l.flow === 'scrolled-doc' ? 'thin' : 'none'} !important;
           scrollbar-color: rgba(90, 82, 70, 0.36) transparent !important;
@@ -149,14 +160,20 @@ export class EpubAdapter implements BookAdapter {
         logger.warn('[EpubAdapter content hook] theme re-select failed', e)
       }
 
-      const selScript = doc.createElement('script')
-      selScript.id = '_reader_sel'
-      selScript.textContent = `
-document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&&!s.isCollapsed){var t=s.toString().trim();if(t.length>0){var r=s.getRangeAt(0).getBoundingClientRect();window.parent.postMessage({type:'reader-text-selected',text:t.slice(0,200),bounds:{top:r.top,left:r.left,width:r.width,height:r.height}},'*')}}})
-`
-      if (!doc.getElementById('_reader_sel')) {
-        doc.head.appendChild(selScript)
-      }
+      bindReaderDocumentEvents(doc)
+      doc.addEventListener('mouseup', () => {
+        const selection = doc.getSelection()
+        if (!selection || selection.isCollapsed || selection.rangeCount === 0) return
+        const text = selection.toString().trim()
+        if (!text || !this.onSelectionChange) return
+        const range = selection.getRangeAt(0)
+        try {
+          const location = rendition.getCfiFromRange(range)
+          this.onSelectionChange({ selectedText: text.slice(0, 200), range: { location, text, color: '#ffeb3b' } })
+        } catch (e) {
+          logger.warn('[EpubAdapter selection] getCfiFromRange failed', e)
+        }
+      })
     })
 
     ;(['light', 'sepia', 'dark'] as const).forEach(th => rendition.themes.registerCss(th, themeStyles[th]))
@@ -169,43 +186,9 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
       this.notifyLocation()
     })
 
-    // Selection message handler
-    const messageHandler = (e: MessageEvent) => {
-      if (e.data?.type === 'reader-text-selected' && this.onSelectionChange) {
-        setTimeout(() => {
-          const iframe = container.querySelector<HTMLIFrameElement>('iframe')
-          const sel = iframe?.contentDocument?.getSelection()
-          if (!sel || sel.isCollapsed) {
-            this.onSelectionChange!({ selectedText: '', range: null })
-            return
-          }
-          const range = sel.getRangeAt(0)
-          const cfiFn = this.rendition?.getCfiFromRange
-          if (typeof cfiFn !== 'function') {
-            this.onSelectionChange!({ selectedText: e.data.text, range: null })
-            return
-          }
-          try {
-            const cfiRange = cfiFn(range)
-            this.onSelectionChange!({
-              selectedText: e.data.text,
-              range: { location: cfiRange, text: e.data.text, color: '#ffeb3b' },
-            })
-          } catch (err) {
-            logger.warn('[EpubAdapter selection] getCfiFromRange failed', err)
-          }
-        }, 50)
-      }
-    }
-    window.addEventListener('message', messageHandler)
-    ;(this as any)._messageHandler = messageHandler
   }
 
   destroy(): void {
-    if ((this as any)._messageHandler) {
-      window.removeEventListener('message', (this as any)._messageHandler)
-      ;(this as any)._messageHandler = null
-    }
     try {
       this.rendition?.destroy()
     } catch (e) {
@@ -251,7 +234,8 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
     const count = this.getChapterCount()
     const idx = Number(cur?.start?.index) || 0
     const cfi = cur?.start?.cfi || ''
-    const progress = count > 0 ? Math.round((idx / count) * 100) : 0
+    const runtimeLocation = cur as typeof cur & { atEnd?: boolean; start?: { displayed?: { page?: number; total?: number } } }
+    const progress = calculateSectionProgress(idx, count, runtimeLocation?.start?.displayed, runtimeLocation?.atEnd)
     const spineItems = this.book?.spine?.items as Array<{ href?: string }> | undefined
     const href = spineItems?.[idx]?.href || ''
     return {
@@ -274,7 +258,10 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
     if (!item) return ''
     try {
       // @ts-ignore — epubjs archive API
-      const text = await this.book.archive.getText(item.href)
+      const section = item as { url?: string; href?: string }
+      const url = section.url || section.href
+      if (!url) return ''
+      const text = await this.book.archive.getText(url)
       return text || ''
     } catch (e) {
       logger.warn('[EpubAdapter getChapterText]', e)
@@ -299,17 +286,12 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
   }
 
   async search(query: string): Promise<SearchResult[]> {
-    if (!this.book) return []
+    const normalizedQuery = query.trim()
+    if (!this.book || !normalizedQuery) return []
     // Use epub.js's built-in search if available
     try {
       // @ts-ignore — search is available on book
-      const results = await this.book.search(query)
-      if (!Array.isArray(results)) return []
-      return results.map((r: any) => ({
-        location: r.cfi || '',
-        label: r.excerpt || '',
-        excerpt: r.excerpt || '',
-      }))
+      return await this.searchSections(normalizedQuery)
     } catch (e) {
       logger.warn('[EpubAdapter search]', e)
       return []
@@ -384,7 +366,8 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
     }
   }
 
-  applyLayout(): void {
+  applyLayout(layout?: ReaderLayout): void {
+    if (layout) this.layout = { ...layout }
     // Layout CSS is injected via the content hook in open() for NEW views.
     // For already-rendered views, update the _reader_layout style element directly.
     if (this.rendition) {
@@ -398,6 +381,10 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
       const l = this.layout
       const css = `
         html {
+          margin: 0 !important;
+          padding: 0 !important;
+          border: 0 !important;
+          box-sizing: border-box !important;
           overflow-y: ${l.flow === 'scrolled-doc' ? 'auto' : 'hidden'} !important;
           scrollbar-width: ${l.flow === 'scrolled-doc' ? 'thin' : 'none'} !important;
           scrollbar-color: rgba(90, 82, 70, 0.36) transparent !important;
@@ -416,12 +403,17 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
           background-clip: content-box !important;
         }
         body {
+          width: 100% !important;
+          min-height: 100% !important;
           font-size: ${l.fontSize}% !important;
           font-family: ${l.fontFamily} !important;
           font-weight: ${l.fontWeight ?? 400} !important;
           line-height: ${l.lineHeight} !important;
           padding: 0 ${l.margin}px !important;
-          max-width: 100% !important;
+          max-width: ${l.flow === 'scrolled-doc' ? '72ch' : '100%'} !important;
+          box-sizing: border-box !important;
+          margin: ${l.flow === 'scrolled-doc' ? '0 auto' : '0'} !important;
+          border: 0 !important;
           overflow-y: ${l.flow === 'scrolled-doc' ? 'auto' : 'hidden'} !important;
           scrollbar-width: ${l.flow === 'scrolled-doc' ? 'thin' : 'none'} !important;
           scrollbar-color: rgba(90, 82, 70, 0.36) transparent !important;
@@ -507,6 +499,64 @@ document.addEventListener('mouseup',function(){var s=window.getSelection();if(s&
     if (this.onLocationChange) {
       this.onLocationChange(this.getCurrentLocation())
     }
+  }
+
+  private async searchSections(query: string): Promise<SearchResult[]> {
+    if (!this.book) return []
+    const results: SearchResult[] = []
+    const items = this.book.spine.items as unknown as Array<{
+      index: number
+      href?: string
+      load(request: (url: string) => Promise<Document>): Promise<Element>
+      search(query: string): Array<{ cfi?: string; excerpt?: string }>
+      unload(): void
+    }>
+    const request = (this.book as unknown as { load(url: string): Promise<Document> }).load.bind(this.book)
+
+    for (let i = 0; i < items.length && results.length < 200; i++) {
+      const section = items[i]
+      try {
+        await section.load(request)
+        for (const match of section.search(query)) {
+          if (!match.cfi) continue
+          const excerpt = match.excerpt || query
+          const matchIndex = excerpt.toLocaleLowerCase().indexOf(query.toLocaleLowerCase())
+          const contextBefore = matchIndex >= 0 ? excerpt.slice(0, matchIndex) : ''
+          const matchText = matchIndex >= 0 ? excerpt.slice(matchIndex, matchIndex + query.length) : query
+          const contextAfter = matchIndex >= 0 ? excerpt.slice(matchIndex + query.length) : ''
+          results.push({
+            location: match.cfi,
+            label: this.findTocLabel(section.href) || `Chapter ${i + 1}`,
+            excerpt,
+            chapterIdx: section.index ?? i,
+            contextBefore,
+            matchText,
+            contextAfter,
+          })
+          if (results.length >= 200) break
+        }
+      } catch (e) {
+        logger.warn(`[EpubAdapter search] section ${i} failed`, e)
+      } finally {
+        section.unload()
+      }
+    }
+    return results
+  }
+
+  private findTocLabel(href?: string): string {
+    if (!href) return ''
+    const normalized = href.split('#')[0]
+    const visit = (items: TocItem[]): string => {
+      for (const item of items) {
+        const location = item.location.split('#')[0]
+        if (location === normalized || location.endsWith(normalized) || normalized.endsWith(location)) return item.label
+        const nested = item.subitems ? visit(item.subitems) : ''
+        if (nested) return nested
+      }
+      return ''
+    }
+    return visit(this.toc)
   }
 
   // Accessors for useBookEngine (used during refactor transition)

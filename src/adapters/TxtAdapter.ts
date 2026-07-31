@@ -6,10 +6,11 @@ import type {
   HighlightSpec,
   SelectionInfo,
 } from './BookAdapter'
-import type { ThemeMode, CustomTheme } from '../types'
+import type { ThemeMode, CustomTheme, ReaderLayout } from '../types'
 import { generateCustomThemeCSS } from '../utils/customTheme'
 import { themeStyles } from '../types'
 import { logger } from '../utils/logger'
+import { alignPageScrollTop, calculatePageScrollStep } from '../utils/readerProgress'
 
 /**
  * TXT format adapter. Splits text by ≥2 blank lines into "chapters",
@@ -25,16 +26,17 @@ export class TxtAdapter implements BookAdapter {
   private container: HTMLElement | null = null
   private chapterIdx = 0
   private charOffset = 0
-  private layout: { fontSize: number; fontFamily: string; fontWeight?: number; lineHeight: number; margin: number; flow: 'paginated' | 'scrolled-doc' }
+  private layout: ReaderLayout
   private theme: ThemeMode
   private customTheme: CustomTheme
+  private customThemeCss: string | null = null
   private highlightIdCounter = 0
   private highlightIdMap = new Map<string, { chapterIdx: number; start: number; end: number; color: string }>()
   // DOM mark elements by id for removal
   private highlightElements = new Map<string, HTMLElement[]>()
 
   constructor(opts: {
-    layout: { fontSize: number; fontFamily: string; fontWeight?: number; lineHeight: number; margin: number; flow: 'paginated' | 'scrolled-doc' }
+    layout: ReaderLayout
     theme: ThemeMode
     customTheme: CustomTheme
   }) {
@@ -90,11 +92,13 @@ export class TxtAdapter implements BookAdapter {
     // Filter out empty/whitespace-only chapters, preserving original positions
     this.chapters = []
     this.chapterOffsets = []
+    let cumulativeOffset = 0
     for (const ch of rawChapters) {
       const trimmed = ch.text.trim()
       if (trimmed.length > 0) {
-        this.chapterOffsets.push(ch.startInFull)
+        this.chapterOffsets.push(cumulativeOffset)
         this.chapters.push(trimmed)
+        cumulativeOffset += trimmed.length
       }
     }
     if (this.chapters.length === 0) {
@@ -112,15 +116,16 @@ export class TxtAdapter implements BookAdapter {
     this.chapters = []
     this.fullText = ''
     this.chapterOffsets = []
+    this.chapterIdx = 0
+    this.charOffset = 0
     this.highlightIdMap.clear()
     this.highlightElements.clear()
   }
 
   async next(): Promise<void> {
     if (!this.container) return
-    if (this.charOffset + this.visibleCharsPerPage() < this.chapters[this.chapterIdx].length) {
-      this.charOffset += this.visibleCharsPerPage()
-    } else if (this.chapterIdx < this.chapters.length - 1) {
+    if (this.scrollByPage('next')) return
+    if (this.chapterIdx < this.chapters.length - 1) {
       this.chapterIdx++
       this.charOffset = 0
     } else {
@@ -131,11 +136,10 @@ export class TxtAdapter implements BookAdapter {
 
   async prev(): Promise<void> {
     if (!this.container) return
-    if (this.charOffset > 0) {
-      this.charOffset = Math.max(0, this.charOffset - this.visibleCharsPerPage())
-    } else if (this.chapterIdx > 0) {
+    if (this.scrollByPage('prev')) return
+    if (this.chapterIdx > 0) {
       this.chapterIdx--
-      this.charOffset = 0
+      this.charOffset = this.chapters[this.chapterIdx].length
     } else {
       return
     }
@@ -155,8 +159,11 @@ export class TxtAdapter implements BookAdapter {
 
   getCurrentLocation(): BookLocation {
     const totalChars = this.chapters.reduce((sum, c) => sum + c.length, 0) || 1
-    const charsRead = this.chapterOffsets[this.chapterIdx] + this.charOffset
-    const progress = Math.round((charsRead / totalChars) * 100)
+    const visibleEnd = this.layout.flow === 'paginated'
+      ? Math.min(this.chapters[this.chapterIdx]?.length ?? 0, this.charOffset + this.visibleCharsPerPage())
+      : this.charOffset
+    const charsRead = (this.chapterOffsets[this.chapterIdx] ?? 0) + visibleEnd
+    const progress = Math.max(0, Math.min(100, Math.round((charsRead / totalChars) * 100)))
     return {
       format: 'txt',
       location: `${this.chapterIdx}:${this.charOffset}`,
@@ -203,6 +210,10 @@ export class TxtAdapter implements BookAdapter {
           location: `${i}:${pos}`,
           label: `第 ${i + 1} 段`,
           excerpt: `${before}${match}${after}`.replace(/\s+/g, ' '),
+          chapterIdx: i,
+          contextBefore: before,
+          matchText: match,
+          contextAfter: after,
         })
         pos += query.length
         if (results.length >= 200) break // safety cap
@@ -245,7 +256,7 @@ export class TxtAdapter implements BookAdapter {
   }
 
   clearHighlights(): void {
-    for (const id of Array.from(this.highlightElements.keys())) {
+    for (const id of Array.from(this.highlightIdMap.keys())) {
       void this.removeHighlight(id)
     }
   }
@@ -257,11 +268,13 @@ export class TxtAdapter implements BookAdapter {
   }
 
   applyCustomThemeCSS(css: string): void {
+    this.customThemeCss = css
     if (!this.container) return
-    this.injectThemeStyles(this.theme, css)
+    this.injectThemeStyles('custom', css)
   }
 
-  applyLayout(): void {
+  applyLayout(layout?: ReaderLayout): void {
+    if (layout) this.layout = { ...layout }
     if (!this.container) return
     const content = this.container.querySelector('[data-txt-content]') as HTMLElement | null
     if (!content) return
@@ -270,9 +283,14 @@ export class TxtAdapter implements BookAdapter {
     content.style.fontFamily = l.fontFamily
     content.style.fontWeight = String(l.fontWeight ?? 400)
     content.style.lineHeight = String(l.lineHeight)
-    content.style.padding = `24px ${l.margin}px`
+    const horizontalPadding = l.flow === 'scrolled-doc'
+      ? `max(${l.margin}px, calc((100% - 72ch) / 2))`
+      : `${l.margin}px`
+    content.style.padding = `24px ${horizontalPadding}`
     content.style.overflowY = l.flow === 'scrolled-doc' ? 'auto' : 'hidden'
     content.style.scrollbarWidth = l.flow === 'scrolled-doc' ? 'thin' : 'none'
+    this.preparePaginationGeometry(content)
+    this.restoreScrollPosition(content)
   }
 
   flow(mode: 'paginated' | 'scrolled-doc'): void {
@@ -282,8 +300,7 @@ export class TxtAdapter implements BookAdapter {
   }
 
   resize(): void {
-    // Re-render to adjust to new viewport size.
-    this.renderCurrentChapter()
+    this.applyLayout()
   }
 
   getSelectionInfo(): SelectionInfo {
@@ -322,17 +339,21 @@ export class TxtAdapter implements BookAdapter {
     this.container.innerHTML = ''
     const pre = document.createElement('div')
     pre.setAttribute('data-txt-content', '')
+    pre.setAttribute('data-reader-content', '')
     pre.setAttribute('data-txt-chapter', String(this.chapterIdx))
     pre.style.cssText = `
       white-space: pre-wrap;
       word-wrap: break-word;
-      padding: 24px ${this.layout.margin}px;
+      padding: 24px ${this.layout.flow === 'scrolled-doc' ? `max(${this.layout.margin}px, calc((100% - 72ch) / 2))` : `${this.layout.margin}px`};
       font-size: ${this.layout.fontSize}%;
       font-family: ${this.layout.fontFamily};
       font-weight: ${this.layout.fontWeight ?? 400};
       line-height: ${this.layout.lineHeight};
+      width: 100%;
       max-width: 100%;
       box-sizing: border-box;
+      margin: 0;
+      border: 0;
       overflow-y: ${this.layout.flow === 'scrolled-doc' ? 'auto' : 'hidden'};
       scrollbar-width: ${this.layout.flow === 'scrolled-doc' ? 'thin' : 'none'};
       scrollbar-color: rgba(90, 82, 70, 0.36) transparent;
@@ -348,19 +369,85 @@ export class TxtAdapter implements BookAdapter {
       }
     })
     // Restore charOffset scroll position
-    if (this.charOffset > 0 && chapter.length > 0) {
-      const scrollable = pre
-      const fraction = this.charOffset / chapter.length
-      const maxScroll = scrollable.scrollHeight - scrollable.clientHeight
-      scrollable.scrollTop = Math.round(fraction * maxScroll)
-    }
+    this.preparePaginationGeometry(pre)
+    this.restoreScrollPosition(pre)
     // Track scroll position so syncRef can pick it up for progress saving
     pre.addEventListener('scroll', () => {
-      const maxScroll = pre.scrollHeight - pre.clientHeight
-      if (maxScroll > 0 && chapter.length > 0) {
-        this.charOffset = Math.round((pre.scrollTop / maxScroll) * chapter.length)
-      }
+      this.updateCharOffsetFromScroll(pre)
     }, { passive: true })
+  }
+
+  private getContent(): HTMLElement | null {
+    return this.container?.querySelector<HTMLElement>('[data-txt-content]') ?? null
+  }
+
+  private getLineHeight(content: HTMLElement): number {
+    const computed = window.getComputedStyle(content)
+    const lineHeight = parseFloat(computed.lineHeight)
+    if (Number.isFinite(lineHeight) && lineHeight > 0) return lineHeight
+    const fontSize = parseFloat(computed.fontSize) || 16
+    return fontSize * this.layout.lineHeight
+  }
+
+  private preparePaginationGeometry(content: HTMLElement): void {
+    if (this.layout.flow !== 'paginated') return
+    content.style.paddingBottom = '24px'
+    const lineHeight = this.getLineHeight(content)
+    const maxScroll = Math.max(0, content.scrollHeight - content.clientHeight)
+    const remainder = maxScroll % lineHeight
+    const adjustment = remainder > 0.5 ? lineHeight - remainder : 0
+    if (adjustment > 0.5) content.style.paddingBottom = `${24 + adjustment}px`
+  }
+
+  private restoreScrollPosition(content: HTMLElement): void {
+    const chapterLength = this.chapters[this.chapterIdx]?.length ?? 0
+    if (chapterLength <= 0 || this.charOffset <= 0) {
+      content.scrollTop = 0
+      return
+    }
+    const maxScroll = Math.max(0, content.scrollHeight - content.clientHeight)
+    const target = (this.charOffset / chapterLength) * maxScroll
+    content.scrollTop = this.layout.flow === 'paginated'
+      ? alignPageScrollTop(target, maxScroll, this.getLineHeight(content))
+      : Math.max(0, Math.min(maxScroll, target))
+    this.updateCharOffsetFromScroll(content)
+  }
+
+  private updateCharOffsetFromScroll(content: HTMLElement): void {
+    const chapterLength = this.chapters[this.chapterIdx]?.length ?? 0
+    const maxScroll = Math.max(0, content.scrollHeight - content.clientHeight)
+    if (chapterLength <= 0 || maxScroll <= 0) {
+      this.charOffset = 0
+      return
+    }
+    this.charOffset = Math.round((content.scrollTop / maxScroll) * chapterLength)
+  }
+
+  private scrollByPage(direction: 'next' | 'prev'): boolean {
+    const content = this.getContent()
+    if (!content) return false
+    this.preparePaginationGeometry(content)
+    const maxScroll = Math.max(0, content.scrollHeight - content.clientHeight)
+    const currentTop = content.scrollTop
+    if (direction === 'next' && currentTop >= maxScroll - 0.5) return false
+    if (direction === 'prev' && currentTop <= 0.5) return false
+
+    const computed = window.getComputedStyle(content)
+    const lineHeight = this.getLineHeight(content)
+    const pageStep = this.layout.flow === 'paginated'
+      ? calculatePageScrollStep(
+          content.clientHeight,
+          parseFloat(computed.paddingTop) || 0,
+          parseFloat(computed.paddingBottom) || 0,
+          lineHeight,
+        )
+      : content.clientHeight
+    const target = currentTop + (direction === 'next' ? pageStep : -pageStep)
+    content.scrollTop = this.layout.flow === 'paginated'
+      ? alignPageScrollTop(target, maxScroll, lineHeight)
+      : Math.max(0, Math.min(maxScroll, target))
+    this.updateCharOffsetFromScroll(content)
+    return true
   }
 
   private applyHighlightInDom(id: string, start: number, end: number, color: string): void {
@@ -439,6 +526,9 @@ export class TxtAdapter implements BookAdapter {
 
   private injectThemeStyles(theme: ThemeMode, customCss: string | null): void {
     if (!this.container) return
+    const content = this.container.querySelector<HTMLElement>('[data-reader-content]')
+    content?.classList.remove('light', 'sepia', 'dark', 'custom')
+    content?.classList.add(theme)
     let styleEl = this.container.querySelector<HTMLStyleElement>('style[data-txt-theme]')
     if (!styleEl) {
       styleEl = document.createElement('style')
@@ -449,11 +539,10 @@ export class TxtAdapter implements BookAdapter {
     if (theme === 'light') css = themeStyles.light
     else if (theme === 'dark') css = themeStyles.dark
     else if (theme === 'sepia') css = themeStyles.sepia
-    else if (theme === 'custom' && customCss) css = customCss
+    else if (theme === 'custom' && (customCss || this.customThemeCss)) css = customCss || this.customThemeCss || ''
     else if (theme === 'custom' && this.customTheme) css = generateCustomThemeCSS(this.customTheme)
-    // Scope to the txt content div
     styleEl.textContent = `
-      [data-txt-content] { ${css} }
+      ${css}
       [data-txt-content]::-webkit-scrollbar {
         width: ${this.layout.flow === 'scrolled-doc' ? '8px' : '0'};
         height: ${this.layout.flow === 'scrolled-doc' ? '8px' : '0'};

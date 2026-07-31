@@ -1,6 +1,9 @@
-import { useEffect } from 'react'
+import { Dispatch, SetStateAction, useEffect } from 'react'
 import { ReaderLayout } from '../types'
 import { getElectronAPI } from '../utils/electronAPI'
+import { READER_CONTENT_KEY_EVENT, ReaderContentKeyDetail } from '../utils/readerContentEvents'
+
+type BooleanSetter = Dispatch<SetStateAction<boolean>>
 
 export function useReaderKeyboard(
   nextRef: React.MutableRefObject<() => void>,
@@ -10,35 +13,58 @@ export function useReaderKeyboard(
   showLayoutRef: React.MutableRefObject<boolean>,
   showMarkersRef: React.MutableRefObject<boolean>,
   showAIRef: React.MutableRefObject<boolean>,
-  setShowSearch: (v: boolean) => void,
-  setShowLayout: (v: boolean) => void,
-  setShowMarkers: (v: boolean) => void,
-  setShowAI: (v: boolean) => void,
-  closeTopPanel: () => void,
+  showMoreRef: React.MutableRefObject<boolean>,
+  setShowSearch: BooleanSetter,
+  setShowLayout: BooleanSetter,
+  setShowMarkers: BooleanSetter,
+  setShowAI: BooleanSetter,
+  setShowMore: BooleanSetter,
   showControls: () => void,
   layout: ReaderLayout,
   flowRef: React.MutableRefObject<string>
 ) {
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement).tagName
+    const handleKey = (e: Pick<KeyboardEvent, 'key' | 'code' | 'shiftKey' | 'ctrlKey' | 'metaKey'>, target?: EventTarget | null) => {
+      const tag = target instanceof HTMLElement ? target.tagName : ''
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
-      if (e.key === 'ArrowRight' || (e.key === ' ' && flowRef.current === 'paginated' && !e.shiftKey)) { e.preventDefault(); nextRef.current(); return }
-      if (e.key === 'ArrowLeft' || (e.key === ' ' && e.shiftKey)) { e.preventDefault(); prevRef.current(); return }
-      if ((e.code === 'MediaNextTrack' || e.key === 'MediaNextTrack') && layout.enableMediaKey) { e.preventDefault(); nextRef.current(); return }
-      if ((e.code === 'MediaPreviousTrack' || e.key === 'MediaPreviousTrack') && layout.enableMediaKey) { e.preventDefault(); prevRef.current(); return }
+      if (e.key === 'ArrowRight' || (e.key === ' ' && flowRef.current === 'paginated' && !e.shiftKey)) { nextRef.current(); showControls(); return true }
+      if (e.key === 'ArrowLeft' || (e.key === ' ' && flowRef.current === 'paginated' && e.shiftKey)) { prevRef.current(); showControls(); return true }
+      if ((e.code === 'MediaNextTrack' || e.key === 'MediaNextTrack') && layout.enableMediaKey) { nextRef.current(); showControls(); return true }
+      if ((e.code === 'MediaPreviousTrack' || e.key === 'MediaPreviousTrack') && layout.enableMediaKey) { prevRef.current(); showControls(); return true }
       if (e.key === 'Escape') {
         if (showSearchRef.current) setShowSearch(false)
         else if (showLayoutRef.current) setShowLayout(false)
         else if (showMarkersRef.current) setShowMarkers(false)
         else if (showAIRef.current) setShowAI(false)
-        showControls(); return
+        else if (showMoreRef.current) setShowMore(false)
+        showControls(); return true
       }
-      if ((e.key === 'f' || e.key === 'F') && (e.ctrlKey || e.metaKey)) { e.preventDefault(); setShowSearch(v => !v); showControls(); return }
-      if ((e.key === 'b' || e.key === 'B') && !e.ctrlKey && !e.metaKey) { bookmarkRef.current(); showControls(); return }
-      if (e.key === 'F11') { e.preventDefault(); getElectronAPI()?.toggleFullscreen() }
+      if ((e.key === 'f' || e.key === 'F') && (e.ctrlKey || e.metaKey)) {
+        setShowSearch(v => !v)
+        setShowLayout(false)
+        setShowMarkers(false)
+        setShowAI(false)
+        setShowMore(false)
+        showControls()
+        return true
+      }
+      if ((e.key === 'b' || e.key === 'B') && !e.ctrlKey && !e.metaKey) { bookmarkRef.current(); showControls(); return true }
+      if (e.key === 'F11') { getElectronAPI()?.toggleFullscreen(); return true }
+      return false
+    }
+
+    const handler = (e: KeyboardEvent) => {
+      if (handleKey(e, e.target)) e.preventDefault()
+    }
+    const contentHandler = (event: Event) => {
+      const e = event as CustomEvent<ReaderContentKeyDetail>
+      if (handleKey(e.detail)) e.preventDefault()
     }
     window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [nextRef, prevRef, bookmarkRef, showSearchRef, showLayoutRef, showMarkersRef, showAIRef, setShowSearch, setShowLayout, setShowMarkers, setShowAI, closeTopPanel, showControls, layout, flowRef])
+    window.addEventListener(READER_CONTENT_KEY_EVENT, contentHandler)
+    return () => {
+      window.removeEventListener('keydown', handler)
+      window.removeEventListener(READER_CONTENT_KEY_EVENT, contentHandler)
+    }
+  }, [nextRef, prevRef, bookmarkRef, showSearchRef, showLayoutRef, showMarkersRef, showAIRef, showMoreRef, setShowSearch, setShowLayout, setShowMarkers, setShowAI, setShowMore, showControls, layout, flowRef])
 }

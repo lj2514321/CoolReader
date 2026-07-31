@@ -6,10 +6,11 @@ import {
   Send, X,
   FileText, ScrollText,
 } from 'lucide-react'
-import { BookMeta, ThemeMode, AIConfig, ReaderLayout, fontFamilies, defaultLayout, Highlight, highlightColors, SearchResult, CustomTheme, defaultCustomTheme, AnimationMode } from '../types'
+import { BookMeta, ThemeMode, AIConfig, ReaderLayout, fontFamilies, defaultLayout, Bookmark, Highlight, highlightColors, SearchResult, CustomTheme, defaultCustomTheme, AnimationMode } from '../types'
 import { useReaderKeyboard } from '../hooks/useReaderKeyboard'
-import { parseRGBA, getLuminance, getGradientLuminance } from '../utils/customTheme'
-import { UI_AUTO_HIDE_DELAY, WHEEL_THROTTLE_DELAY, SEARCH_DEBOUNCE_DELAY, CLICK_ZONE_LEFT, CLICK_ZONE_RIGHT, FONT_SIZE_MIN, FONT_SIZE_MAX, FONT_WEIGHT_MIN, FONT_WEIGHT_MAX, FONT_WEIGHT_STEP, LINE_HEIGHT_MIN, LINE_HEIGHT_MAX, LINE_HEIGHT_STEP, MARGIN_MIN, MARGIN_MAX, SELECTION_TOOLBAR_OFFSET, SELECTION_TOOLBAR_HALF_WIDTH } from '../utils/constants'
+import { parseRGBA, getCustomThemeBackground, isCustomThemeDark } from '../utils/customTheme'
+import { READER_CONTENT_CLICK_EVENT, ReaderContentClickDetail } from '../utils/readerContentEvents'
+import { UI_AUTO_HIDE_DELAY, WHEEL_THROTTLE_DELAY, SEARCH_DEBOUNCE_DELAY, CLICK_ZONE_LEFT, CLICK_ZONE_RIGHT, FONT_SIZE_MIN, FONT_SIZE_MAX, FONT_WEIGHT_MIN, FONT_WEIGHT_MAX, FONT_WEIGHT_STEP, LINE_HEIGHT_MIN, LINE_HEIGHT_MAX, LINE_HEIGHT_STEP, MARGIN_MIN, MARGIN_MAX } from '../utils/constants'
 import { AIPanel } from './AIPanel'
 import { ReaderSearchPanel } from './ReaderSearchPanel'
 import { ReaderMarkersPanel } from './ReaderMarkersPanel'
@@ -25,7 +26,7 @@ interface ReaderProps {
   onAnimationModeChange?: (mode: AnimationMode) => void
   onReducedMotionChange?: (reduced: boolean) => void
   progress: number
-  onLoad: (path: string) => void
+  onLoad: (path: string) => Promise<void>
   onBack: () => void
   onNext: () => void
   onPrev: () => void
@@ -44,7 +45,7 @@ interface ReaderProps {
   selectionInfo: { text: string; cfiRange: string; bounds: { top: number; left: number; width: number; height: number } } | null
   onToggleBookmark: () => void
   onRemoveBookmark: (id: number) => void
-  onAddHighlight: (color: string) => void
+  onAddHighlight: (color: string, note?: string) => void
   onRemoveHighlight: (id: number, cfiRange: string) => void
   onClearSelection: () => void
   onGoToCfi: (cfi: string) => void
@@ -64,27 +65,13 @@ const themeBg: Record<Exclude<ThemeMode, 'custom'>, string> = {
   dark: '#1a1a1f',
 }
 
-function getCustomThemeBg(ct: CustomTheme): string {
-  if (ct.type === 'solid') return ct.color || 'rgba(255,255,255,1)'
-  const stops = (ct.gradientStops || []).map(s => `${s.color} ${s.position}%`).join(', ')
-  if (!stops) return '#f7f4ed'
-  return ct.gradientType === 'radial'
-    ? `radial-gradient(ellipse at center, ${stops})`
-    : `linear-gradient(${ct.gradientAngle ?? 135}deg, ${stops})`
-}
-
-function isCustomThemeDark(ct: CustomTheme): boolean {
-  if (ct.type === 'solid') return getLuminance(ct.color || 'rgba(255,255,255,1)') < 0.4
-  return getGradientLuminance(ct.gradientStops || []) < 0.4
-}
-
 export const Reader = memo(function Reader({
   filePath, meta, theme, layout, onLayoutChange, onAnimationModeChange, onReducedMotionChange, progress, onLoad, onBack, onNext, onPrev, onToggleSidebar, onThemeChange, onCustomThemeChange, customTheme, onSeek, onResize, aiConfig, onGetChapterText, onGetFullBookText, bookmarks, highlights, currentCfi, selectionInfo, onToggleBookmark, onRemoveBookmark, onAddHighlight, onRemoveHighlight, onClearSelection, onGoToCfi, onSearch, onNavigateToSearchResult,
 }: ReaderProps) {
   const ct = customTheme ?? defaultCustomTheme
   const customDark = theme === 'custom' && isCustomThemeDark(ct)
   const dark = theme === 'dark' || customDark
-  const readerBg = theme === 'custom' ? getCustomThemeBg(ct) : themeBg[theme]
+  const readerBg = theme === 'custom' ? getCustomThemeBackground(ct) : themeBg[theme]
   const dataTheme = theme === 'custom' ? (customDark ? 'dark' : 'light') : theme
 
   const nextRef = useRef(onNext)
@@ -92,18 +79,26 @@ export const Reader = memo(function Reader({
   nextRef.current = onNext
   prevRef.current = onPrev
 
-  const loadedRef = useRef(false)
+  const loadedRef = useRef('')
+  const [loadAttempt, setLoadAttempt] = useState(0)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!filePath) {
-      loadedRef.current = false
+      loadedRef.current = ''
+      setLoadError(null)
       return
     }
-    if (!loadedRef.current) {
-      loadedRef.current = true
-      onLoad(filePath)
-    }
-  }, [filePath, onLoad])
+    const loadKey = `${filePath}:${loadAttempt}`
+    if (loadedRef.current === loadKey) return
+    loadedRef.current = loadKey
+    let cancelled = false
+    setLoadError(null)
+    void onLoad(filePath).catch(error => {
+      if (!cancelled) setLoadError(error instanceof Error ? error.message : String(error))
+    })
+    return () => { cancelled = true }
+  }, [filePath, loadAttempt, onLoad])
 
   // ResizeObserver — reflow viewer when container resizes (e.g. sidebar toggle)
   useEffect(() => {
@@ -137,7 +132,9 @@ export const Reader = memo(function Reader({
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [searching, setSearching] = useState(false)
+  const [searchError, setSearchError] = useState<string | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const searchRequestRef = useRef(0)
   const [hlNoteColor, setHlNoteColor] = useState<string | null>(null)
   const [hlNoteText, setHlNoteText] = useState('')
   const hlNoteInputRef = useRef<HTMLInputElement>(null)
@@ -155,6 +152,10 @@ export const Reader = memo(function Reader({
   showMoreRef.current = showMore
   const bookmarkRef = useRef(onToggleBookmark)
   bookmarkRef.current = onToggleBookmark
+
+  useEffect(() => {
+    setLocalCustomTheme(customTheme ?? defaultCustomTheme)
+  }, [customTheme])
 
   useEffect(() => {
     if (!ctxBmId) return
@@ -194,22 +195,11 @@ export const Reader = memo(function Reader({
     }
   }, [])
 
-  const handleViewerClick = (e: React.MouseEvent) => {
-    const iframe = document.querySelector<HTMLIFrameElement>('#viewer iframe')
-    if (iframe?.contentDocument) {
-      const r = iframe.getBoundingClientRect()
-      const el = iframe.contentDocument.elementFromPoint(e.clientX - r.left, e.clientY - r.top)
-      const link = el?.closest('a')
-      if (link?.getAttribute('href')) {
-        link.click()
-        return
-      }
+  const handleViewerPoint = (x: number, w: number) => {
+    if (flowRef.current === 'paginated') {
+      if (x < w * CLICK_ZONE_LEFT) { prevRef.current(); showControls(); return }
+      if (x > w * CLICK_ZONE_RIGHT) { nextRef.current(); showControls(); return }
     }
-
-    const x = e.clientX - e.currentTarget.getBoundingClientRect().left
-    const w = e.currentTarget.getBoundingClientRect().width
-    if (x < w * CLICK_ZONE_LEFT) { prevRef.current(); showControls(); return }
-    if (x > w * CLICK_ZONE_RIGHT) { nextRef.current(); showControls(); return }
 
     const anyPanelOpen = showLayout || showMarkers || showSearch || showAI || showMore
     if (anyPanelOpen) {
@@ -217,6 +207,7 @@ export const Reader = memo(function Reader({
       if (showLayout) { setShowLayout(false); setShowCustomTheme(false) }
       if (showMarkers) setShowMarkers(false)
       if (showAI) setShowAI(false)
+      if (showMore) setShowMore(false)
       showControls()
     } else {
       setShowUI(v => !v)
@@ -224,13 +215,26 @@ export const Reader = memo(function Reader({
     }
   }
 
+  const handleViewerClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest('a, button, input, textarea, select, [contenteditable="true"]')) return
+    const selection = window.getSelection()
+    if (selection && !selection.isCollapsed) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    handleViewerPoint(e.clientX - rect.left, rect.width)
+  }
+
+  useEffect(() => {
+    const handleContentClick = (event: Event) => {
+      const { x, width } = (event as CustomEvent<ReaderContentClickDetail>).detail
+      handleViewerPoint(x, width)
+    }
+    window.addEventListener(READER_CONTENT_CLICK_EVENT, handleContentClick)
+    return () => window.removeEventListener(READER_CONTENT_CLICK_EVENT, handleContentClick)
+  })
+
   useEffect(() => {
     setIsBookmarked(bookmarks.some(b => b.cfi === currentCfi))
   }, [bookmarks, currentCfi])
-
-  useEffect(() => {
-    if (!showMarkers) setShowAI(false)
-  }, [showMarkers])
 
   useEffect(() => {
     if (showSearch) searchInputRef.current?.focus()
@@ -242,24 +246,31 @@ export const Reader = memo(function Reader({
 
   const searchTimer = useRef<ReturnType<typeof setTimeout>>()
   useEffect(() => {
-    if (!searchQuery.trim()) { setSearchResults([]); return }
+    const requestId = ++searchRequestRef.current
+    if (!searchQuery.trim()) {
+      setSearchResults([])
+      setSearchError(null)
+      setSearching(false)
+      return
+    }
     setSearching(true)
+    setSearchError(null)
     clearTimeout(searchTimer.current)
     searchTimer.current = setTimeout(async () => {
-      const r = await onSearch(searchQuery)
-      setSearchResults(r)
-      setSearching(false)
+      try {
+        const results = await onSearch(searchQuery)
+        if (searchRequestRef.current === requestId) setSearchResults(results)
+      } catch (error) {
+        if (searchRequestRef.current === requestId) {
+          setSearchResults([])
+          setSearchError(error instanceof Error ? error.message : '搜索失败')
+        }
+      } finally {
+        if (searchRequestRef.current === requestId) setSearching(false)
+      }
     }, SEARCH_DEBOUNCE_DELAY)
     return () => clearTimeout(searchTimer.current)
   }, [searchQuery, onSearch])
-
-    const closeTopPanel = () => {
-    if (showSearch) setShowSearch(false)
-    else if (showLayout) setShowLayout(false)
-    else if (showMarkers) setShowMarkers(false)
-    else if (showAI) setShowAI(false)
-    else if (showMore) setShowMore(false)
-  }
 
   // window-level keyboard — works in both paginated and scroll mode
   useReaderKeyboard(
@@ -270,34 +281,42 @@ export const Reader = memo(function Reader({
     showLayoutRef,
     showMarkersRef,
     showAIRef,
+    showMoreRef,
     setShowSearch,
     setShowLayout,
     setShowMarkers,
     setShowAI,
-    closeTopPanel,
+    setShowMore,
     showControls,
     layout,
     flowRef,
   )
 
+  const selectionBarWidth = hlNoteColor ? 340 : 180
+  const selectionBarLeft = selectionInfo
+    ? Math.max(8, Math.min(window.innerWidth - selectionBarWidth - 8, selectionInfo.bounds.left + selectionInfo.bounds.width / 2 - selectionBarWidth / 2))
+    : 8
+  const selectionBarTop = selectionInfo
+    ? Math.max(8, Math.min(window.innerHeight - (hlNoteColor ? 104 : 52), selectionInfo.bounds.top - (hlNoteColor ? 90 : 50)))
+    : 8
+
   return (
-    <div ref={containerRef} data-theme={dataTheme} style={{ height: '100%', background: readerBg, overflow: 'hidden', position: 'relative' }}>
-      <div id="viewer" className="reader-viewer" data-flow={layout.flow} style={{ position: 'absolute', inset: 0 }} />
+    <div ref={containerRef} className="reader-root" data-theme={dataTheme} style={{ height: '100%', background: readerBg, overflow: 'hidden', position: 'relative' }}>
       <div
+        id="viewer"
+        className="reader-viewer"
+        data-flow={layout.flow}
         onClick={handleViewerClick}
-        onKeyDown={e => {
-          if (e.key === ' ') e.preventDefault()
-          if (e.key === 'Escape') { closeTopPanel(); showControls(); return }
-          if (e.key === 'ArrowRight') { e.preventDefault(); nextRef.current(); return }
-          if (e.key === 'ArrowLeft') { e.preventDefault(); prevRef.current(); return }
-          showControls()
-        }}
-        tabIndex={0}
-        style={{
-          position: 'absolute', inset: 0, zIndex: 1, outline: 'none',
-          pointerEvents: layout.flow === 'scrolled-doc' ? 'none' : undefined,
-        }}
+        style={{ position: 'absolute', inset: 0 }}
       />
+
+      {loadError && (
+        <div className="reader-load-error" role="alert">
+          <div>无法打开此书</div>
+          <div className="reader-load-error-detail">{loadError}</div>
+          <button className="reader-btn" onClick={() => setLoadAttempt(value => value + 1)}>重试</button>
+        </div>
+      )}
 
       <ReaderTopBar
         meta={meta}
@@ -308,6 +327,13 @@ export const Reader = memo(function Reader({
         isBookmarked={isBookmarked}
         onBack={onBack}
         onToggleBookmark={onToggleBookmark}
+        onToggleMarkers={() => {
+          setShowMarkers(v => !v)
+          setShowLayout(false)
+          setShowSearch(false)
+          setShowAI(false)
+          setShowMore(false)
+        }}
         onToggleLayout={() => {
           setShowLayout(v => !v)
           setShowMarkers(false)
@@ -331,52 +357,70 @@ export const Reader = memo(function Reader({
         <>
           <div onClick={() => { setShowLayout(false); setShowCustomTheme(false); setShowAdvancedLayout(false) }} className="reader-panel-overlay" />
           <div onClick={e => e.stopPropagation()} className="reader-layout-panel reader-glass">
-            {/* Quick: theme swatches */}
-            <div className="reader-section-label">主题</div>
-            <div className="reader-layout-row">
-              {themes.filter(t => t.key !== 'custom').map(t => (
-                <button key={t.key} onClick={() => { onThemeChange(t.key); setShowCustomTheme(false) }}
-                  className={theme === t.key ? 'reader-btn-active' : 'reader-btn'}
-                >{t.icon}</button>
-              ))}
-              <button onClick={() => { onThemeChange('custom'); setShowCustomTheme(v => !v) }}
-                className={theme === 'custom' ? 'reader-btn-active' : 'reader-btn'}
-              ><SlidersHorizontal size={16} /></button>
+            <div className="reader-panel-tabs" role="tablist" aria-label="阅读设置分类">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={!showAdvancedLayout}
+                className={`reader-panel-tab${!showAdvancedLayout ? ' reader-panel-tab-active' : ''}`}
+                onClick={() => setShowAdvancedLayout(false)}
+              >基础</button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={showAdvancedLayout}
+                className={`reader-panel-tab${showAdvancedLayout ? ' reader-panel-tab-active' : ''}`}
+                onClick={() => { setShowAdvancedLayout(true); setShowCustomTheme(false) }}
+              >高级</button>
             </div>
 
-            {/* Quick: font size */}
-            <div className="reader-section-label">字号</div>
-            <div className="reader-layout-row">
-              <button onClick={() => onLayoutChange({ fontSize: Math.max(FONT_SIZE_MIN, layout.fontSize - 10) })}
-                className="reader-btn">A-</button>
-              <input type="range" min={FONT_SIZE_MIN} max={FONT_SIZE_MAX} value={layout.fontSize}
-                onChange={e => onLayoutChange({ fontSize: Number(e.target.value) })}
-                className="reader-range-input" />
-              <button onClick={() => onLayoutChange({ fontSize: Math.min(FONT_SIZE_MAX, layout.fontSize + 10) })}
-                className="reader-btn">A+</button>
-            </div>
-            <div className="reader-readout">{layout.fontSize}%</div>
+            {!showAdvancedLayout && (
+              <>
+                <div className="reader-section-label">主题</div>
+                <div className="reader-layout-row reader-theme-options">
+                  {themes.filter(t => t.key !== 'custom').map(t => (
+                    <button key={t.key} onClick={() => { onThemeChange(t.key); setShowCustomTheme(false) }}
+                      className={theme === t.key ? 'reader-btn-active' : 'reader-btn'}
+                      aria-label={t.key === 'light' ? '浅色主题' : t.key === 'sepia' ? '纸张主题' : '深色主题'}
+                      title={t.key === 'light' ? '浅色主题' : t.key === 'sepia' ? '纸张主题' : '深色主题'}
+                    >{t.icon}</button>
+                  ))}
+                  <button onClick={() => { onThemeChange('custom'); setShowCustomTheme(v => !v) }}
+                    className={theme === 'custom' ? 'reader-btn-active' : 'reader-btn'}
+                    aria-label="自定义主题"
+                    title="自定义主题"
+                  ><SlidersHorizontal size={16} /></button>
+                </div>
 
-            {/* Quick: line height */}
-            <div className="reader-section-label">行距</div>
-            <div className="reader-layout-row">
-              <button onClick={() => onLayoutChange({ lineHeight: Math.max(1, +(layout.lineHeight - LINE_HEIGHT_STEP).toFixed(1)) })}
-                className="reader-btn">-</button>
-              <input type="range" min={LINE_HEIGHT_MIN} max={LINE_HEIGHT_MAX} value={Math.round(layout.lineHeight * 10)}
-                onChange={e => onLayoutChange({ lineHeight: Number(e.target.value) / 10 })}
-                className="reader-range-input" />
-              <button onClick={() => onLayoutChange({ lineHeight: Math.min(2.5, +(layout.lineHeight + LINE_HEIGHT_STEP).toFixed(1)) })}
-                className="reader-btn">+</button>
-            </div>
-            <div className="reader-readout">{layout.lineHeight.toFixed(1)}</div>
+                <div className="reader-section-label">字号</div>
+                <div className="reader-layout-row">
+                  <button onClick={() => onLayoutChange({ fontSize: Math.max(FONT_SIZE_MIN, layout.fontSize - 10) })}
+                    className="reader-btn">A-</button>
+                  <input type="range" min={FONT_SIZE_MIN} max={FONT_SIZE_MAX} value={layout.fontSize}
+                    onChange={e => onLayoutChange({ fontSize: Number(e.target.value) })}
+                    aria-label="字号"
+                    aria-valuetext={`${layout.fontSize}%`}
+                    className="reader-range-input" />
+                  <button onClick={() => onLayoutChange({ fontSize: Math.min(FONT_SIZE_MAX, layout.fontSize + 10) })}
+                    className="reader-btn">A+</button>
+                </div>
+                <div className="reader-readout">{layout.fontSize}%</div>
 
-            {/* Advanced toggle */}
-            <button onClick={() => setShowAdvancedLayout(v => !v)}
-              className="reader-btn reader-advanced-toggle"
-              style={{ justifyContent: 'center', marginTop: 4, opacity: 0.6, fontSize: 12 }}
-            >
-              {showAdvancedLayout ? '收起' : '更多排版设置'}&ensp;{showAdvancedLayout ? '▲' : '▼'}
-            </button>
+                <div className="reader-section-label">行距</div>
+                <div className="reader-layout-row">
+                  <button onClick={() => onLayoutChange({ lineHeight: Math.max(1, +(layout.lineHeight - LINE_HEIGHT_STEP).toFixed(1)) })}
+                    className="reader-btn">-</button>
+                  <input type="range" min={LINE_HEIGHT_MIN} max={LINE_HEIGHT_MAX} value={Math.round(layout.lineHeight * 10)}
+                    onChange={e => onLayoutChange({ lineHeight: Number(e.target.value) / 10 })}
+                    aria-label="行距"
+                    aria-valuetext={layout.lineHeight.toFixed(1)}
+                    className="reader-range-input" />
+                  <button onClick={() => onLayoutChange({ lineHeight: Math.min(2.5, +(layout.lineHeight + LINE_HEIGHT_STEP).toFixed(1)) })}
+                    className="reader-btn">+</button>
+                </div>
+                <div className="reader-readout">{layout.lineHeight.toFixed(1)}</div>
+              </>
+            )}
 
             {showAdvancedLayout && (
               <>
@@ -384,6 +428,7 @@ export const Reader = memo(function Reader({
                 <select value={layout.fontFamily}
                   onChange={e => onLayoutChange({ fontFamily: e.target.value })}
                   className="reader-select-input"
+                  aria-label="字体"
                 >
                   {fontFamilies.map(f => (
                     <option key={f.value} value={f.value} style={{ color: '#000' }}>{f.label}</option>
@@ -396,6 +441,8 @@ export const Reader = memo(function Reader({
                     className="reader-btn">-</button>
                   <input type="range" min={FONT_WEIGHT_MIN} max={FONT_WEIGHT_MAX} step={FONT_WEIGHT_STEP} value={layout.fontWeight || 400}
                     onChange={e => onLayoutChange({ fontWeight: Number(e.target.value) })}
+                    aria-label="字重"
+                    aria-valuetext={`${layout.fontWeight || 400}`}
                     className="reader-range-input" />
                   <button onClick={() => onLayoutChange({ fontWeight: Math.min(FONT_WEIGHT_MAX, (layout.fontWeight || 400) + FONT_WEIGHT_STEP) })}
                     className="reader-btn">+</button>
@@ -410,6 +457,8 @@ export const Reader = memo(function Reader({
                     className="reader-btn">-</button>
                   <input type="range" min={MARGIN_MIN} max={MARGIN_MAX} value={layout.margin}
                     onChange={e => onLayoutChange({ margin: Number(e.target.value) })}
+                    aria-label="页面边距"
+                    aria-valuetext={`${layout.margin}px`}
                     className="reader-range-input" />
                   <button onClick={() => onLayoutChange({ margin: Math.min(MARGIN_MAX, layout.margin + 5) })}
                     className="reader-btn">+</button>
@@ -420,10 +469,10 @@ export const Reader = memo(function Reader({
                 <div className="reader-layout-row">
                   <button onClick={() => onLayoutChange({ flow: 'paginated' })}
                     className={layout.flow === 'paginated' ? 'reader-btn-active' : 'reader-btn'}
-                  ><FileText size={14} />&ensp;分页</button>
+                  ><FileText size={14} />分页</button>
                   <button onClick={() => onLayoutChange({ flow: 'scrolled-doc' })}
                     className={layout.flow === 'scrolled-doc' ? 'reader-btn-active' : 'reader-btn'}
-                  ><ScrollText size={14} />&ensp;滚动</button>
+                  ><ScrollText size={14} />滚动</button>
                 </div>
 
                 <div className="reader-section-label">翻页动画</div>
@@ -441,21 +490,21 @@ export const Reader = memo(function Reader({
                   ))}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
-                  <label style={{ fontSize: 11, color: 'var(--reader-panel-text)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <label style={{ fontSize: 12, color: 'var(--reader-panel-text)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
                     <input type="checkbox"
                       checked={layout.reducedMotion ?? false}
                       onChange={e => onReducedMotionChange?.(e.target.checked)}
-                      style={{ accentColor: '#2d5a5a' }}
+                      style={{ accentColor: 'var(--reader-fg)' }}
                     />
-                    低性能模式
+                    减少动画
                   </label>
                 </div>
               </>
             )}
 
             {/* Custom theme editor (inside layout panel, behind SlidersHorizontal button) */}
-            {showCustomTheme && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--reader-panel-border)' }}>
+            {!showAdvancedLayout && showCustomTheme && (
+              <div className="reader-custom-theme-editor">
                 <div className="reader-layout-row">
                   <button onClick={() => setLocalCustomTheme(t => ({ ...t, type: 'solid' }))}
                     className={localCustomTheme.type === 'solid' ? 'reader-btn-active' : 'reader-btn'}
@@ -471,6 +520,7 @@ export const Reader = memo(function Reader({
                       value={'#' + parseRGBA(localCustomTheme.color || 'rgba(255,255,255,1)').slice(0, 3).map(c => c.toString(16).padStart(2, '0')).join('')}
                       onChange={e => { const [r,g,b] = parseRGBA(e.target.value); setLocalCustomTheme(t => ({ ...t, color: `rgba(${r},${g},${b},1)` })) }}
                       className="reader-color-input-sm"
+                      aria-label="主题颜色"
                     />
                     <span className="reader-panel-text">透明度</span>
                     <input
@@ -481,6 +531,7 @@ export const Reader = memo(function Reader({
                         setLocalCustomTheme(t => ({ ...t, color: `rgba(${r},${g},${b},${a})` }))
                         onCustomThemeChange?.({ ...localCustomTheme, color: `rgba(${r},${g},${b},${a})` })
                       }}
+                      aria-label="主题透明度"
                       className="reader-range-input"
                     />
                     <span className="reader-panel-text-sm">
@@ -502,6 +553,7 @@ export const Reader = memo(function Reader({
                           <span className="reader-panel-text">角度</span>
                           <input type="range" min={0} max={360} step={15} value={localCustomTheme.gradientAngle ?? 135}
                             onChange={e => setLocalCustomTheme(t => ({ ...t, gradientAngle: Number(e.target.value) }))}
+                            aria-label="渐变角度"
                             className="reader-range-input" />
                           <span className="reader-panel-text-sm">{localCustomTheme.gradientAngle ?? 135}°</span>
                         </>
@@ -517,10 +569,12 @@ export const Reader = memo(function Reader({
                     </div>
                     {(localCustomTheme.gradientStops || []).map((stop, idx) => (
                       <div key={idx} className="reader-layout-row">
-                        <input type="color" value={'#' + parseRGBA(stop.color).slice(0, 3).map(c => c.toString(16).padStart(2, '0')).join('')} onChange={e => { const [r,g,b] = parseRGBA(e.target.value); const s = [...(localCustomTheme.gradientStops || [])]; s[idx] = { ...s[idx], color: `rgba(${r},${g},${b},1)` }; setLocalCustomTheme(t => ({ ...t, gradientStops: s })) }} className="reader-color-input" />
-                        <input type="range" min={0} max={100} value={stop.position} onChange={e => { const s = [...(localCustomTheme.gradientStops || [])]; s[idx] = { ...s[idx], position: Number(e.target.value) }; setLocalCustomTheme(t => ({ ...t, gradientStops: s })) }} className="reader-range-input" />
+                        <input type="color" value={'#' + parseRGBA(stop.color).slice(0, 3).map(c => c.toString(16).padStart(2, '0')).join('')} onChange={e => { const [r,g,b] = parseRGBA(e.target.value); const s = [...(localCustomTheme.gradientStops || [])]; s[idx] = { ...s[idx], color: `rgba(${r},${g},${b},1)` }; setLocalCustomTheme(t => ({ ...t, gradientStops: s })) }} className="reader-color-input" aria-label={`色标 ${idx + 1} 颜色`} />
+                        <input type="range" min={0} max={100} value={stop.position} onChange={e => { const s = [...(localCustomTheme.gradientStops || [])]; s[idx] = { ...s[idx], position: Number(e.target.value) }; setLocalCustomTheme(t => ({ ...t, gradientStops: s })) }} className="reader-range-input" aria-label={`色标 ${idx + 1} 位置`} />
                         <span className="reader-panel-text-sm">{stop.position}%</span>
                         <button onClick={() => { const s = (localCustomTheme.gradientStops || []).filter((_, i) => i !== idx); setLocalCustomTheme(t => ({ ...t, gradientStops: s })) }}
+                          aria-label={`删除色标 ${idx + 1}`}
+                          title="删除色标"
                           className="reader-btn" style={{ color: 'rgba(255,100,100,0.8)' }}>×</button>
                       </div>
                     ))}
@@ -540,6 +594,8 @@ export const Reader = memo(function Reader({
         onSearchQueryChange={setSearchQuery}
         searchResults={searchResults}
         searching={searching}
+        error={searchError}
+        inputRef={searchInputRef}
         onNavigateToResult={onNavigateToSearchResult}
         onClose={() => setShowSearch(false)}
       />
@@ -574,20 +630,25 @@ export const Reader = memo(function Reader({
       {selectionInfo && (
         <div className="reader-selection-bar"
           style={{
-            top: selectionInfo.bounds.top - (hlNoteColor ? 90 : 50),
-            left: Math.max(SELECTION_TOOLBAR_OFFSET, selectionInfo.bounds.left + selectionInfo.bounds.width / 2 - SELECTION_TOOLBAR_HALF_WIDTH),
+            top: selectionBarTop,
+            left: selectionBarLeft,
+            maxWidth: 'calc(100vw - 16px)',
           }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            {highlightColors.map(color => (
+            {highlightColors.map((color, index) => (
               <button key={color} onClick={() => {
                 setHlNoteColor(color)
                 setHlNoteText('')
               }}
+                aria-label={`标注颜色 ${index + 1}`}
+                title={`标注颜色 ${index + 1}`}
                 className="reader-selection-color-btn"
                 style={{ background: color, outline: hlNoteColor === color ? '2px solid var(--reader-fg)' : 'none' }}
               />
             ))}
             <button onClick={() => { onClearSelection(); setHlNoteColor(null) }}
+              aria-label="清除选择"
+              title="清除选择"
               className="reader-btn reader-selection-clear-btn"
             ><X size={16} /></button>
           </div>
@@ -600,7 +661,6 @@ export const Reader = memo(function Reader({
                 placeholder="添加笔记（可选）..."
                 onKeyDown={e => {
                   if (e.key === 'Enter') {
-                    // @ts-expect-error note param is a pre-existing type mismatch
                     onAddHighlight(hlNoteColor, hlNoteText.trim() || undefined)
                     setHlNoteColor(null)
                     setHlNoteText('')
@@ -610,11 +670,12 @@ export const Reader = memo(function Reader({
                 className="reader-hl-note-input"
               />
               <button onClick={() => {
-                // @ts-expect-error note param is a pre-existing type mismatch
                 onAddHighlight(hlNoteColor, hlNoteText.trim() || undefined)
                 setHlNoteColor(null)
                 setHlNoteText('')
               }}
+                aria-label="保存标注"
+                title="保存标注"
                 className="reader-btn"
                 style={{ padding: '4px 8px', color: 'var(--reader-fg)' }}
               ><Send size={14} /></button>
@@ -632,14 +693,16 @@ export const Reader = memo(function Reader({
         onGoToCfi={onGoToCfi}
         onRemoveBookmark={onRemoveBookmark}
         onRemoveHighlight={onRemoveHighlight}
-        ctxBmId={ctxBmId}
         onCtxMenu={(id, e) => { setCtxBmId(Number(id)); setCtxPos({ x: e.clientX, y: e.clientY }) }}
         onClose={() => setShowMarkers(false)}
       />
 
-      {ctxBmId && (
-        <div onClick={() => setCtxBmId(null)} className="reader-panel-overlay">
-          <div className="reader-context-menu">
+      {ctxBmId !== null && (
+        <div onClick={() => setCtxBmId(null)} className="reader-panel-overlay" style={{ zIndex: 70 }}>
+          <div className="reader-context-menu" style={{
+            left: Math.max(8, Math.min(ctxPos.x, window.innerWidth - 176)),
+            top: Math.max(8, Math.min(ctxPos.y, window.innerHeight - 56)),
+          }} onClick={e => e.stopPropagation()}>
             <button onClick={() => { onRemoveBookmark(ctxBmId); setCtxBmId(null) }}
               className="reader-context-btn reader-context-delete-btn"
             ><Trash2 size={14} /> 删除书签</button>
@@ -649,10 +712,11 @@ export const Reader = memo(function Reader({
 
       {/* AI Panel */}
       <AIPanel
+        key={filePath ?? 'no-book'}
         visible={showAI}
         onClose={() => setShowAI(false)}
         config={aiConfig ?? null}
-        theme={theme as 'light' | 'dark' | 'sepia'}
+        theme={dataTheme}
         onGetChapterText={onGetChapterText ?? (async () => '')}
         onGetFullBookText={onGetFullBookText ?? (async () => '')}
       />

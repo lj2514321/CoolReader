@@ -29,7 +29,6 @@
   color: var(--ink-100);
   font-family: var(--font-sans);
   font-size: 13px;
-  outline: none;
   margin-top: 6px;
   transition: border-color 0.15s;
 }
@@ -97,6 +96,14 @@
 
 .form-progress { margin-top: 8px; margin-bottom: 8px; }
 
+.form-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  color: var(--ink-60);
+  font-size: 12px;
+}
+
 .form-progress-track {
   height: 1px;
   background: var(--ink-20);
@@ -116,6 +123,21 @@
   gap: 10px;
   margin-top: 18px;
   align-items: center;
+}
+
+@media (max-width: 720px) {
+  .form-container {
+    padding: 16px;
+  }
+
+  .form-actions {
+    flex-wrap: wrap;
+  }
+
+  .form-helper {
+    flex-basis: 100%;
+    max-width: 100%;
+  }
 }
 
 .form-result {

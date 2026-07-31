@@ -182,7 +182,25 @@ export interface ReadingGoal {
 export type Page = 'library' | 'reader'
 
 export const themeStyles = {
-  light: 'body.light, body.light * { background: #ffffff !important; color: #000000 !important; } body.light { background: #ffffff !important; }',
-  dark: 'body.dark, body.dark * { background: #1a1a1f !important; color: #f4ede0 !important; } body.dark { background: #1a1a1f !important; }',
-  sepia: 'body.sepia, body.sepia * { background: #f5e6c8 !important; color: #5b4636 !important; } body.sepia { background: #f5e6c8 !important; }',
+  light: `
+    body.light, [data-reader-content].light {
+      background: #f7f4ed !important;
+      color: #25211d !important;
+    }
+    body.light *, [data-reader-content].light * { color: #25211d !important; }
+  `,
+  dark: `
+    body.dark, [data-reader-content].dark {
+      background: #1a1a1f !important;
+      color: #eee6d9 !important;
+    }
+    body.dark *, [data-reader-content].dark * { color: #eee6d9 !important; }
+  `,
+  sepia: `
+    body.sepia, [data-reader-content].sepia {
+      background: #f4ecd8 !important;
+      color: #493a2d !important;
+    }
+    body.sepia *, [data-reader-content].sepia * { color: #493a2d !important; }
+  `,
 }

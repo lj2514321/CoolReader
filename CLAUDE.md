@@ -11,8 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run preview` — preview the built Electron app.
 - `npm test` or `npm run test` — run the Vitest suite once.
 - `npm run test:watch` — run Vitest in watch mode.
-- `npx vitest run src/adapters/__tests__/contract.test.ts` — run the adapter contract test directly.
-- `npx vitest run <path-to-test>` — run a single test file.
+- `npx vitest run <path-to-test>` — run a single test file. Tests live in `src/adapters/__tests__/` (the `contract.test.ts` adapter contract test) and `src/utils/__tests__/` (animation, customTheme, readerProgress).
 
 There is currently no dedicated lint script in `package.json`; use `npm run build` and the relevant Vitest command as the main validation path.
 
@@ -28,12 +27,15 @@ Reading logic is centered on the `useEpub` hook family in `src/hooks/useEpub/`. 
 
 Multi-format support is abstracted behind `src/adapters/BookAdapter.ts`. EPUB uses `EpubAdapter` around epub.js; TXT uses `TxtAdapter`; MOBI/AZW3/PRC use `MobiAdapter` with `@lingo-reader/mobi-parser`. New format behavior should be added through this adapter boundary and covered by the adapter contract test. EPUB still has some legacy direct epub.js handling via `bookRef`/`renditionRef`, while TXT/MOBI primarily use `adapterRef` and universal locations such as `chapterIdx:charOffset`.
 
+TXT and MOBI adapters render book content inside iframes, so their documents can't dispatch React events directly. `src/utils/readerContentEvents.ts` bridges this: click/keydown handlers are bound to the embedded document and re-dispatched on `window` as `coolreader:content-click` / `coolreader:content-key` CustomEvents, with coordinates translated relative to the `#viewer` element (see `getReaderRelativeBounds`). Reader components subscribe to these window events. `src/utils/readerProgress.ts` holds pure progress helpers (section+page fraction → percent, line-aligned scroll steps) used by `useProgressTimer` and the adapters.
+
 Styles are regular CSS plus theme tokens under `src/styles/`. Component-level CSS is split under `src/styles/components/`, with theme helpers in `src/styles/useTheme.ts`, `src/styles/theme.css`, `src/styles/tokens.css`, and `src/styles/themes/theme-glass.css`. Reader customization relies on `ReaderLayout`, theme state, and generated custom theme CSS from `src/utils/customTheme.ts`.
 
 ## Project-specific notes
 
 - Supported book formats are EPUB, TXT, MOBI, AZW3, and PRC; format detection is in `src/utils/formatDetection.ts`.
 - Main-process file reads enforce a 50MB ebook size limit, and wallpaper images are limited to 2MB when imported through the wallpaper picker.
+- The adapter contract test (`src/adapters/__tests__/contract.test.ts`) structurally asserts the `BookAdapter` interface: any method or property added to `BookAdapter` MUST also be added to its `REQUIRED_METHODS`/`REQUIRED_PROPERTIES` lists, or the test fails.
 - AI settings target an OpenAI-compatible `/chat/completions` endpoint and support both non-streaming and SSE streaming responses.
 - When changing IPC behavior, update the channel constants, main handler, preload bridge, and renderer type declarations together.
 - When changing storage shape, update the IndexedDB version/migration logic in `src/utils/db.ts` and consider WebDAV compatibility for synced progress data.

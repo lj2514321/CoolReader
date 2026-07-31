@@ -7,54 +7,27 @@
   overflow: hidden;
 }
 
-.library-glow-1 {
-  position: absolute;
-  width: 520px;
-  height: 520px;
-  top: -180px;
-  left: 50%;
-  transform: translateX(-50%);
-  border-radius: 50%;
-  background: radial-gradient(ellipse, var(--halo-paper) 0%, transparent 70%);
-  opacity: var(--halo-opacity);
-  pointer-events: none;
-  z-index: 0;
-  filter: blur(60px);
-}
-
-.library-glow-2 {
-  position: absolute;
-  width: 420px;
-  height: 420px;
-  bottom: -120px;
-  left: 25%;
-  border-radius: 50%;
-  background: radial-gradient(ellipse, var(--halo-paper-2) 0%, transparent 70%);
-  opacity: calc(var(--halo-opacity) * 0.6);
-  pointer-events: none;
-  z-index: 0;
-  filter: blur(80px);
-}
-
 .library-content {
   flex: 1;
+  min-width: 0;
   position: relative;
   overflow: hidden;
   z-index: 1;
-  perspective: 1200px;
 }
 
 .library-page {
   position: absolute;
   inset: 0;
-  transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-              transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  transform-style: preserve-3d;
-  backface-visibility: hidden;
+  animation: library-page-in 0.18s ease-out;
 }
 
-/* Flat theme — hide glow overlays, strip blur */
-[data-ui-theme="flat"] .library-glow-1,
-[data-ui-theme="flat"] .library-glow-2 {
-  display: none;
+@keyframes library-page-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

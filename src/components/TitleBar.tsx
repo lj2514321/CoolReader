@@ -1,5 +1,5 @@
 import '../styles/components/titlebar.css'
-import { X } from 'lucide-react'
+import { Minus, Square, X } from 'lucide-react'
 
 export function TitleBar() {
   return (
@@ -9,15 +9,20 @@ export function TitleBar() {
         <button
           onClick={() => window.electronAPI?.minimize()}
           className="titlebar-btn"
-        >&#x2013;</button>
+          aria-label="最小化"
+          title="最小化"
+        ><Minus size={14} /></button>
         <button
           onClick={() => window.electronAPI?.maximize()}
           className="titlebar-btn"
-          style={{ fontSize: 12 }}
-        >□</button>
+          aria-label="最大化或还原"
+          title="最大化或还原"
+        ><Square size={12} /></button>
         <button
           onClick={() => window.electronAPI?.close()}
           className="titlebar-btn close"
+          aria-label="关闭"
+          title="关闭"
         ><X size={16} /></button>
       </div>
     </div>

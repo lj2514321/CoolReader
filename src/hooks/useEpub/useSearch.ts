@@ -24,7 +24,7 @@ export function useSearch(shared: SharedRefs) {
     }
     // Fallback: legacy epub path
     const items = tocRef.current
-    const spine = bookRef.current?.spine?.items
+    const spine = bookRef.current?.spine?.items as Array<{ href?: string }> | undefined
     const href = spine?.[chapterIndex]?.href
     if (!href) return `第 ${chapterIndex + 1} 章`
     const find = (list: NavItem[]): string | null => {
@@ -44,12 +44,12 @@ export function useSearch(shared: SharedRefs) {
     const book = bookRef.current
     if (!book) return
     const spine = book.spine
-    const items = spine?.items || []
+    const items = (spine?.items || []) as Array<{ href?: string; url?: string }>
     const index: { href: string; text: string }[] = []
     for (const item of items) {
       if (!item.href) continue
       try {
-        const html = await book.archive.getText(item.url)
+        const html = await book.archive.getText(item.url || item.href)
         const text = html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
         index.push({ href: item.href, text })
       } catch (e) { logger.warn('[buildSearchIndex] getText failed for', item.href.split('/').pop() ?? item.href, e); index.push({ href: item.href, text: '' }) }
@@ -68,20 +68,20 @@ export function useSearch(shared: SharedRefs) {
         return results.map((r, i) => {
           // Parse location to get chapter index (format: 'chapterIdx:offset')
           const parts = r.location.split(':')
-          const chapterIndex = parseInt(parts[0], 10) || 0
+          const chapterIndex = r.chapterIdx ?? (parseInt(parts[0], 10) || 0)
           return {
             chapterIndex,
             chapterHref: r.location,
             chapterLabel: r.label || getChapterLabel(chapterIndex),
             matchIndex: i,
-            contextBefore: '',
-            matchText: r.excerpt || query,
-            contextAfter: '',
+            contextBefore: r.contextBefore || '',
+            matchText: r.matchText || r.excerpt || query,
+            contextAfter: r.contextAfter || '',
           }
         })
       } catch (e) {
         logger.warn('[searchText] adapter search failed:', e)
-        return []
+        throw e
       }
     }
 
@@ -133,7 +133,25 @@ export function useSearch(shared: SharedRefs) {
       setTimeout(() => {
         const iframe = document.querySelector<HTMLIFrameElement>('#viewer iframe')
         if (iframe?.contentWindow) {
-          try { iframe.contentWindow.find(result.matchText) } catch (e) { logger.warn('[navigateToSearchResult] find failed', e) }
+          try {
+            const doc = iframe.contentDocument
+            if (!doc?.body) return
+            const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT)
+            let node = walker.nextNode() as Text | null
+            while (node) {
+              const index = (node.textContent || '').toLocaleLowerCase().indexOf(result.matchText.toLocaleLowerCase())
+              if (index >= 0) {
+                const range = doc.createRange()
+                range.setStart(node, index)
+                range.setEnd(node, index + result.matchText.length)
+                const selection = doc.getSelection()
+                selection?.removeAllRanges()
+                selection?.addRange(range)
+                break
+              }
+              node = walker.nextNode() as Text | null
+            }
+          } catch (e) { logger.warn('[navigateToSearchResult] select match failed', e) }
         }
       }, 150)
     } catch (e) { logger.warn('[navigateToSearchResult] display failed', e) }

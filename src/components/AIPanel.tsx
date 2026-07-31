@@ -77,7 +77,14 @@ export function AIPanel({ visible, onClose, config, theme, onGetChapterText, onG
     setLoading(true)
     setStreamingText('')
 
-    const chapterText = await onGetChapterText()
+    let chapterText = ''
+    try {
+      chapterText = await onGetChapterText()
+    } catch (error) {
+      addMessage({ role: 'assistant', content: `无法读取当前章节: ${error instanceof Error ? error.message : String(error)}` })
+      setLoading(false)
+      return
+    }
     if (!chapterText) {
       addMessage({ role: 'assistant', content: '无法获取当前章节内容。' })
       setLoading(false)
@@ -107,7 +114,14 @@ export function AIPanel({ visible, onClose, config, theme, onGetChapterText, onG
     setStreamingText('')
 
     // Include book context
-    const chapterText = await onGetChapterText()
+    let chapterText = ''
+    try {
+      chapterText = await onGetChapterText()
+    } catch (error) {
+      addMessage({ role: 'assistant', content: `无法读取当前章节: ${error instanceof Error ? error.message : String(error)}` })
+      setLoading(false)
+      return
+    }
     const contextMsg: AIChatMessage = chapterText
       ? { role: 'user', content: `以下是我正在阅读的章节内容（供参考，无需直接回复此内容）：\n${chapterText}` }
       : { role: 'user', content: '（无当前章节内容）' }
@@ -139,19 +153,47 @@ export function AIPanel({ visible, onClose, config, theme, onGetChapterText, onG
     window.addEventListener('mouseup', onUp)
   }, [panelHeight])
 
+  const onResizeKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+    let nextHeight = panelHeight
+    if (e.key === 'ArrowUp') nextHeight += 5
+    else if (e.key === 'ArrowDown') nextHeight -= 5
+    else if (e.key === 'Home') nextHeight = 20
+    else if (e.key === 'End') nextHeight = 80
+    else return
+
+    e.preventDefault()
+    setPanelHeight(Math.max(20, Math.min(80, nextHeight)))
+  }, [panelHeight])
+
   return (
     <>
       {/* Panel */}
       {visible && (
-        // @ts-expect-error 'custom' theme is handled separately, AIPanel maps it to 'light' for rendering
-        <div data-theme={theme === 'custom' ? 'light' : theme} className="ai-panel-root" style={{ height: `${panelHeight}vh` }}>
+        <section
+          data-theme={theme}
+          className="ai-panel-root"
+          style={{ height: `${panelHeight}vh` }}
+          aria-labelledby="ai-panel-title"
+        >
           {/* drag handle */}
-          <div onMouseDown={onDragStart} className="ai-drag-handle">
+          <div
+            onMouseDown={onDragStart}
+            onKeyDown={onResizeKeyDown}
+            className="ai-drag-handle"
+            role="separator"
+            aria-orientation="horizontal"
+            aria-label="调整 AI 助手高度"
+            aria-valuemin={20}
+            aria-valuemax={80}
+            aria-valuenow={panelHeight}
+            tabIndex={0}
+            title="拖动或使用上下方向键调整高度"
+          >
             <div className="ai-drag-handle-bar" />
           </div>
           {/* Header */}
           <div className="ai-header">
-            <span className="ai-header-title">AI 助手</span>
+            <h2 id="ai-panel-title" className="ai-header-title">AI 助手</h2>
             <div className="ai-header-actions">
               {!config && (
                 <span className="ai-warning-text">未配置 API</span>
@@ -159,14 +201,14 @@ export function AIPanel({ visible, onClose, config, theme, onGetChapterText, onG
               <button onClick={handleSummary} disabled={loading || !config}
                 className="ai-summary-btn"
               >总结本章</button>
-              <button onClick={onClose}
+              <button onClick={onClose} aria-label="关闭 AI 助手" title="关闭 AI 助手"
                 className="ai-close-btn"
               ><X size={16} /></button>
             </div>
           </div>
 
           {/* Messages */}
-          <div className="ai-messages">
+          <div className="ai-messages" role="log" aria-live="polite" aria-relevant="additions text">
             {displayMessages.length === 0 && !loading && (
               <div className="ai-empty-state">
                 点击「总结本章」总结当前章节，或在下方输入问题提问。
@@ -182,7 +224,7 @@ export function AIPanel({ visible, onClose, config, theme, onGetChapterText, onG
               </div>
             )}
             {loading && !streamingText && (
-              <div className="ai-loading">
+              <div className="ai-loading" role="status">
                 <div className="shared-spinner" style={{ width: 16, height: 16, borderWidth: 2 }} />
                 <span className="ai-loading-text">思考中...</span>
               </div>
@@ -197,6 +239,7 @@ export function AIPanel({ visible, onClose, config, theme, onGetChapterText, onG
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
               placeholder="问任何关于本书的问题..."
+              aria-label="向 AI 助手提问"
               disabled={loading || !config}
               className="ai-input"
             />
@@ -204,7 +247,7 @@ export function AIPanel({ visible, onClose, config, theme, onGetChapterText, onG
               className="ai-send-btn"
             >发送</button>
           </div>
-        </div>
+        </section>
       )}
     </>
   )

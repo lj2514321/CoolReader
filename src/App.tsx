@@ -12,6 +12,7 @@ import { useTheme, setThemeOnRoot } from './styles/useTheme'
 import './styles/theme.css'
 import { BookEntry, ThemeMode, Page, WebDAVConfig, AIConfig, CustomBgConfig } from './types'
 import { defGrad, flatDefGrad } from './utils/styles'
+import { getCustomThemeBackground, isCustomThemeDark } from './utils/customTheme'
 import { saveBook, saveCover, saveProgress, deleteBook as dbDeleteBook, updateLastOpenedAt, loadSetting, saveSetting } from './utils/db'
 /// <reference types="./types/electron" />
 
@@ -36,7 +37,7 @@ export default function App() {
   }, [error])
   const [currentBook, setCurrentBook] = useState<string | null>(null)
   const [readingTime, setReadingTime] = useState(0)
-  const { meta, toc, theme, progress, progressRef, cfiRef, indexRef, sectionHrefRef, extractMeta, openBook, initReadingTime, setTheme, setCustomTheme, setAnimationMode, setReducedMotion, goNext, goPrev, goToHref, goToCfi, seekTo, getReadingSeconds, saveReadingTime, resizeViewer, destroy, getChapterText, getFullBookText, layout, updateLayout, bookmarks, highlights, selectionInfo, currentCfi, toggleBookmark, removeBookmarkById, addHighlight, removeHighlight, clearSelection, searchText, navigateToSearchResult, getChapterLabel, customThemeRef } = useEpub()
+  const { meta, toc, theme, customTheme, progress, progressRef, cfiRef, indexRef, sectionHrefRef, extractMeta, openBook, initReadingTime, setTheme, setCustomTheme, setAnimationMode, setReducedMotion, goNext, goPrev, goToHref, goToCfi, seekTo, getReadingSeconds, saveReadingTime, saveBookReadingTime, resizeViewer, destroy, getChapterText, getFullBookText, layout, updateLayout, bookmarks, highlights, selectionInfo, currentCfi, toggleBookmark, removeBookmarkById, addHighlight, removeHighlight, clearSelection, searchText, navigateToSearchResult, getChapterLabel } = useEpub()
   const { theme: uiTheme, setTheme: setUiTheme } = useTheme()
   useEffect(() => { setThemeOnRoot(uiTheme) }, [uiTheme])
   const [bgByTheme, setBgByTheme] = useState<Record<string, string>>({ glass: defGrad, flat: flatDefGrad })
@@ -127,6 +128,7 @@ export default function App() {
     progressRef,
     getChapterLabel,
     saveReadingTime,
+    saveBookReadingTime,
     getReadingSeconds,
     setReadingTime,
   })
@@ -143,10 +145,14 @@ export default function App() {
   }, [destroy])
 
   useEffect(() => {
-    const handleUnload = () => { if (currentBook) saveReadingTime() }
+    const handleUnload = () => {
+      if (!currentBook) return
+      void saveReadingTime()
+      void saveBookReadingTime()
+    }
     window.addEventListener('beforeunload', handleUnload)
     return () => window.removeEventListener('beforeunload', handleUnload)
-  }, [currentBook, saveReadingTime])
+  }, [currentBook, saveReadingTime, saveBookReadingTime])
 
   const handleBack = useCallback(() => {
     const pct = progressRef.current
@@ -159,7 +165,8 @@ export default function App() {
         b.filePath === currentBook ? { ...b, progress: pct, chapterLabel: label } : b
       ))
     }
-    saveReadingTime()
+    void saveReadingTime()
+    void saveBookReadingTime()
     setReadingTime(getReadingSeconds())
     setPhase('leaving')
     setTimeout(() => {
@@ -172,7 +179,7 @@ export default function App() {
         requestAnimationFrame(() => setPhase('idle'))
       })
     }, 200)
-  }, [currentBook, destroy, saveReadingTime, getReadingSeconds, getChapterLabel])
+  }, [currentBook, destroy, saveReadingTime, saveBookReadingTime, getReadingSeconds, getChapterLabel])
 
   const handleImport = useCallback(async () => {
     const filePath = await window.electronAPI?.openFile()
@@ -204,8 +211,12 @@ export default function App() {
   const opacity = phase === 'idle' ? 1 : phase === 'leaving' ? 0 : 1
   const scale = phase === 'idle' ? 1 : phase === 'leaving' ? 0.97 : 1
   const activeTocSrc = sectionHrefRef.current
-  // @ts-expect-error 'custom' theme is handled separately via customThemeRef, not in the base theme object
-  const readerBg = ({ light: '#f7f4ed', sepia: '#f4ecd8', dark: '#1a1a1f' } satisfies Record<ThemeMode, string>)[theme]
+  const readerBg = theme === 'custom'
+    ? getCustomThemeBackground(customTheme)
+    : ({ light: '#f7f4ed', sepia: '#f4ecd8', dark: '#1a1a1f' } as const)[theme]
+  const readerDataTheme: 'light' | 'dark' | 'sepia' = theme === 'custom'
+    ? (isCustomThemeDark(customTheme) ? 'dark' : 'light')
+    : theme
   const appBg = useMemo(() => {
     if (customBgLoaded && customBgConfig && customBgConfig.type !== 'preset') {
       if (customBgConfig.type === 'color') {
@@ -281,7 +292,7 @@ export default function App() {
                   await goToHref(href)
                 }}
                 onClose={() => setSidebarOpen(false)}
-                theme={theme}
+                theme={readerDataTheme}
                 open={sidebarOpen}
               />
             </div>
@@ -291,7 +302,7 @@ export default function App() {
                 meta={meta}
                 theme={theme}
                 layout={layout}
-                customTheme={customThemeRef.current}
+                customTheme={customTheme}
                 onLayoutChange={updateLayout}
                 onAnimationModeChange={setAnimationMode}
                 onReducedMotionChange={setReducedMotion}

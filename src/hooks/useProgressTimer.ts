@@ -10,10 +10,11 @@ export function useProgressTimer(params: {
   progressRef: React.MutableRefObject<number>
   getChapterLabel: (idx: number) => string
   saveReadingTime: () => Promise<void>
+  saveBookReadingTime: () => Promise<void>
   getReadingSeconds: () => number
   setReadingTime: (secs: number) => void
 }) {
-  const { currentBook, page, indexRef, cfiRef, progressRef, getChapterLabel, saveReadingTime, getReadingSeconds, setReadingTime } = params
+  const { currentBook, page, indexRef, cfiRef, progressRef, getChapterLabel, saveReadingTime, saveBookReadingTime, getReadingSeconds, setReadingTime } = params
 
   const lastSavedIdxRef = useRef(-1)
   const lastSavedCfiRef = useRef('')
@@ -34,9 +35,12 @@ export function useProgressTimer(params: {
     }, 2000)
 
     const readingTimer = setInterval(() => {
-      saveReadingTime()
+      if (pageRef.current === 'reader') {
+        void saveReadingTime()
+        void saveBookReadingTime()
+      }
     }, 15000)
 
     return () => { clearInterval(progressTimer); clearInterval(readingTimer) }
-  }, [currentBook, getChapterLabel, saveReadingTime, getReadingSeconds, setReadingTime, indexRef, cfiRef, progressRef])
+  }, [currentBook, getChapterLabel, saveReadingTime, saveBookReadingTime, getReadingSeconds, setReadingTime, indexRef, cfiRef, progressRef])
 }

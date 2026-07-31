@@ -14,7 +14,6 @@ interface SettingsPageProps {
   bgKey: string
   onPresetChange: (key: string, gradient: string) => void
   resetKey?: number
-  visible?: boolean
   webdavConfig?: WebDAVConfig | null
   onWebDAVConfigChange?: (config: WebDAVConfig | null) => void
   aiConfig?: AIConfig | null
@@ -22,13 +21,15 @@ interface SettingsPageProps {
   onCustomBgChange?: (config: CustomBgConfig) => void
 }
 
-export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = true, webdavConfig, onWebDAVConfigChange, aiConfig, onAIConfigChange, onCustomBgChange }: SettingsPageProps) {
+export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, webdavConfig, onWebDAVConfigChange, aiConfig, onAIConfigChange, onCustomBgChange }: SettingsPageProps) {
   const [settingView, setSettingView] = useState<string | null>(null)
-  const [subPhase, setSubPhase] = useState<'idle' | 'push-out' | 'push-in' | 'pop-out' | 'pop-in'>('idle')
-  const subRef = useRef<ReturnType<typeof setTimeout>>()
-  useEffect(() => () => clearTimeout(subRef.current), [])
-  useEffect(() => { setSettingView(null); setSubPhase('idle') }, [resetKey])
+  const backButtonRef = useRef<HTMLButtonElement>(null)
+  const settingTriggerRef = useRef<string | null>(null)
+  useEffect(() => { setSettingView(null) }, [resetKey])
   useEffect(() => { setCustomTab('preset') }, [resetKey])
+  useEffect(() => {
+    if (settingView) requestAnimationFrame(() => backButtonRef.current?.focus())
+  }, [settingView])
 
   const [goalMinutes, setGoalMinutes] = useState(30)
   const [goalLoaded, setGoalLoaded] = useState(false)
@@ -64,59 +65,26 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
 
   // Bg preset tab state
   const [customTab, setCustomTab] = useState<CustomBgTab>('preset')
-  const [customColor, setCustomColor] = useState('#2d5a5a')
+  const [customColor, setCustomColor] = useState('#4f8f8f')
   const [customColorAlpha, setCustomColorAlpha] = useState(90)
   const [gradientType, setGradientType] = useState<GradientType>('linear')
   const [gradientAngle, setGradientAngle] = useState(135)
-  const [gradientStop1, setGradientStop1] = useState<GradientStop>({ color: 'rgba(45,90,90,0.85)', position: 0 })
-  const [gradientStop2, setGradientStop2] = useState<GradientStop>({ color: 'rgba(61,122,122,0.9)', position: 100 })
+  const [gradientStop1, setGradientStop1] = useState<GradientStop>({ color: 'rgba(79,143,143,0.85)', position: 0 })
+  const [gradientStop2, setGradientStop2] = useState<GradientStop>({ color: 'rgba(105,170,170,0.9)', position: 100 })
 
   const { theme: uiTheme, setTheme: setUiTheme } = useTheme()
 
   const pushDetail = (id: string) => {
-    if (subPhase !== 'idle') return
-    setSubPhase('push-out')
-    clearTimeout(subRef.current)
-    subRef.current = setTimeout(() => {
-      setSettingView(id)
-      requestAnimationFrame(() => setSubPhase('push-in'))
-      subRef.current = setTimeout(() => setSubPhase('idle'), 400)
-    }, 400)
+    settingTriggerRef.current = id
+    setSettingView(id)
   }
 
   const popDetail = () => {
-    if (subPhase !== 'idle') return
-    setSubPhase('pop-out')
-    clearTimeout(subRef.current)
-    subRef.current = setTimeout(() => {
-      setSettingView(null)
-      requestAnimationFrame(() => setSubPhase('pop-in'))
-      subRef.current = setTimeout(() => setSubPhase('idle'), 400)
-    }, 400)
+    setSettingView(null)
+    requestAnimationFrame(() => {
+      if (settingTriggerRef.current) document.getElementById(`setting-${settingTriggerRef.current}`)?.focus()
+    })
   }
-
-  // Compute container class names
-  const listHidden = subPhase === 'idle' && settingView !== null
-  const listVisible = subPhase === 'pop-in' || (subPhase === 'idle' && settingView === null)
-  const listNoPointer = !(visible && subPhase === 'idle' && settingView === null)
-
-  const subViewHidden = subPhase === 'idle' && settingView === null
-  const subViewVisible = subPhase === 'push-in' || (subPhase === 'idle' && settingView !== null)
-  const subNoPointer = !(subPhase === 'idle' && settingView !== null)
-
-  const listClass = [
-    'settings-container',
-    listHidden ? 'hidden' : '',
-    listVisible ? 'visible' : 'invisible',
-    listNoPointer ? 'no-pointer' : '',
-  ].filter(Boolean).join(' ')
-
-  const subViewClass = [
-    'settings-sub-view',
-    subViewHidden ? 'hidden' : '',
-    subViewVisible ? 'visible' : 'exiting',
-    subNoPointer ? 'no-pointer' : '',
-  ].filter(Boolean).join(' ')
 
   const subViewTitle = settingView === 'bgPreset' ? '首页背景'
     : settingView === 'readingGoal' ? '阅读目标'
@@ -128,9 +96,9 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
 
   return (
     <>
-      {/* list view */}
-      <div className={listClass}>
-        <p className="settings-title">设置</p>
+      {settingView === null ? (
+      <div className="settings-container">
+        <h1 className="settings-title">设置</h1>
         {[
           { id: 'bgPreset', label: '首页背景', summary: getPresets(uiTheme).find((b) => b.key === bgKey)?.label || '' },
           { id: 'readingGoal', label: '阅读目标', summary: goalMinutes > 0 ? `${goalMinutes} 分钟/天` : '未设置' },
@@ -140,33 +108,34 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
           { id: 'mediaKey', label: '媒体键翻页', summary: enableMediaKey ? '已启用' : '已禁用' },
           { id: 'theme', label: '界面风格', summary: uiTheme === 'glass' ? '毛玻璃' : '扁平' },
         ].map((item) => (
-          <div key={item.id} className="setting-item" onClick={() => pushDetail(item.id)}>
+          <button id={`setting-${item.id}`} type="button" key={item.id} className="setting-item" onClick={() => pushDetail(item.id)}>
             <div>
               <div className="setting-label">{item.label}</div>
               {item.summary && <div className="setting-value">{item.summary}</div>}
             </div>
             <span className="setting-arrow">›</span>
-          </div>
+          </button>
         ))}
       </div>
-
-      {/* detail view */}
-      <div className={subViewClass}>
+      ) : (
+      <div className="settings-sub-view">
         {/* Back button - shared */}
-        <div className="settings-back-btn" onClick={popDetail}>
+        <button ref={backButtonRef} type="button" className="settings-back-btn" onClick={popDetail}>
           <span className="settings-back-arrow">‹</span>
-          <p className="settings-sub-title">{subViewTitle}</p>
-        </div>
+          <span className="settings-sub-title">{subViewTitle}</span>
+        </button>
 
         {settingView === 'bgPreset' && (
           <div className="settings-sub-content">
             {/* Tab bar */}
-            <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
+            <div role="tablist" aria-label="首页背景类型" style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
               {(['preset', 'color', 'gradient', 'image'] as const).map(tab => (
                 <button
                   key={tab}
                   onClick={() => setCustomTab(tab)}
                   className={`settings-bg-tab ${customTab === tab ? 'active' : ''}`}
+                  role="tab"
+                  aria-selected={customTab === tab}
                 >
                   {tab === 'preset' ? '预设' : tab === 'color' ? '纯色' : tab === 'gradient' ? '渐变' : '图片'}
                 </button>
@@ -181,6 +150,7 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
                     key={p.key}
                     className={`bg-preset-item ${bgKey === p.key ? 'active' : ''}`}
                     onClick={() => { saveSetting(uiTheme === 'flat' ? 'bgPreset-flat' : 'bgPreset', p.key); onPresetChange(p.key, p.gradient); onCustomBgChange?.({ type: 'preset', presetKey: p.key }) }}
+                    aria-pressed={bgKey === p.key}
                   >
                     <div className="bg-preset-preview" style={{ background: p.gradient }}>
                       {bgKey === p.key && <span className="bg-preset-check">✓</span>}
@@ -199,6 +169,7 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <input
                       type="color"
+                      aria-label="首页背景颜色"
                       value={customColor}
                       onChange={e => {
                         setCustomColor(e.target.value)
@@ -219,6 +190,7 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
                   <div className="settings-section-label">透明度 {customColorAlpha}%</div>
                   <input
                     type="range"
+                    aria-label="首页背景透明度"
                     min={70} max={100} step={1}
                     value={customColorAlpha}
                     onChange={e => {
@@ -226,7 +198,7 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
                       setCustomColorAlpha(alpha)
                       onCustomBgChange?.({ type: 'color', color: hexToRgba(customColor, alpha / 100) })
                     }}
-                    style={{ width: '100%', accentColor: '#2d5a5a' }}
+                    style={{ width: '100%', accentColor: 'var(--accent)' }}
                   />
                 </div>
               </div>
@@ -243,6 +215,7 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
                         key={t}
                         onClick={() => setGradientType(t)}
                         className={`settings-bg-tab ${gradientType === t ? 'active' : ''}`}
+                        aria-pressed={gradientType === t}
                       >
                         {t === 'linear' ? '线性' : '径向'}
                       </button>
@@ -254,13 +227,14 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
                     <div className="settings-section-label">角度 {gradientAngle}°</div>
                     <input
                       type="range" min={0} max={360} step={1}
+                      aria-label="渐变角度"
                       value={gradientAngle}
                       onChange={e => {
                         const angle = parseInt(e.target.value)
                         setGradientAngle(angle)
                         onCustomBgChange?.({ type: 'gradient', gradient: buildGradientConfig(gradientType, angle, gradientStop1, gradientStop2) })
                       }}
-                      style={{ width: '100%', accentColor: '#2d5a5a' }}
+                      style={{ width: '100%', accentColor: 'var(--accent)' }}
                     />
                   </div>
                 )}
@@ -269,6 +243,7 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
                     <div className="settings-section-label">起始色</div>
                     <input
                       type="color"
+                      aria-label="渐变起始色"
                       value={gradientStop1.color.startsWith('rgba') ? '#000000' : gradientStop1.color}
                       onChange={e => {
                         const stop1: GradientStop = { ...gradientStop1, color: rgbaFromHex(e.target.value, 0.85) }
@@ -282,6 +257,7 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
                     <div className="settings-section-label">结束色</div>
                     <input
                       type="color"
+                      aria-label="渐变结束色"
                       value={gradientStop2.color.startsWith('rgba') ? '#000000' : gradientStop2.color}
                       onChange={e => {
                         const stop2: GradientStop = { ...gradientStop2, color: rgbaFromHex(e.target.value, 0.9) }
@@ -328,6 +304,7 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
             <div className="goal-input-row">
               <input type="number" min={0} max={480} step={5}
                 className="goal-input"
+                aria-label="每日阅读目标分钟数"
                 value={goalMinutes}
                 onChange={e => setGoalMinutes(Math.max(0, Math.min(480, parseInt(e.target.value) || 0)))}
               />
@@ -386,6 +363,7 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
               <input type="checkbox" checked={enableMediaKey}
                 onChange={e => setEnableMediaKey(e.target.checked)}
                 className="toggle-switch"
+                aria-label="启用媒体键翻页"
               />
             </div>
             <button className="save-btn" onClick={() => {
@@ -404,13 +382,13 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
               </div>
             </div>
 
-            <div
+            <label
               className={`radio-option ${uiTheme === 'glass' ? 'selected' : ''}`}
-              onClick={() => setUiTheme('glass')}
               style={{ marginBottom: 10 }}
             >
               <input
                 type="radio"
+                name="ui-theme"
                 className="radio-input"
                 checked={uiTheme === 'glass'}
                 onChange={() => setUiTheme('glass')}
@@ -419,14 +397,14 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
                 <div className="radio-label">毛玻璃</div>
                 <div className="radio-desc">玻璃质感，卡片式布局</div>
               </div>
-            </div>
+            </label>
 
-            <div
+            <label
               className={`radio-option ${uiTheme === 'flat' ? 'selected' : ''}`}
-              onClick={() => setUiTheme('flat')}
             >
               <input
                 type="radio"
+                name="ui-theme"
                 className="radio-input"
                 checked={uiTheme === 'flat'}
                 onChange={() => setUiTheme('flat')}
@@ -435,10 +413,11 @@ export function SettingsPage({ bgKey, onPresetChange, resetKey = 0, visible = tr
                 <div className="radio-label">极简扁平</div>
                 <div className="radio-desc">简洁干净，扁平化设计</div>
               </div>
-            </div>
+            </label>
           </div>
         )}
       </div>
+      )}
     </>
   )
 }

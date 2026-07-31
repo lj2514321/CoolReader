@@ -41,7 +41,7 @@
   transform: translateX(-100%);
   transition: transform 0.24s ease;
   pointer-events: none;
-  z-index: 20;
+  z-index: var(--z-sidebar);
   will-change: transform;
 }
 
@@ -71,7 +71,7 @@
   -webkit-backdrop-filter: blur(32px) saturate(140%);
   border-right: 1px solid var(--sidebar-border);
   box-shadow: 8px 0 28px rgba(0, 0, 0, 0.08);
-  z-index: 10;
+  z-index: var(--z-content);
   align-self: stretch;
   min-height: 0;
   opacity: 0;
@@ -103,7 +103,11 @@
   border: none;
   cursor: pointer;
   border-radius: 8px;
-  padding: 4px 10px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
   color: var(--sidebar-muted);
   font-size: 14px;
   transition: background 0.15s ease;
@@ -134,7 +138,8 @@
   font-weight: 400;
   border-left: 3px solid transparent;
   transition: all 0.15s ease;
-  padding: 7px 16px;
+  min-height: 36px;
+  padding: 8px 16px;
 }
 
 .sidebar-toc-btn:hover {
@@ -181,5 +186,16 @@
   .sidebar-root {
     transform: none;
     transition: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .sidebar-shell,
+  .sidebar-root {
+    width: min(280px, 86vw);
+  }
+
+  .reader-stage-shifted {
+    transform: none;
   }
 }

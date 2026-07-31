@@ -93,29 +93,29 @@ export function SyncSettings({ config, onConfigChange }: SyncSettingsProps) {
     <div>
       {/* Connection form */}
       <div className="form-container" style={{ marginBottom: 16 }}>
-        <label className="form-label">服务器地址</label>
-        <input className="form-input" placeholder="https://example.com/dav/" value={url} onChange={e => setUrl(e.target.value)} />
+        <label className="form-label" htmlFor="webdav-url">服务器地址</label>
+        <input id="webdav-url" className="form-input" type="url" autoComplete="url" placeholder="https://example.com/dav/" value={url} onChange={e => setUrl(e.target.value)} />
 
-        <label className="form-label">用户名</label>
-        <input className="form-input" placeholder="username" value={username} onChange={e => setUsername(e.target.value)} />
+        <label className="form-label" htmlFor="webdav-username">用户名</label>
+        <input id="webdav-username" className="form-input" autoComplete="username" placeholder="username" value={username} onChange={e => setUsername(e.target.value)} />
 
-        <label className="form-label">密码</label>
-        <input className="form-input" type="password" placeholder="password" value={password} onChange={e => setPassword(e.target.value)} />
+        <label className="form-label" htmlFor="webdav-password">密码</label>
+        <input id="webdav-password" className="form-input" type="password" autoComplete="current-password" placeholder="password" value={password} onChange={e => setPassword(e.target.value)} />
 
-        <label className="form-label">同步路径</label>
-        <input className="form-input" placeholder="/CoolReader" value={path} onChange={e => setPath(e.target.value)} />
+        <label className="form-label" htmlFor="webdav-path">同步路径</label>
+        <input id="webdav-path" className="form-input" placeholder="/CoolReader" value={path} onChange={e => setPath(e.target.value)} />
 
         <div className="form-actions">
           <button onClick={handleTest} disabled={testing || !url}
-            className="form-btn" style={{ background: 'rgba(45,90,90,0.3)' }}
+            className="form-btn"
           >{testing ? '测试中...' : '测试连接'}</button>
 
           <button onClick={handleSave}
-            className="form-btn" style={{ background: 'rgba(45,90,90,0.3)' }}
+            className="form-btn"
           >{saved ? '已保存' : '保存配置'}</button>
 
           {testMsg && (
-            <span className={`form-helper form-status ${testMsg.ok ? 'success' : 'error'}`}>
+            <span role="status" className={`form-helper form-status ${testMsg.ok ? 'success' : 'error'}`}>
               {testMsg.text}
             </span>
           )}
@@ -134,14 +134,14 @@ export function SyncSettings({ config, onConfigChange }: SyncSettingsProps) {
         {/* Progress bar */}
         {syncProgress && (
           <div className="form-progress">
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 4 }}>
+            <div className="form-progress-meta">
               <span>{syncProgress.message}</span>
               {syncProgress.total && syncProgress.current !== undefined && (
                 <span>{syncProgress.current}/{syncProgress.total}</span>
               )}
             </div>
             {syncProgress.total && syncProgress.current !== undefined && (
-              <div className="form-progress-track">
+              <div className="form-progress-track" role="progressbar" aria-label="同步进度" aria-valuemin={0} aria-valuemax={syncProgress.total} aria-valuenow={syncProgress.current}>
                 <div className="form-progress-fill" style={{
                   width: `${Math.min(100, (syncProgress.current / syncProgress.total) * 100)}%`,
                 }} />

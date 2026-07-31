@@ -43,6 +43,7 @@ declare module 'epubjs' {
     next(): Section | null
     prev(): Section | null
     href?: string
+    url?: string
     index?: number
     label?: string
     subitems?: Section[]
@@ -102,6 +103,7 @@ declare module 'epubjs' {
   }
 
   interface Rendition {
+    display(): Promise<void>
     display(cfi: string): Promise<void>
     display(index: number): Promise<void>
     display(href: string): Promise<void>
@@ -125,7 +127,12 @@ declare module 'epubjs' {
         cfi: string
         index: number
         href?: string
+        displayed?: {
+          page: number
+          total: number
+        }
       }
+      atEnd?: boolean
     } | undefined
     readonly hooks: {
       content: {

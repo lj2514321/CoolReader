@@ -33,6 +33,7 @@ function TocList({ items, onNavigate, activeHref, depth = 0, btnRefs }: {
               ref={(el) => { if (el) btnRefs.set(item.href, el); else btnRefs.delete(item.href) }}
               onClick={() => onNavigate(item.href)}
               className={`sidebar-toc-btn${isActive ? ' sidebar-toc-btn-active' : ''} sidebar-toc-btn-depth-${depth}`}
+              aria-current={isActive ? 'location' : undefined}
             >{item.label}</button>
             {(item.subitems ?? []).length > 0 && (
               <TocList items={item.subitems ?? []} onNavigate={onNavigate} activeHref={activeHref} depth={depth + 1} btnRefs={btnRefs} />
@@ -76,7 +77,7 @@ export function Sidebar({ toc, activeHref, onNavigate, onClose, theme = 'dark', 
     <div data-theme={theme === 'custom' ? 'light' : theme} className={`sidebar-root${open ? ' sidebar-root-open' : ''}`}>
       <div className="sidebar-header">
         <span className="sidebar-header-title">目录</span>
-        <button onClick={onClose} className="sidebar-close-btn"><X size={16} /></button>
+        <button onClick={onClose} className="sidebar-close-btn" aria-label="关闭目录" title="关闭目录"><X size={16} /></button>
       </div>
       <div ref={scrollRef} data-scroll className="sidebar-scroll">
         <TocList items={toc} onNavigate={onNavigate} activeHref={activeHref} btnRefs={btnRefs} />

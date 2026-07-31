@@ -1,7 +1,7 @@
-import { useState, useMemo, memo, useEffect } from 'react'
+import { useState, useMemo, memo, useEffect, useRef } from 'react'
 import { BookEntry } from '../types'
 import { loadSetting } from '../utils/db'
-import { BookOpen, Timer, Library, Trash2, Target } from 'lucide-react'
+import { BookOpen, ChevronLeft, ChevronRight, Timer, Library, MoreVertical, Trash2, Target } from 'lucide-react'
 import { useBookCover } from '../hooks/useBookCover'
 import { colors } from '../utils/styles'
 import '../styles/components/bookshelf.css'
@@ -64,8 +64,8 @@ const FORMAT_LABELS: Record<string, string> = {
   mobi: 'MOBI',
 }
 
-const BookCard = memo(function BookCard({ book, i, onOpenBook, onContextMenu }: {
-  book: BookEntry; i: number; onOpenBook: (fp: string) => void; onContextMenu: (fp: string) => void
+const BookCard = memo(function BookCard({ book, i, onOpenBook, onManageBook }: {
+  book: BookEntry; i: number; onOpenBook: (fp: string) => void; onManageBook: (fp: string) => void
 }) {
   const [c1, c2] = colors[i % colors.length]
   const coverUrl = useBookCover(book.filePath, book.meta.coverMime)
@@ -74,11 +74,19 @@ const BookCard = memo(function BookCard({ book, i, onOpenBook, onContextMenu }: 
   const format = book.format || 'epub' // default to epub for backward compat
   const formatLabel = FORMAT_LABELS[format] || format.toUpperCase()
   return (
-    <div
+    <article
       className="book-card"
-      onClick={() => onOpenBook(book.filePath)}
-      onContextMenu={e => { e.preventDefault(); onContextMenu(book.filePath) }}
+      onContextMenu={e => { e.preventDefault(); onManageBook(book.filePath) }}
     >
+      <button type="button" className="book-card-open-control"
+        onClick={() => onOpenBook(book.filePath)}
+        aria-label={`打开《${book.meta.title}》`}
+      />
+      <button type="button" className="book-card-menu-btn"
+        onClick={() => onManageBook(book.filePath)}
+        aria-label={`管理《${book.meta.title}》`}
+        title="管理书籍"
+      ><MoreVertical size={15} /></button>
       <div className={`book-cover-container ${!displayCover ? 'book-cover-gradient' : ''}`}
         style={!displayCover ? { background: `linear-gradient(135deg, ${c1}, ${c2})` } : undefined}
       >
@@ -92,7 +100,7 @@ const BookCard = memo(function BookCard({ book, i, onOpenBook, onContextMenu }: 
           <span className="book-cover-fallback"><BookOpen size={32} /></span>
         )}
         {book.progress !== undefined && (
-          <div className="book-progress-bar">
+          <div className="book-progress-bar" role="progressbar" aria-label="阅读进度" aria-valuemin={0} aria-valuemax={100} aria-valuenow={book.progress}>
             <div
               className="book-progress-fill"
               style={{ width: `${book.progress}%` }}
@@ -101,8 +109,8 @@ const BookCard = memo(function BookCard({ book, i, onOpenBook, onContextMenu }: 
         )}
       </div>
       <div className="book-card-info">
-        <div className="book-title">{book.meta.title}</div>
-        <div className="book-author">{book.meta.author}</div>
+        <div className="book-title" title={book.meta.title}>{book.meta.title}</div>
+        <div className="book-author" title={book.meta.author}>{book.meta.author}</div>
         {book.chapterLabel && book.progress !== undefined && (
           <div className="book-chapter">
             {book.progress}% · {book.chapterLabel}
@@ -112,7 +120,7 @@ const BookCard = memo(function BookCard({ book, i, onOpenBook, onContextMenu }: 
           <div className="book-timestamp">{formatRelativeTime(book.lastOpenedAt)}</div>
         )}
       </div>
-    </div>
+    </article>
   )
 })
 
@@ -121,10 +129,13 @@ const ContinueReadingCard = memo(function ContinueReadingCard({ book, onOpenBook
 
   const displayCover = coverUrl ?? book.meta.cover
   return (
-    <div
+    <article
       className="continue-reading-card"
-      onClick={() => onOpenBook(book.filePath)}
     >
+      <button type="button" className="continue-reading-open-control"
+        onClick={() => onOpenBook(book.filePath)}
+        aria-label={`继续阅读《${book.meta.title}》`}
+      />
       <div className={`continue-reading-cover ${!displayCover ? 'book-cover-gradient' : ''}`}
       >
         {displayCover ? (
@@ -134,11 +145,11 @@ const ContinueReadingCard = memo(function ContinueReadingCard({ book, onOpenBook
         )}
       </div>
       <div className="continue-reading-info">
-        <div className="book-title">{book.meta.title}</div>
-        <div className="book-author">{book.meta.author}</div>
+        <div className="book-title" title={book.meta.title}>{book.meta.title}</div>
+        <div className="book-author" title={book.meta.author}>{book.meta.author}</div>
         {book.progress !== undefined && (
           <div className="continue-reading-progress">
-            <div className="continue-reading-progress-bar">
+            <div className="continue-reading-progress-bar" role="progressbar" aria-label="阅读进度" aria-valuemin={0} aria-valuemax={100} aria-valuenow={book.progress}>
               <div
                 className="continue-reading-progress-fill"
                 style={{ width: `${book.progress}%` }}
@@ -151,7 +162,7 @@ const ContinueReadingCard = memo(function ContinueReadingCard({ book, onOpenBook
           </div>
         )}
       </div>
-    </div>
+    </article>
   )
 })
 
@@ -160,6 +171,39 @@ export function BookShelf({ books, readingTime, onOpenBook, onDelete }: BookShel
   const [sortBy, setSortBy] = useState<SortBy>('recent')
   const [searchQuery, setSearchQuery] = useState('')
   const [goalMin, setGoalMin] = useState(0)
+  const recentScrollRef = useRef<HTMLDivElement>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const dialogTriggerRef = useRef<HTMLElement | null>(null)
+
+  const openManageDialog = (filePath: string) => {
+    dialogTriggerRef.current = document.activeElement as HTMLElement | null
+    setConfirmPath(filePath)
+  }
+
+  const closeManageDialog = () => {
+    setConfirmPath(null)
+    requestAnimationFrame(() => dialogTriggerRef.current?.focus())
+  }
+
+  const handleDialogKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      closeManageDialog()
+      return
+    }
+    if (event.key !== 'Tab' || !dialogRef.current) return
+    const focusable = Array.from(dialogRef.current.querySelectorAll<HTMLElement>('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'))
+    if (focusable.length === 0) return
+    const first = focusable[0]
+    const last = focusable[focusable.length - 1]
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault()
+      last.focus()
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault()
+      first.focus()
+    }
+  }
   useEffect(() => {
     loadSetting('readingGoal').then((v) => {
       if (v) {
@@ -175,12 +219,12 @@ export function BookShelf({ books, readingTime, onOpenBook, onDelete }: BookShel
   , [books])
 
   const recentSet = useMemo(() => new Set(recentBooks.map(b => b.filePath)), [recentBooks])
+  const normalizedQuery = searchQuery.trim().toLowerCase()
 
   const sortedBooks = useMemo(() => [...books]
     .filter(b => {
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase()
-        if (!b.meta.title.toLowerCase().includes(q) && !b.meta.author.toLowerCase().includes(q)) return false
+      if (normalizedQuery) {
+        return b.meta.title.toLowerCase().includes(normalizedQuery) || b.meta.author.toLowerCase().includes(normalizedQuery)
       }
       return !recentSet.has(b.filePath)
     })
@@ -194,7 +238,7 @@ export function BookShelf({ books, readingTime, onOpenBook, onDelete }: BookShel
       const vb = sortBy === 'title' ? b.meta.title : b.meta.author
       return va.localeCompare(vb, 'zh-CN')
     })
-  , [books, searchQuery, sortBy, recentSet])
+  , [books, normalizedQuery, sortBy, recentSet])
 
   return (
     <div className="bookshelf">
@@ -211,10 +255,12 @@ export function BookShelf({ books, readingTime, onOpenBook, onDelete }: BookShel
         </div>
         <div className="bookshelf-header-spacer" />
         <input
+          type="search"
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
           placeholder="搜索书名/作者..."
           className="search-input"
+          aria-label="搜索书名或作者"
         />
         <div className="sort-controls">
           {sortOptions.map((opt) => (
@@ -222,15 +268,24 @@ export function BookShelf({ books, readingTime, onOpenBook, onDelete }: BookShel
               key={opt.key}
               onClick={() => setSortBy(opt.key)}
               className={`sort-btn ${sortBy === opt.key ? 'active' : ''}`}
+              aria-pressed={sortBy === opt.key}
             >{opt.label}</button>
           ))}
         </div>
       </div>
 
-      {recentBooks.length > 0 && (
+      {recentBooks.length > 0 && !normalizedQuery && (
         <div className="continue-reading-section">
-          <div className="continue-reading-section-title"><BookOpen size={16} /> 继续阅读</div>
-          <div className="continue-reading-scroll">
+          <div className="continue-reading-heading">
+            <div className="continue-reading-section-title"><BookOpen size={16} /> 继续阅读</div>
+            {recentBooks.length > 1 && (
+              <div className="continue-reading-controls">
+                <button type="button" onClick={() => recentScrollRef.current?.scrollBy({ left: -270, behavior: 'smooth' })} aria-label="向左滚动继续阅读" title="向左滚动"><ChevronLeft size={15} /></button>
+                <button type="button" onClick={() => recentScrollRef.current?.scrollBy({ left: 270, behavior: 'smooth' })} aria-label="向右滚动继续阅读" title="向右滚动"><ChevronRight size={15} /></button>
+              </div>
+            )}
+          </div>
+          <div ref={recentScrollRef} className="continue-reading-scroll">
             {recentBooks.map(book => (
               <ContinueReadingCard key={book.filePath} book={book} onOpenBook={onOpenBook} />
             ))}
@@ -250,36 +305,44 @@ export function BookShelf({ books, readingTime, onOpenBook, onDelete }: BookShel
         </div>
       ) : (
         <div className="bookshelf-grid">
-          <div className="bookshelf-grid-inner">
-            {sortedBooks.map((book, i) => (
-              <BookCard key={book.filePath} book={book} i={i}
-                onOpenBook={onOpenBook}
-                onContextMenu={setConfirmPath}
-              />
-            ))}
-          </div>
+          {normalizedQuery && sortedBooks.length === 0 ? (
+            <div className="bookshelf-search-empty" role="status">
+              <span>未找到与“{searchQuery.trim()}”匹配的书籍</span>
+              <button type="button" onClick={() => setSearchQuery('')}>清除搜索</button>
+            </div>
+          ) : (
+            <div className="bookshelf-grid-inner">
+              {sortedBooks.map((book, i) => (
+                <BookCard key={book.filePath} book={book} i={i}
+                  onOpenBook={onOpenBook}
+                  onManageBook={openManageDialog}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
 
       {/* confirm dialog */}
       {confirmPath && (
-        <div className="delete-modal-overlay" onClick={() => setConfirmPath(null)}>
-          <div className="delete-modal" onClick={e => e.stopPropagation()}>
-            <div className="delete-modal-icon"><Trash2 size={40} /></div>
-            <p className="delete-modal-title">确认删除</p>
-            <p className="delete-modal-desc">删除后将无法恢复</p>
+        <div className="delete-modal-overlay" onClick={closeManageDialog}>
+          <div ref={dialogRef} className="delete-modal" role="dialog" aria-modal="true" aria-labelledby="book-manage-title" aria-describedby="book-manage-desc" onClick={e => e.stopPropagation()} onKeyDown={handleDialogKeyDown}>
+            <div className="delete-modal-icon" aria-hidden="true"><Trash2 size={32} /></div>
+            <h2 id="book-manage-title" className="delete-modal-title">管理书籍</h2>
+            <p id="book-manage-desc" className="delete-modal-desc">可以仅移出书架，或同时删除本地文件。</p>
             <div className="delete-modal-actions">
               <button
                 className="modal-btn modal-btn-delete"
-                onClick={() => { onDelete(confirmPath, true); setConfirmPath(null) }}
+                onClick={() => { onDelete(confirmPath, true); closeManageDialog() }}
               >删除文件并移出书架</button>
               <button
                 className="modal-btn modal-btn-remove"
-                onClick={() => { onDelete(confirmPath, false); setConfirmPath(null) }}
+                onClick={() => { onDelete(confirmPath, false); closeManageDialog() }}
               >仅移出书架</button>
               <button
                 className="modal-btn modal-btn-cancel"
-                onClick={() => setConfirmPath(null)}
+                onClick={closeManageDialog}
+                autoFocus
               >取消</button>
             </div>
           </div>
