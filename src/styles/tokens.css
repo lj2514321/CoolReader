@@ -154,6 +154,24 @@
   /* Spinner */
   --spinner-track:   rgba(244, 237, 224, 0.15);
   --spinner-head:    var(--accent);
+
+  /* ---- Ink-wash 墨韵 (暗夜书房) ---- */
+  /* 语义规则：信息层→--accent 墨青；情感层→--seal 朱砂；警示→--warn；破坏→--danger */
+  --wash-1: #2b2b33;   /* 淡墨 */
+  --wash-2: #36363f;   /* 中墨 */
+  --wash-3: #41414b;   /* 浓墨 */
+  --seal: #c95a45;
+  --seal-soft: rgba(201, 90, 69, 0.16);
+  /* 与 src/utils/styles.ts paperDark/paperLight 及 src/types/index.ts paperTexture() 保持同步 */
+  --paper-texture: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%222%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22200%22 height=%22200%22 filter=%22url(%23n)%22 opacity=%220.10%22/%3E%3C/svg%3E");
+  --wash-bg-page:
+    radial-gradient(1000px 520px at 12% -8%,  rgba(212,165,116,0.13), transparent 55%),
+    radial-gradient(760px 460px at 108% 18%, rgba(65,65,75,0.50), transparent 65%),
+    radial-gradient(640px 420px at 75% 112%, rgba(43,43,51,0.85), transparent 70%),
+    radial-gradient(900px 480px at -10% 85%, rgba(54,54,63,0.55), transparent 60%);
+  --shadow-bleed: 0 0 0 1px rgba(65,65,75,0.25), 0 0 14px rgba(65,65,75,0.30),
+                  0 0 26px rgba(54,54,63,0.22), 0 6px 18px rgba(0,0,0,0.35);
+  --bloom: radial-gradient(120px 40px at 50% 50%, rgba(65,65,75,0.50), transparent 75%);
 }
 
 /* ==========================================================================
@@ -240,6 +258,22 @@
   /* Spinner */
   --spinner-track: rgba(28, 28, 30, 0.10);
   --spinner-head:  var(--accent);
+
+  /* ---- Ink-wash 墨韵 (日间图书馆) ---- */
+  --wash-1: #e9e5db;   /* 淡墨 */
+  --wash-2: #ddd7c9;   /* 中墨 */
+  --wash-3: #d0c9b9;   /* 浓墨 */
+  --seal: #b0402e;
+  --seal-soft: rgba(176, 64, 46, 0.12);
+  /* 与 src/utils/styles.ts paperDark/paperLight 及 src/types/index.ts paperTexture() 保持同步 */
+  --paper-texture: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%222%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22200%22 height=%22200%22 filter=%22url(%23n)%22 opacity=%220.07%22/%3E%3C/svg%3E");
+  --wash-bg-page:
+    radial-gradient(1000px 520px at 12% -8%,  rgba(240,228,204,0.75), transparent 55%),
+    radial-gradient(760px 460px at 108% 18%, rgba(208,201,185,0.50), transparent 65%),
+    radial-gradient(640px 420px at 75% 112%, rgba(233,229,219,0.95), transparent 70%);
+  --shadow-bleed: 0 0 0 1px rgba(208,201,185,0.40), 0 0 14px rgba(208,201,185,0.35),
+                  0 0 24px rgba(233,229,219,0.50), 0 1px 3px rgba(60,50,30,0.06);
+  --bloom: radial-gradient(120px 40px at 50% 50%, rgba(208,201,185,0.45), transparent 75%);
 }
 
 /* --------------------------------------------------------------------------
