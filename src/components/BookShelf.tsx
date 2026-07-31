@@ -1,7 +1,7 @@
 import { useState, useMemo, memo, useEffect, useRef } from 'react'
 import { BookEntry } from '../types'
 import { loadSetting } from '../utils/db'
-import { BookOpen, ChevronLeft, ChevronRight, Timer, Library, MoreVertical, Trash2, Target } from 'lucide-react'
+import { BookOpen, ChevronLeft, ChevronRight, Timer, Library, Trash2, Target } from 'lucide-react'
 import { useBookCover } from '../hooks/useBookCover'
 import { colors } from '../utils/styles'
 import '../styles/components/bookshelf.css'
@@ -86,7 +86,7 @@ const BookCard = memo(function BookCard({ book, i, onOpenBook, onManageBook }: {
         onClick={() => onManageBook(book.filePath)}
         aria-label={`管理《${book.meta.title}》`}
         title="管理书籍"
-      ><MoreVertical size={15} /></button>
+      ><Trash2 size={15} /></button>
       <div className={`book-cover-container ${!displayCover ? 'book-cover-gradient' : ''}`}
         style={!displayCover ? { background: `linear-gradient(135deg, ${c1}, ${c2})` } : undefined}
       >
@@ -124,18 +124,24 @@ const BookCard = memo(function BookCard({ book, i, onOpenBook, onManageBook }: {
   )
 })
 
-const ContinueReadingCard = memo(function ContinueReadingCard({ book, onOpenBook }: { book: BookEntry; onOpenBook: (fp: string) => void }) {
+const ContinueReadingCard = memo(function ContinueReadingCard({ book, onOpenBook, onManageBook }: { book: BookEntry; onOpenBook: (fp: string) => void; onManageBook: (fp: string) => void }) {
   const coverUrl = useBookCover(book.filePath, book.meta.coverMime)
 
   const displayCover = coverUrl ?? book.meta.cover
   return (
     <article
       className="continue-reading-card"
+      onContextMenu={e => { e.preventDefault(); onManageBook(book.filePath) }}
     >
       <button type="button" className="continue-reading-open-control"
         onClick={() => onOpenBook(book.filePath)}
         aria-label={`继续阅读《${book.meta.title}》`}
       />
+      <button type="button" className="continue-reading-menu-btn"
+        onClick={() => onManageBook(book.filePath)}
+        aria-label={`管理《${book.meta.title}》`}
+        title="管理书籍"
+      ><Trash2 size={15} /></button>
       <div className={`continue-reading-cover ${!displayCover ? 'book-cover-gradient' : ''}`}
       >
         {displayCover ? (
@@ -218,16 +224,13 @@ export function BookShelf({ books, readingTime, onOpenBook, onDelete }: BookShel
     .slice(0, 5)
   , [books])
 
-  const recentSet = useMemo(() => new Set(recentBooks.map(b => b.filePath)), [recentBooks])
   const normalizedQuery = searchQuery.trim().toLowerCase()
 
   const sortedBooks = useMemo(() => [...books]
-    .filter(b => {
-      if (normalizedQuery) {
-        return b.meta.title.toLowerCase().includes(normalizedQuery) || b.meta.author.toLowerCase().includes(normalizedQuery)
-      }
-      return !recentSet.has(b.filePath)
-    })
+    .filter(b => !normalizedQuery
+      || b.meta.title.toLowerCase().includes(normalizedQuery)
+      || b.meta.author.toLowerCase().includes(normalizedQuery)
+    )
     .sort((a, b) => {
       if (sortBy === 'recent') {
         const ta = a.lastOpenedAt ?? 0
@@ -238,7 +241,7 @@ export function BookShelf({ books, readingTime, onOpenBook, onDelete }: BookShel
       const vb = sortBy === 'title' ? b.meta.title : b.meta.author
       return va.localeCompare(vb, 'zh-CN')
     })
-  , [books, normalizedQuery, sortBy, recentSet])
+  , [books, normalizedQuery, sortBy])
 
   return (
     <div className="bookshelf">
@@ -287,7 +290,7 @@ export function BookShelf({ books, readingTime, onOpenBook, onDelete }: BookShel
           </div>
           <div ref={recentScrollRef} className="continue-reading-scroll">
             {recentBooks.map(book => (
-              <ContinueReadingCard key={book.filePath} book={book} onOpenBook={onOpenBook} />
+              <ContinueReadingCard key={book.filePath} book={book} onOpenBook={onOpenBook} onManageBook={openManageDialog} />
             ))}
           </div>
         </div>

@@ -11,6 +11,7 @@
   border-radius: 0;
   background: transparent;
   border: 1px solid var(--ink-20);
+  box-shadow: var(--shadow-bleed);
   padding: 18px 12px 16px;
   display: flex;
   flex-direction: column;
@@ -45,14 +46,21 @@
   border: 1px solid var(--ink-20);
   border-radius: var(--r-btn);
   cursor: pointer;
-  opacity: 0.78;
-  transition: opacity 0.15s ease, background 0.15s ease;
+  opacity: 0;
+  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
 
-.book-card-menu-btn:hover,
+/* 悬停书卡时显式显示垃圾桶（键盘焦点同样可见） */
+.book-card:hover .book-card-menu-btn,
 .book-card-menu-btn:focus-visible {
-  opacity: 1;
+  opacity: 0.9;
   background: var(--bg-elev-2);
+}
+
+.book-card-menu-btn:hover {
+  opacity: 1;
+  color: var(--danger);
+  border-color: var(--danger);
 }
 
 .book-card:hover {
@@ -187,6 +195,7 @@
   border-radius: 0;
   background: transparent;
   border: 1px solid var(--ink-20);
+  box-shadow: var(--shadow-bleed);
   padding: 12px 8px;
   display: flex;
   gap: 12px;
@@ -194,8 +203,60 @@
   transition: background 0.15s, border-color 0.15s, var(--transition-theme);
 }
 
-.continue-reading-card > :not(.continue-reading-open-control) {
+/* 朱砂"在读"角标（情感层） */
+.continue-reading-card::before {
+  content: '在读';
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #fff;
+  background: var(--seal);
+  border-radius: 2px;
+  box-shadow: 0 0 8px var(--seal-soft);
   pointer-events: none;
+  user-select: none;
+  z-index: 2;
+}
+
+.continue-reading-card > :not(.continue-reading-open-control):not(.continue-reading-menu-btn) {
+  pointer-events: none;
+}
+
+/* 继续阅读卡：悬停显式垃圾桶（与书卡一致；z-index 2 上方，避开右下角"在读"印） */
+.continue-reading-menu-btn {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: var(--ink-80);
+  background: color-mix(in srgb, var(--bg-base) 76%, transparent);
+  border: 1px solid var(--ink-20);
+  border-radius: var(--r-btn);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: auto;
+  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.continue-reading-card:hover .continue-reading-menu-btn,
+.continue-reading-menu-btn:focus-visible {
+  opacity: 0.9;
+  background: var(--bg-elev-2);
+}
+
+.continue-reading-menu-btn:hover {
+  opacity: 1;
+  color: var(--danger);
+  border-color: var(--danger);
 }
 
 .continue-reading-card:hover {
@@ -426,7 +487,9 @@
   overflow-x: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--ink-20) transparent;
-  padding-bottom: 4px;
+  /* 给"在读"角标（right/bottom -6px 悬出）留出滚动视口内空间，避免被裁切 */
+  padding-right: 8px;
+  padding-bottom: 10px;
 }
 
 .bookshelf-empty {
@@ -459,6 +522,23 @@
   margin: 0;
   color: var(--book-author-color);
   letter-spacing: var(--tracking-wide);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bookshelf-empty-title::before {
+  content: '空';
+  padding: 3px 5px;
+  font-family: var(--font-sans);
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--seal);
+  border-radius: 2px;
+  box-shadow: 0 0 8px var(--seal-soft);
+  user-select: none;
 }
 
 .bookshelf-empty-desc {
