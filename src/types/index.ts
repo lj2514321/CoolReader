@@ -163,7 +163,7 @@ export interface Highlight {
   createdAt: number
 }
 
-export const highlightColors = ['#ffeb3b', '#4caf50', '#2196f3', '#e91e63'] as const
+export const highlightColors = ['#7d7d88', '#a3764a', '#4e7d9e', '#b04f43'] as const
 
 export interface SearchResult {
   chapterIndex: number
@@ -181,26 +181,49 @@ export interface ReadingGoal {
 
 export type Page = 'library' | 'reader'
 
+/* 与 src/styles/tokens.css --paper-texture 及 src/utils/styles.ts paperDark/paperLight 保持同步 */
+const paperTexture = (opacity: number) =>
+  `url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%222%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22200%22 height=%22200%22 filter=%22url(%23n)%22 opacity=%22${opacity}%22/%3E%3C/svg%3E")`
+
+const sealMark = (bodyClass: string, sealColor: string, textColor: string) => `
+  body.${bodyClass} h1::before, [data-reader-content].${bodyClass} h1::before {
+    content: '记';
+    display: inline-block;
+    margin-right: 0.3em;
+    padding: 0.1em 0.12em;
+    background: ${sealColor};
+    color: ${textColor};
+    font-size: 0.5em;
+    line-height: 1.1;
+    border-radius: 2px;
+    vertical-align: 0.25em;
+    pointer-events: none;
+    user-select: none;
+  }`
+
 export const themeStyles = {
   light: `
     body.light, [data-reader-content].light {
-      background: #f7f4ed !important;
+      background: ${paperTexture(0.07)} repeat, #f7f4ed !important;
       color: #25211d !important;
     }
     body.light *, [data-reader-content].light * { color: #25211d !important; }
+    ${sealMark('light', '#b0402e', '#f7f4ed')}
   `,
   dark: `
     body.dark, [data-reader-content].dark {
-      background: #1a1a1f !important;
+      background: ${paperTexture(0.10)} repeat, #1a1a1f !important;
       color: #eee6d9 !important;
     }
     body.dark *, [data-reader-content].dark * { color: #eee6d9 !important; }
+    ${sealMark('dark', '#c95a45', '#f4ede0')}
   `,
   sepia: `
     body.sepia, [data-reader-content].sepia {
-      background: #f4ecd8 !important;
+      background: ${paperTexture(0.08)} repeat, #f4ecd8 !important;
       color: #493a2d !important;
     }
     body.sepia *, [data-reader-content].sepia * { color: #493a2d !important; }
+    ${sealMark('sepia', '#b0402e', '#f4ecd8')}
   `,
 }

@@ -8,7 +8,7 @@ import type {
 } from './BookAdapter'
 import type { ThemeMode, CustomTheme, ReaderLayout } from '../types'
 import { generateCustomThemeCSS } from '../utils/customTheme'
-import { themeStyles } from '../types'
+import { themeStyles, highlightColors } from '../types'
 import { logger } from '../utils/logger'
 import { alignPageScrollTop, calculatePageScrollStep } from '../utils/readerProgress'
 
@@ -323,7 +323,7 @@ export class TxtAdapter implements BookAdapter {
       range: {
         location: `${this.chapterIdx}:${startOffset}-${startOffset + text.length}`,
         text,
-        color: '#ffeb3b',
+        color: highlightColors[0],
       },
     }
   }

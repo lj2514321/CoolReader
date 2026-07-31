@@ -8,7 +8,7 @@ import type {
   SelectionInfo,
 } from './BookAdapter'
 import type { ThemeMode, CustomTheme, ReaderLayout } from '../types'
-import { themeStyles } from '../types'
+import { themeStyles, highlightColors } from '../types'
 import { generateCustomThemeCSS } from '../utils/customTheme'
 import { logger } from '../utils/logger'
 import { bindReaderDocumentEvents, getReaderRelativeBounds, unbindReaderDocumentEvents } from '../utils/readerContentEvents'
@@ -384,7 +384,7 @@ export class MobiAdapter implements BookAdapter {
       range: {
         location: `${this.chapterIdx}:${startOffset}-${startOffset + text.length}`,
         text,
-        color: '#ffeb3b',
+        color: highlightColors[0],
       },
     }
   }

@@ -34,4 +34,16 @@ describe('custom theme helpers', () => {
     expect(css).toContain('[data-reader-content].custom')
     expect(css).toContain('rgba(20,20,20,0.92)')
   })
+
+  it('injects paper texture and chapter-title seal into content themes', () => {
+    expect(themeStyles.light).toContain('data:image/svg+xml')
+    expect(themeStyles.light).toContain('h1::before')
+    expect(themeStyles.dark).toContain('h1::before')
+    expect(themeStyles.sepia).toContain('h1::before')
+    expect(themeStyles.light).toContain('#b0402e')
+    expect(themeStyles.dark).toContain('#c95a45')
+    expect(themeStyles.light).toContain('repeat')
+    expect(themeStyles.dark).toContain('repeat')
+    expect(themeStyles.sepia).toContain('repeat')
+  })
 })

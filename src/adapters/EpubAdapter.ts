@@ -9,7 +9,7 @@ import type {
   SelectionInfo,
 } from './BookAdapter'
 import type { ThemeMode, CustomTheme, ReaderLayout } from '../types'
-import { themeStyles } from '../types'
+import { themeStyles, highlightColors } from '../types'
 import { generateCustomThemeCSS } from '../utils/customTheme'
 import { logger } from '../utils/logger'
 import { bindReaderDocumentEvents } from '../utils/readerContentEvents'
@@ -169,7 +169,7 @@ export class EpubAdapter implements BookAdapter {
         const range = selection.getRangeAt(0)
         try {
           const location = rendition.getCfiFromRange(range)
-          this.onSelectionChange({ selectedText: text.slice(0, 200), range: { location, text, color: '#ffeb3b' } })
+          this.onSelectionChange({ selectedText: text.slice(0, 200), range: { location, text, color: highlightColors[0] } })
         } catch (e) {
           logger.warn('[EpubAdapter selection] getCfiFromRange failed', e)
         }
@@ -478,7 +478,7 @@ export class EpubAdapter implements BookAdapter {
       const cfiRange = this.rendition.getCfiFromRange(range)
       return {
         selectedText: text,
-        range: { location: cfiRange, text, color: '#ffeb3b' },
+        range: { location: cfiRange, text, color: highlightColors[0] },
       }
     } catch {
       return { selectedText: text, range: null }
