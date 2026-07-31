@@ -112,13 +112,12 @@ light: radial-gradient(1000px 520px at 12% -8%,  rgba(240,228,204,0.75), transpa
 | 文件 | 内容 |
 |---|---|
 | `src/styles/tokens.css` | 新增 4.1–4.5 全部 token + 4.6 语义注释 |
-| `src/styles/components/library.css` | 页面背景应用 `--paper-texture` + `--wash-bg-page` |
+| `src/utils/styles.ts` | `defGrad`/`flatDefGrad` 及"墨夜/暖纸"首项预设改为墨晕+纸纹（页面背景的实际载体，经 App.tsx 内联应用） |
+| `src/App.tsx` + `src/styles/theme.css` | 主题切换背景交叉淡入（`.app-bg-wash` 层，0.3s） |
 | `src/styles/components/bookshelf.css` | 书卡 C 档晕染边缘、朱砂"在读"角标、空态印章 |
-| `src/styles/components/settings.css` | 页面背景应用（与 library 一致） |
 | `src/styles/components/sidebar.css` | 当前章节标改朱砂 |
 | `src/styles/components/reading-stats.css` | 统计高亮改朱砂 |
-| `src/styles/components/titlebar.css` | 若其背景独立于页面背景则同步应用墨晕+纸纹；若继承自页面则无需改动（实施时读文件确认） |
-| `src/styles/components/reader.css` | 阅读页背景、按钮墨晕 bloom |
+| `src/styles/components/reader.css` | 按钮墨晕 bloom、书签 tab 激活态朱砂 |
 | `src/types/index.ts` | `highlightColors` 换水墨四色；`themeStyles` 三套加纸纹 + `h1::before` 朱砂小印 |
 | `src/utils/customTheme.ts` | 只读确认不冲突（用户自定义主题不受影响） |
 
