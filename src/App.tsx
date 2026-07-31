@@ -239,6 +239,24 @@ export default function App() {
     }
     return isLibrary ? bgByTheme[uiTheme] : readerBg
   }, [isLibrary, uiTheme, bgByTheme, customBgConfig, customBgLoaded, readerBg])
+  // 背景交叉淡入（渐变不可插值 → 新背景层 0.3s 淡入，旧背景垫底）
+  const [displayedBg, setDisplayedBg] = useState(appBg)
+  const [washBg, setWashBg] = useState<string | null>(null)
+  const washKeyRef = useRef(0)
+  useEffect(() => {
+    if (customBgConfig) {
+      setDisplayedBg(appBg)
+      return
+    }
+    if (appBg === displayedBg) return
+    setWashBg(appBg)
+    washKeyRef.current += 1
+    const t = setTimeout(() => {
+      setDisplayedBg(appBg)
+      setWashBg(null)
+    }, 350)
+    return () => clearTimeout(t)
+  }, [appBg, displayedBg, customBgConfig])
   const customBgStyle = customBgConfig?.type === 'image' && customBgConfig.imageData
     ? {
         backgroundImage: `url(${customBgConfig.imageData})`,
@@ -258,11 +276,16 @@ export default function App() {
       onDrop={handleDrop}
       style={{
         display: 'flex', flexDirection: 'column', height: '100vh',
-        background: appBg,
+        background: displayedBg,
         transition: 'background 0.3s ease, opacity 0.3s ease',
         position: 'relative',
         ...customBgStyle,
       }}>
+      <div
+        key={washKeyRef.current}
+        className="app-bg-wash"
+        style={{ background: washBg ?? 'transparent' }}
+      />
       <TitleBar />
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
         <div style={{

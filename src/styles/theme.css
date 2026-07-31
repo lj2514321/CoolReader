@@ -106,3 +106,17 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* 主题切换：新背景层 0.3s 淡入，形成墨色晕开换场 */
+.app-bg-wash {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  animation: app-bg-wash-in 0.3s ease;
+}
+
+@keyframes app-bg-wash-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
