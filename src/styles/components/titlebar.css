@@ -1,6 +1,8 @@
 /* Titlebar — auto-themed via tokens */
 
 .titlebar-container {
+  position: relative;
+  z-index: 1;
   height: 32px;
   background: transparent;
   display: flex;

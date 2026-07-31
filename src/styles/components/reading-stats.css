@@ -34,7 +34,8 @@
 }
 
 .stat-card.accent {
-  border-color: var(--accent-soft);
+  border-color: var(--seal-soft);
+  box-shadow: var(--shadow-bleed);
 }
 
 .stat-label {

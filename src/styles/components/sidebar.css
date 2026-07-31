@@ -150,7 +150,7 @@
 .sidebar-toc-btn-active {
   color: var(--sidebar-active);
   font-weight: 600;
-  border-left: 3px solid currentColor;
+  border-left: 3px solid var(--seal);
   background: var(--sidebar-hover-bg);
 }
 

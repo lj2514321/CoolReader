@@ -93,7 +93,7 @@
 }
 
 .reader-btn:hover {
-  background: var(--reader-panel-input-bg);
+  background: var(--bloom), var(--reader-panel-input-bg);
   opacity: 1;
 }
 
@@ -429,6 +429,12 @@
 .reader-marker-tab-active {
   color: var(--reader-fg);
   border-bottom-color: var(--reader-fg);
+}
+
+/* 书签 tab 激活态朱砂（情感层） */
+.reader-marker-tab-active {
+  color: var(--seal);
+  border-bottom-color: var(--seal);
 }
 
 .reader-theme-options > button {
