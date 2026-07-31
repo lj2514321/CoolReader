@@ -88,7 +88,7 @@ light: radial-gradient(1000px 520px at 12% -8%,  rgba(240,228,204,0.75), transpa
   - 书签（阅读页）
   - 侧栏当前章节标
   - 阅读统计高亮
-  - 空态印章（书架空态等）
+  - 空态印章（书架空态等；样式与"在读"角标一致：朱砂方印 + 白字，文案实施时定）
 
 ## 7. 阅读正文层
 
@@ -117,7 +117,7 @@ light: radial-gradient(1000px 520px at 12% -8%,  rgba(240,228,204,0.75), transpa
 | `src/styles/components/settings.css` | 页面背景应用（与 library 一致） |
 | `src/styles/components/sidebar.css` | 当前章节标改朱砂 |
 | `src/styles/components/reading-stats.css` | 统计高亮改朱砂 |
-| `src/styles/components/titlebar.css` | 背景与页面一致（如有独立背景） |
+| `src/styles/components/titlebar.css` | 若其背景独立于页面背景则同步应用墨晕+纸纹；若继承自页面则无需改动（实施时读文件确认） |
 | `src/styles/components/reader.css` | 阅读页背景、按钮墨晕 bloom |
 | `src/types/index.ts` | `highlightColors` 换水墨四色；`themeStyles` 三套加纸纹 + `h1::before` 朱砂小印 |
 | `src/utils/customTheme.ts` | 只读确认不冲突（用户自定义主题不受影响） |
