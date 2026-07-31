@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Ink-Wash 水墨风
+
+- Added ink-wash token family (`--wash-1/2/3`, `--seal`, `--paper-texture`, `--wash-bg-page`, `--shadow-bleed`, `--bloom`) across both themes (暗夜书房 / 日间图书馆); default backgrounds now layer ink-wash gradients with fine paper grain.
+- Reader content themes (light/sepia/dark) now inject paper texture and a vermilion seal mark on chapter `h1` titles; highlight palette switched to ink-wash colors (淡墨/赭石/花青/胭脂), with adapter default selection color derived from the shared palette.
+- Cards use ink-bleed edge shadows; buttons bloom with ink on hover; seal-red (朱砂) marks current chapter, reading stats, bookmark tab, "在读" badge, and empty-state stamp.
+- Theme switching cross-fades the background (0.3s ink-flow transition) with the titlebar kept above the transition layer.
+
 ### UI refinement
 
 - Reworked reader chrome into extracted top, bottom, and more-menu components.
